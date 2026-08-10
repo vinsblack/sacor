@@ -116,3 +116,63 @@ toccare l'oracle.
 Resta necessario, ma solo con bollette di Vins o di terzi consenzienti
 (`corpus/README.md`). Non blocca il Blocco 1. Il numero pubblicato dovrà
 dichiarare la natura del corpus: "su corpus sintetico" non è "su corpus reale".
+
+---
+
+## Blocco 2 — Triage (nessuna AI)
+
+Obiettivo: ricostruire dal solo PDF ciò che oggi `metadata.json` dichiara
+(ADR-016). Costo di inferenza zero, numero reale, regressioni visibili in CI.
+
+Il triage viene prima dell'estrattore: se l'estrattore riceve due fatture
+credendole una, nessun modello salva il risultato.
+
+### T2.1 — Modello dati del triage
+`src/sacor/triage.py`. Dataclass frozen:
+
+    PaginaInfo: numero, ha_text_layer, densita_testo, rotazione
+    Istanza:    id, pagine (from, to)
+    TriageResult: file, pagine (tuple[PaginaInfo]), istanze, e_scansione
+
+**Accettazione:** mypy strict pulito, nessuna logica ancora.
+
+### T2.2 — Rilevamento text layer e densità
+`pdfplumber` per pagina: caratteri estratti, densità = caratteri / area.
+Soglia configurabile, default esplicito e documentato.
+`e_scansione` = vero se la densità mediana è sotto soglia.
+`pdfplumber` diventa dipendenza **runtime** (ADR-015).
+
+**Accettazione:** sui PDF `--scansione` rileva scansione; sui digitali no.
+
+### T2.3 — Rilevamento rotazione
+Prima `/Rotate` dal PDF. Se assente e la pagina è immagine, OSD Tesseract.
+Se Tesseract non è installato, il campo è `None` — mai un'eccezione.
+
+**Accettazione:** sui PDF `--ruotata` rileva 180°; sugli altri 0.
+
+### T2.4 — Segmentazione guidata dallo schema (ADR-017)
+Nuova sezione opzionale `segmentazione` nello schema. Registro dei tipi in
+`src/sacor/segmentation.py`, primo tipo: `cambio_valore` (regex su ogni pagina,
+nuova istanza quando il valore catturato cambia).
+Default in assenza della sezione: una sola istanza per file.
+
+**Accettazione:** sui PDF `--multi-fattura` produce 2 istanze con gli stessi
+intervalli di pagine del metadata; su tutti gli altri produce 1 istanza.
+Aggiorna il loader di schema per validare la nuova sezione.
+
+### T2.5 — Eval del triage
+`eval/triage.py`: confronta il TriageResult con `metadata.json` e riporta
+accuratezza per attributo (istanze, intervalli pagine, scansione, rotazione).
+`scripts/state.py` aggiunge la riga "Accuratezza triage".
+
+**Accettazione:** il report gira e produce un numero reale, non 0% per
+costruzione. Atteso ≥ 90% sul corpus sintetico; se è più basso, il difetto è
+nel triage e va indagato prima di procedere.
+
+---
+
+**Fine Blocco 2 quando:** accuratezza triage pubblicata in `03-current-state.md`
+e la segmentazione ricostruisce correttamente i multi-fattura.
+
+Blocco 3 (primo extractor reale, tier 1) si progetta dopo — è il primo blocco
+che costa inferenza.

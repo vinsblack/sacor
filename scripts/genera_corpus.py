@@ -55,6 +55,8 @@ FLAG_NOMI: tuple[str, ...] = (
     "monoraria",
     "ruotata",
     "scansione",
+    "scansione_sporca",
+    "pagina_ibrida",
 )
 
 
@@ -67,6 +69,8 @@ class Flags:
     monoraria: bool = False
     ruotata: bool = False
     scansione: bool = False
+    scansione_sporca: bool = False
+    pagina_ibrida: bool = False
 
     def attivi(self) -> list[str]:
         return [nome for nome in FLAG_NOMI if getattr(self, nome)]
@@ -170,9 +174,61 @@ def _righe_fattura(dati: DatiFattura, flags: Flags) -> list[str]:
 # --- rendering digitale (reportlab), tre layout distinti ---
 
 
-def _disegna_layout_alfa(c: Canvas, blocchi: list[list[str]]) -> None:
+_COLORE_LOGO: dict[str, tuple[int, int, int]] = {
+    "Alfa Energia": (230, 126, 34),
+    "Beta Luce": (41, 128, 185),
+    "Gamma Power": (39, 174, 96),
+}
+
+
+def _immagine_logo(colore: tuple[int, int, int]) -> ImageReader:
+    img = Image.new("RGB", (200, 60), color=colore)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return ImageReader(buf)
+
+
+def _immagine_qr_finta(rng: random.Random, celle_lato: int = 16, px_cella: int = 6) -> ImageReader:
+    """QR finto: griglia bianco/nero pseudo-casuale, stessa forma e posizione
+    di un QR reale ma non decodificabile. Basta ad occupare un blocco
+    immagine plausibile in dimensione e posizione (ADR-021)."""
+    lato_px = celle_lato * px_cella
+    img = Image.new("L", (lato_px, lato_px), color=255)
+    disegno = ImageDraw.Draw(img)
+    for riga in range(celle_lato):
+        for colonna in range(celle_lato):
+            if rng.random() < 0.5:
+                x0, y0 = colonna * px_cella, riga * px_cella
+                disegno.rectangle([x0, y0, x0 + px_cella, y0 + px_cella], fill=0)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return ImageReader(buf)
+
+
+def _disegna_logo_e_qr(c: Canvas, rng: random.Random, layout: str) -> None:
+    """Logo in alto a sinistra, QR finto in alto a destra: le tre bollette
+    reali esaminate li avevano entrambi, il corpus sintetico prima no
+    (ADR-021)."""
+    larghezza, altezza = A4
+    c.drawImage(
+        _immagine_logo(_COLORE_LOGO[layout]), 50, altezza - 60, width=120, height=35, mask="auto"
+    )
+    lato_qr = 90.0
+    c.drawImage(
+        _immagine_qr_finta(rng),
+        larghezza - lato_qr - 50,
+        altezza - lato_qr - 45,
+        width=lato_qr,
+        height=lato_qr,
+    )
+
+
+def _disegna_layout_alfa(c: Canvas, rng: random.Random, blocchi: list[list[str]]) -> None:
     _, altezza = A4
-    y = altezza - 60
+    _disegna_logo_e_qr(c, rng, "Alfa Energia")
+    y = altezza - 100
     c.setFont("Helvetica-Bold", 16)
     c.drawString(50, y, "ALFA ENERGIA — Bolletta luce")
     y -= 30
@@ -184,9 +240,10 @@ def _disegna_layout_alfa(c: Canvas, blocchi: list[list[str]]) -> None:
         y -= 20
 
 
-def _disegna_layout_beta(c: Canvas, blocchi: list[list[str]]) -> None:
+def _disegna_layout_beta(c: Canvas, rng: random.Random, blocchi: list[list[str]]) -> None:
     larghezza, altezza = A4
-    y = altezza - 60
+    _disegna_logo_e_qr(c, rng, "Beta Luce")
+    y = altezza - 100
     c.setFont("Helvetica-Bold", 16)
     c.drawCentredString(larghezza / 2, y, "Beta Luce S.r.l.")
     c.line(50, y - 8, larghezza - 50, y - 8)
@@ -199,9 +256,10 @@ def _disegna_layout_beta(c: Canvas, blocchi: list[list[str]]) -> None:
         y -= 20
 
 
-def _disegna_layout_gamma(c: Canvas, blocchi: list[list[str]]) -> None:
+def _disegna_layout_gamma(c: Canvas, rng: random.Random, blocchi: list[list[str]]) -> None:
     _, altezza = A4
-    y = altezza - 50
+    _disegna_logo_e_qr(c, rng, "Gamma Power")
+    y = altezza - 90
     c.setFont("Helvetica-Bold", 14)
     c.drawString(50, y, "GAMMA POWER")
     y -= 20
@@ -223,10 +281,10 @@ _DISEGNATORI = {
 }
 
 
-def _pdf_digitale(layout: str, blocchi: list[list[str]]) -> bytes:
+def _pdf_digitale(layout: str, blocchi: list[list[str]], rng: random.Random) -> bytes:
     buf = io.BytesIO()
     c = Canvas(buf, pagesize=A4, invariant=1)
-    _DISEGNATORI[layout](c, blocchi)
+    _DISEGNATORI[layout](c, rng, blocchi)
     c.showPage()
     c.save()
     return buf.getvalue()
@@ -235,7 +293,18 @@ def _pdf_digitale(layout: str, blocchi: list[list[str]]) -> bytes:
 # --- rendering "scansione": immagine degradata, nessun text layer ---
 
 
-def _pdf_scansione(blocchi: list[list[str]]) -> bytes:
+_ALFABETO_RUMORE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+
+def _frammenti_rumorosi(rng: random.Random, n: int = 12) -> list[str]:
+    """Poche decine di caratteri totali: frammenti corti, tipo intestazioni
+    digitali o numeri isolati sopra un corpo immagine (ADR-019)."""
+    return [
+        "".join(rng.choice(_ALFABETO_RUMORE) for _ in range(rng.randint(2, 4))) for _ in range(n)
+    ]
+
+
+def _pdf_scansione(blocchi: list[list[str]], rng: random.Random, sporca: bool) -> bytes:
     larghezza_px, altezza_px = 1240, 1754  # ~150dpi su A4
     img = Image.new("L", (larghezza_px, altezza_px), color=255)
     disegno = ImageDraw.Draw(img)
@@ -262,6 +331,73 @@ def _pdf_scansione(blocchi: list[list[str]]) -> bytes:
     c = Canvas(buf_pdf, pagesize=A4, invariant=1)
     larghezza_pt, altezza_pt = A4
     c.drawImage(ImageReader(buf_img), 0, 0, width=larghezza_pt, height=altezza_pt)
+
+    if sporca:
+        # text layer rado e rumoroso SOPRA l'immagine: caratteri reali ed
+        # estraibili, a differenza del testo "cotto" nei pixel sopra.
+        c.setFont("Helvetica", 6)
+        for frammento in _frammenti_rumorosi(rng):
+            x = rng.uniform(20, larghezza_pt - 20)
+            y_pt = rng.uniform(20, altezza_pt - 20)
+            c.drawString(x, y_pt, frammento)
+
+    c.showPage()
+    c.save()
+    return buf_pdf.getvalue()
+
+
+# --- rendering "ibrida": immagine grande + intestazione digitale reale ---
+
+_PAROLE_INTESTAZIONE_IBRIDA = (
+    "Comunicazione relativa alla fornitura di energia elettrica per il "
+    "periodo di riferimento indicato in bolletta con dettaglio dei consumi "
+    "rilevati dal contatore e della potenza impegnata per l'utenza"
+).split()
+
+
+def _immagine_grande_ibrida(rng: random.Random) -> ImageReader:
+    """Immagine 'allegato' generica (non testo cotto): qualche rettangolo
+    grigio a tonalita' variabile, solo per occupare un'area plausibile —
+    il contenuto non e' rilevante, conta la geometria (ADR-021)."""
+    larghezza_px, altezza_px = 800, 1000
+    img = Image.new("L", (larghezza_px, altezza_px), color=200)
+    disegno = ImageDraw.Draw(img)
+    for _ in range(30):
+        x0 = rng.randint(0, larghezza_px)
+        y0 = rng.randint(0, altezza_px)
+        x1 = min(larghezza_px, x0 + rng.randint(20, 120))
+        y1 = min(altezza_px, y0 + rng.randint(20, 120))
+        disegno.rectangle([x0, y0, x1, y1], fill=rng.randint(120, 230))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=70)
+    buf.seek(0)
+    return ImageReader(buf)
+
+
+def _pdf_ibrida(rng: random.Random) -> bytes:
+    """Pagina che rompe entrambe le feature del triage per costruzione
+    (ADR-021): immagine grande (~85% dell'area) PIU' un'intestazione
+    digitale reale in alto (~20-30 parole, densita' paragonabile al
+    digitale — testo vero, non cotto nei pixel). Non e' legata al contenuto
+    delle fatture: serve solo a misurare dove cade il triage, non a
+    rappresentare un documento reale specifico.
+    """
+    buf_pdf = io.BytesIO()
+    c = Canvas(buf_pdf, pagesize=A4, invariant=1)
+    larghezza_pt, altezza_pt = A4
+
+    c.setFont("Helvetica", 10)
+    y = altezza_pt - 50
+    parole = _PAROLE_INTESTAZIONE_IBRIDA
+    for i in range(0, len(parole), 8):
+        c.drawString(50, y, " ".join(parole[i : i + 8]))
+        y -= 14
+
+    larghezza_img = larghezza_pt * 0.95
+    altezza_img = altezza_pt * 0.85
+    x_img = (larghezza_pt - larghezza_img) / 2
+    c.drawImage(_immagine_grande_ibrida(rng), x_img, 20, width=larghezza_img, height=altezza_img)
+
     c.showPage()
     c.save()
     return buf_pdf.getvalue()
@@ -299,7 +435,12 @@ def genera_documento(
     ]
     blocchi = [_righe_fattura(dati, flags) for dati in fatture]
 
-    pdf_bytes = _pdf_scansione(blocchi) if flags.scansione else _pdf_digitale(layout, blocchi)
+    if flags.pagina_ibrida:
+        pdf_bytes = _pdf_ibrida(rng)
+    elif flags.scansione or flags.scansione_sporca:
+        pdf_bytes = _pdf_scansione(blocchi, rng, sporca=flags.scansione_sporca)
+    else:
+        pdf_bytes = _pdf_digitale(layout, blocchi, rng)
     if flags.ruotata:
         pdf_bytes = _ruota(pdf_bytes)
 
@@ -315,6 +456,15 @@ def genera_documento(
     # doc_id (anche con --multi-fattura, le fatture stanno sulla stessa
     # pagina). "pagine" e' quindi [1, 1] per ogni istanza finche' non serve
     # un rendering multi-pagina con sezioni davvero separate.
+    if flags.pagina_ibrida:
+        qualita = "ibrida"
+    elif flags.scansione_sporca:
+        qualita = "scansione_sporca"
+    elif flags.scansione:
+        qualita = "scansione_degradata"
+    else:
+        qualita = "digitale"
+
     metadata_entries = {
         instanza_id: {
             "file": nome_file,
@@ -322,7 +472,7 @@ def genera_documento(
             "layout": layout,
             "tipo_lettura": "stimata" if flags.consumo_stimato else "effettiva",
             "monoraria": flags.monoraria,
-            "qualita": "scansione_degradata" if flags.scansione else "digitale",
+            "qualita": qualita,
             "flag_attivi": flags.attivi(),
         }
         for instanza_id, _ in istanze

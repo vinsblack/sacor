@@ -178,3 +178,143 @@ Nessuna dipendenza runtime aggiunta oltre PyYAML.
 CI ora è verde: da questo commit le dev-dependencies si pinnano alla minor,
 così un rilascio a monte non rompe la build in un momento casuale.
 Nota: `pdfplumber` diventerà dipendenza **runtime** con lo strato Triage.
+
+## ADR-016 — Il triage ha un bersaglio misurabile: ricostruire i metadati
+**2026-08-10.** In produzione `corpus/metadata.json` non esiste. Il triage deve
+scoprire dal solo PDF ciò che oggi il metadata dichiara: quante istanze
+documentali contiene, su quali pagine, se c'è text layer, se le pagine sono
+ruotate, se è una scansione.
+
+Questo dà al Blocco 2 una metrica propria a **costo di inferenza zero**:
+accuratezza del triage = quanto il triage ricostruisce il metadata. Nessun
+modello coinvolto, numero reale, regressioni visibili in CI.
+
+Conseguenza sull'ordine di lavoro: il triage viene prima dell'estrattore. Se
+l'estrattore riceve due fatture credendole una, nessuna qualità di modello
+salva il risultato.
+
+## ADR-017 — La segmentazione è guidata dallo schema
+**2026-08-10.** Separare due fatture dentro un PDF richiede conoscenza di
+dominio ("una nuova fattura inizia dove cambia il numero fattura"). Il core
+però non deve sapere cosa sia una fattura.
+
+Soluzione: lo schema dichiara il criterio, il codice lo esegue.
+
+    segmentazione:
+      tipo: cambio_valore
+      pattern: 'Fattura(?: elettronica)? n\.?\s*([0-9]+)'
+      minimo_pagine: 1
+
+`tipo` mappa su una funzione registrata, come per le invarianti (ADR-014-bis,
+01-architecture). Nuovo tipo di documento = nuovo pattern nello YAML, non nuovo
+codice.
+
+Se lo schema non dichiara `segmentazione`, il default è una sola istanza per
+file. Il comportamento semplice resta il default, non un caso speciale.
+
+## ADR-018 — "Scansione" è proprietà della pagina, non del file
+**2026-08-10.** `e_scansione` era un booleano di documento calcolato sulla
+mediana delle densità. Sbagliato: un PDF può essere misto — pagine digitali e
+pagine scansionate nello stesso file (caso reale osservato in ADR-013, dove un
+contenitore ospitava documenti eterogenei).
+
+Con un flag unico di documento l'estrattore instrada l'intero file su un solo
+percorso e sbaglia sistematicamente sulle pagine dell'altro tipo. Errore
+silenzioso: nessuna eccezione, risultato plausibile.
+
+Decisione: `PaginaInfo.e_scansione` per pagina. Il flag di documento resta come
+proprietà **derivata** (`all(...)` / `any(...)` esplicito al punto d'uso), mai
+come unico dato disponibile.
+
+## ADR-019 — Il corpus deve contenere scansioni sporche
+**2026-08-10.** Il flag `--scansione` genera pagine con **zero** caratteri.
+Su un corpus così, la densità è indistinguibile da un booleano
+`ha_text_layer`: qualunque soglia tra 0 e 4e-4 supera i test. La soglia è
+quindi non falsificabile — nessun test può dire se è giusta o sbagliata.
+
+Le scansioni reali non sono pulite: OCR parziale del driver di stampa,
+intestazioni digitali sopra corpo immagine, watermark testuali. Producono
+densità basse ma diverse da zero — esattamente la zona dove la soglia conta.
+
+Decisione: nuovo flag `--scansione-sporca` che inserisce un text layer rado e
+rumoroso (poche decine di caratteri per pagina). Senza questo caso, la soglia
+di T2.2 resta un numero non verificato.
+
+## ADR-020 — Copertura immagine come segnale primario, densità secondario
+**2026-08-10.** Misurazione su corpus sintetico (`scripts/misura_triage.py`):
+
+| feature | digitale | scans. pulita | scans. sporca | margine |
+|---|---|---|---|---|
+| densità testo | 4,17–4,91e-4 | 0 | 6,78e-5 | 6,15× |
+| copertura immagine | 0,00 | 1,00 | 1,00 | separazione totale |
+
+**La soglia precedente era sbagliata, e ora è dimostrato.** 5e-5 sta *sotto*
+la densità della scansione sporca (6,78e-5): quella pagina veniva classificata
+come digitale. È esattamente il buco di falsificabilità previsto da ADR-019 —
+e la conferma che scegliere una soglia prima di misurare non funziona.
+
+**Decisione.** `copertura_immagine` è il segnale primario, soglia **0,5**.
+Non dipende da quanta scrittura c'è sulla pagina, che è il difetto della
+densità.
+
+`densita_testo` resta segnale secondario, con soglia spostata a **1,7e-4**:
+media geometrica tra i due estremi osservati (6,78e-5 e 4,17e-4), cioè il punto
+centrale in scala logaritmica. Margine registrato: 2,5× per lato.
+
+Regola generale: **ogni soglia si annota con il margine osservato, non solo col
+valore.** Un numero senza margine non è monitorabile — se domani un documento
+reale cade a 1,6e-4, il margine è chiuso e il modello va rivisto, ma senza il
+margine registrato nessuno se ne accorge.
+
+## ADR-021 — Il corpus sintetico è troppo pulito, e la separazione è in parte circolare
+**2026-08-10.** `copertura_immagine` = 0,00 esatto sui digitali e 1,00 esatto
+sulle scansioni. Nessun documento reale si comporta così:
+
+- **I digitali non sono a zero.** Tutte e tre le bollette reali esaminate
+  contenevano loghi e QR code. Copertura reale attesa: 0,02–0,15.
+- **La separazione perfetta è quasi tautologica.** Il flag `--scansione`
+  disegna un'immagine a piena pagina, quindi la copertura *deve* risultare 1,0.
+  Stiamo misurando il generatore, non il mondo.
+- **Il caso ibrido non esiste nel corpus.** Pagina immagine con intestazione
+  digitale sopra: copertura ~0,85, densità nella norma. È il caso che rompe
+  entrambe le feature, e non è mai stato generato.
+
+Decisioni: (a) i layout digitali includono logo e QR; (b) nuovo flag
+`--pagina-ibrida`; (c) il margine "infinito" non va citato da nessuna parte
+come risultato — è un artefatto del generatore.
+
+## ADR-022 — Triage a tre stati: il binario scansione/digitale è sbagliato
+**2026-08-10.** Misura del caso ibrido: copertura 0,79, densità 3,87e-4
+(paragonabile al digitale). Con soglia binaria a 0,5 finisce in "scansione".
+
+La domanda "questa pagina è una scansione?" è **mal posta** per una pagina
+ibrida: la pagina è entrambe le cose. Qualunque risposta binaria perde
+informazione.
+
+**I due errori non costano uguale.**
+- Ibrida classificata *scansione* → si paga inferenza su una pagina che aveva
+  del testo affidabile. Costa denaro, non correttezza.
+- Ibrida classificata *digitale* → l'estrazione testuale restituisce le 28
+  parole dell'intestazione e ignora l'85% del contenuto. Nessuna eccezione,
+  risultato plausibile. **Errore silenzioso.**
+
+Ma la soluzione non è spostare la soglia: è non forzare un binario. Un sistema
+che risponde `pass`/`warning`/`reject` sui documenti non può poi decidere in
+modo binario su un segnale altrettanto incerto — sarebbe incoerente con la
+tesi stessa del progetto.
+
+**Decisione: `TipoPagina` a tre stati**, per copertura immagine.
+
+| stato | banda | instradamento |
+|---|---|---|
+| `digitale` | < 0,15 | solo parser testuale |
+| `ibrida` | 0,15 – 0,85 | entrambi i percorsi, esito arbitrato |
+| `scansione` | > 0,85 | solo percorso immagine |
+
+Margini osservati: digitale 0,0266 contro 0,15 → 5,6×; scansione 1,00 contro
+0,85 → 1,18× (sottile, ma il caso scansione è a piena pagina per costruzione:
+va rimisurato su documenti reali). Ibrido osservato 0,79, dentro la banda.
+
+La banda ibrida non è un ripiego: è lo stesso principio dell'arbitrato e del
+gate a tre livelli. Dove il segnale è incerto, il sistema lo dichiara invece di
+scegliere in silenzio.
