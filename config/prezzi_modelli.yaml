@@ -1,0 +1,61 @@
+# Tabella prezzi dei modelli reali (T4.3). File separato dal codice per
+# istruzione esplicita: "I prezzi cambiano: non devono stare nel codice".
+# Nessuna garanzia di attualita': prima di un bake-off vero, VERIFICARE i
+# prezzi correnti sulla piattaforma di ciascun provider — questa tabella
+# scade in fretta.
+#
+# token_immagine (T4.5, C1): formula usata per stimare i token di
+# un'immagine PRIMA di chiamare l'API — le pagine del tier 1 sono
+# SCANSIONE/IBRIDA, senza text layer, quindi la stima non puo' venire dalla
+# lunghezza del testo. `tipo` e' l'unico campo che il codice legge
+# (sacor.providers.token_stima); `formula`/`fonte`/`verificato_il` sono
+# documentazione per chi legge il file e vanno tenuti a mano in sincronia
+# col `tipo`. Se la formula reale di un provider non e' verificabile in
+# questa sessione, si dichiara una stima al rialzo — mai al ribasso.
+aggiornato_il: "2026-08-10"
+
+modelli:
+  # Anthropic — prezzi API first-party, $/milione di token (skill claude-api).
+  claude-opus-5:
+    costo_input_per_milione: 5.00
+    costo_output_per_milione: 25.00
+    token_immagine:
+      tipo: lineare_wh_750
+      formula: "ceil((larghezza_px * altezza_px) / 750)"
+      fonte: "Anthropic, vision guide — formula pubblica per il conteggio token immagine, valida per tutti i modelli Claude attuali"
+      verificato_il: "2026-08-10"
+  claude-sonnet-5:
+    costo_input_per_milione: 3.00
+    costo_output_per_milione: 15.00
+    token_immagine:
+      tipo: lineare_wh_750
+      formula: "ceil((larghezza_px * altezza_px) / 750)"
+      fonte: "Anthropic, vision guide — formula pubblica per il conteggio token immagine, valida per tutti i modelli Claude attuali"
+      verificato_il: "2026-08-10"
+  claude-haiku-4-5:
+    costo_input_per_milione: 1.00
+    costo_output_per_milione: 5.00
+    token_immagine:
+      tipo: lineare_wh_750
+      formula: "ceil((larghezza_px * altezza_px) / 750)"
+      fonte: "Anthropic, vision guide — formula pubblica per il conteggio token immagine, valida per tutti i modelli Claude attuali"
+      verificato_il: "2026-08-10"
+
+  # OpenAI — prezzi pubblici noti al momento della scrittura. Non verificati
+  # live: controllare su platform.openai.com/pricing prima di spendere.
+  gpt-4o:
+    costo_input_per_milione: 2.50
+    costo_output_per_milione: 10.00
+    token_immagine:
+      tipo: tile_512_openai
+      formula: "85 + 170 * ceil(larghezza_px/512) * ceil(altezza_px/512)  [dettaglio alto]"
+      fonte: "OpenAI, vision pricing — formula pubblica nota (tile 512x512, dettaglio alto), specifica per gpt-4o"
+      verificato_il: "2026-08-10"
+  gpt-4o-mini:
+    costo_input_per_milione: 0.15
+    costo_output_per_milione: 0.60
+    token_immagine:
+      tipo: tile_512_openai_stima_al_rialzo
+      formula: "4 * (85 + 170 * ceil(larghezza_px/512) * ceil(altezza_px/512))  — margine di sicurezza x4, NON e' la formula reale confermata"
+      fonte: "Il moltiplicatore token/immagine specifico di gpt-4o-mini non e' verificabile senza accesso a documentazione live in questa sessione. Si riusa la formula base nota di gpt-4o con un margine x4: dichiaratamente una stima al rialzo, non una misura (istruzione utente: mai al ribasso)."
+      verificato_il: "2026-08-10"

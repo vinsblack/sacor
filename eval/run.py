@@ -5,14 +5,16 @@ dichiarate nell'oracle (ADR-033): misura la pipeline vera."""
 
 from __future__ import annotations
 
+import io
 import json
 import sys
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 import pdfplumber
 
+from sacor.cache import DEFAULT_CACHE_DIR, DEFAULT_TTL_SECONDI, CacheDisco, chiave_cache
 from sacor.compare import uguali
 from sacor.extractor import (
     DiagnosticaCampo,
@@ -21,7 +23,11 @@ from sacor.extractor import (
     TierZeroExtractor,
 )
 from sacor.oracle import Oracle, OracleError, load_oracle
-from sacor.schema import Schema, SchemaError, load
+from sacor.providers.pricing import PrezziError
+from sacor.providers.pricing import carica as carica_prezzi
+from sacor.providers.prompt import costruisci_prompt
+from sacor.providers.token_stima import TipoFormulaSconosciuto, stima_token_immagine
+from sacor.schema import Campo, Schema, SchemaError, load
 from sacor.segmentation import Istanza, segmenta
 from sacor.triage import analizza, normalizza_testo
 
@@ -30,6 +36,23 @@ SCHEMA_PATH = REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
 ORACLE_PATH = REPO_ROOT / "corpus" / "attesi.json"
 METADATA_PATH = REPO_ROOT / "corpus" / "metadata.json"
 CORPUS_RAW = REPO_ROOT / "corpus" / "synth"
+
+# T4.4: elenco dei modelli del bake-off (scripts/bakeoff.py legge questa
+# stessa lista, non una copia). Nessun modello "scelto" nel codice — e' solo
+# l'insieme su cui gira il confronto; la tabella prodotta dal bake-off
+# decide, non questa lista (istruzione utente verbatim).
+MODELLI_BAKEOFF: tuple[str, ...] = ("claude-haiku-4-5", "gpt-4o-mini")
+
+# T4.5, C1: stessa risoluzione usata da --dry-run per stimare e da
+# scripts/bakeoff.py per chiamare davvero — la stima deve misurare quello
+# che poi viene realmente inviato, non un'approssimazione indipendente.
+RISOLUZIONE_RENDER_DPI = 150
+
+# ADR-035 (provvisorio): nessun modello di produzione scelto per il flusso
+# tier 1 normale (non bake-off, che disattiva sempre la cache — T4.4). Serve
+# solo a dare un namespace stabile alla chiave di cache in --dry-run.
+_MODELLO_CACHE_GENERICO = "tier1-generico"
+_TOKEN_OUTPUT_STIMATI_PER_CAMPO = 8
 
 
 @dataclass(frozen=True)
@@ -92,6 +115,81 @@ def _raggruppa_per_file(
         nome_file = str(voce.get("file", f"{chiave}.pdf"))
         per_file.setdefault(nome_file, []).append(chiave)
     return per_file
+
+
+@dataclass(frozen=True)
+class ChiamataDaCompletare:
+    """Un'istanza (ADR-033) per cui il tier 0 lascia almeno un campo None,
+    coi campi mancanti da chiedere al tier 1. Calcolate in un solo posto:
+    --dry-run e scripts/bakeoff.py (T4.4: 'stesse 5 chiamate') leggono
+    esattamente questo elenco, non una rideterminazione indipendente."""
+
+    istanza: Istanza
+    chiave_oracle: str
+    campi_mancanti: tuple[Campo, ...]
+
+
+def istanze_da_completare(
+    schema_path: Path = SCHEMA_PATH,
+    oracle_path: Path = ORACLE_PATH,
+    corpus_raw: Path = CORPUS_RAW,
+    metadata_path: Path = METADATA_PATH,
+) -> tuple[Schema, Oracle, list[ChiamataDaCompletare], int] | None:
+    """None se il corpus non c'e' ancora. Altrimenti (schema, oracle,
+    chiamate, file_disallineati): stesso criterio di esegui_eval per
+    associare istanze rilevate a chiavi oracle (per ordine di pagina, MAI
+    per id — ADR-014-bis), gli stessi file esclusi se il numero di istanze
+    rilevate non combacia (ADR-033)."""
+    schema = load(schema_path)
+    if not oracle_path.is_file():
+        return None
+    oracle = load_oracle(oracle_path, schema)
+    metadata = _carica_metadata(metadata_path)
+    per_file = _raggruppa_per_file(oracle, metadata)
+
+    tier0 = TierZeroExtractor()
+    chiamate: list[ChiamataDaCompletare] = []
+    file_disallineati = 0
+
+    for nome_file, chiavi_oracle in per_file.items():
+        pdf = corpus_raw / nome_file
+        triage_result = analizza(pdf)
+        with pdfplumber.open(pdf) as documento:
+            testi_pagine = [normalizza_testo(p) for p in documento.pages]
+        esito_segmentazione = segmenta(
+            pdf, triage_result.pagine, testi_pagine, schema.segmentazione
+        )
+
+        if len(esito_segmentazione.istanze) != len(chiavi_oracle):
+            file_disallineati += 1
+            continue
+
+        for istanza, chiave_oracle in zip(
+            esito_segmentazione.istanze, chiavi_oracle, strict=True
+        ):
+            estratti = tier0.extract(istanza, schema)
+            campi_mancanti = tuple(c for c in schema.campi if estratti.get(c.nome) is None)
+            if campi_mancanti:
+                chiamate.append(ChiamataDaCompletare(istanza, chiave_oracle, campi_mancanti))
+
+    return schema, oracle, chiamate, file_disallineati
+
+
+def renderizza_pagine_istanza(istanza: Istanza) -> list[tuple[bytes, int, int]]:
+    """PNG (bytes, larghezza_px, altezza_px) per ogni pagina dell'istanza,
+    alla stessa risoluzione di scripts/bakeoff.py (T4.5, C1): le pagine del
+    tier 1 sono SCANSIONE/IBRIDA, senza text layer — solo l'immagine
+    renderizzata dice quanto costa davvero la chiamata."""
+    with pdfplumber.open(istanza.file) as documento:
+        pagine = documento.pages[istanza.pagina_da - 1 : istanza.pagina_a]
+        risultato: list[tuple[bytes, int, int]] = []
+        for pagina in pagine:
+            immagine = pagina.to_image(resolution=RISOLUZIONE_RENDER_DPI).original
+            buffer = io.BytesIO()
+            immagine.save(buffer, format="PNG")
+            larghezza, altezza = immagine.size
+            risultato.append((buffer.getvalue(), larghezza, altezza))
+        return risultato
 
 
 def _diagnostica_per(
@@ -281,7 +379,149 @@ def formatta_report(report: Report) -> str:
     return "\n".join(righe)
 
 
+@dataclass(frozen=True)
+class StimaCostoModello:
+    token_input_stimati: int
+    token_output_stimati: int
+    costo_stimato: float
+
+
+@dataclass(frozen=True)
+class StimaDryRun:
+    chiamate_necessarie: int
+    gia_in_cache: int
+    file_disallineati: int
+    costo_per_modello: dict[str, StimaCostoModello]  # vuoto se i prezzi non si caricano
+
+
+def esegui_dry_run(
+    schema_path: Path = SCHEMA_PATH,
+    oracle_path: Path = ORACLE_PATH,
+    corpus_raw: Path = CORPUS_RAW,
+    metadata_path: Path = METADATA_PATH,
+    cache_dir: Path = DEFAULT_CACHE_DIR,
+    ttl_secondi: int = DEFAULT_TTL_SECONDI,
+    modelli: Sequence[str] = MODELLI_BAKEOFF,
+) -> StimaDryRun | None:
+    """ADR-034: stima quante chiamate servirebbero, senza chiamare nulla.
+    ADR-035: una chiamata serve solo per istanze dove tier 0 ha lasciato
+    almeno un campo None — un valore deterministico non si sovrascrive mai.
+
+    T4.5, C1: le pagine coinvolte sono SCANSIONE/IBRIDA, senza text layer —
+    i token si stimano dall'immagine renderizzata (stessa risoluzione di
+    scripts/bakeoff.py), con la formula del provider dichiarata in
+    config/prezzi_modelli.yaml, non dalla lunghezza del testo."""
+    esito = istanze_da_completare(schema_path, oracle_path, corpus_raw, metadata_path)
+    if esito is None:
+        return None
+    schema, _oracle, chiamate, file_disallineati = esito
+
+    cache = CacheDisco(cache_dir=cache_dir, ttl_secondi=ttl_secondi)
+    gia_in_cache = 0
+    # Renderizzata una sola volta per chiamata, riusata per ogni modello:
+    # il rendering non dipende dal modello, solo la formula di conteggio.
+    chiamate_da_stimare: list[tuple[ChiamataDaCompletare, str, list[tuple[bytes, int, int]]]] = []
+
+    for chiamata in chiamate:
+        prompt = costruisci_prompt(chiamata.campi_mancanti)
+        render = renderizza_pagine_istanza(chiamata.istanza)
+        pagine_bytes = [png for png, _larghezza, _altezza in render]
+
+        chiave = chiave_cache(
+            pagine_bytes, prompt, _MODELLO_CACHE_GENERICO, schema.schema_version
+        )
+        if cache.contiene(chiave):
+            gia_in_cache += 1
+            continue
+        chiamate_da_stimare.append((chiamata, prompt, render))
+
+    costo_per_modello: dict[str, StimaCostoModello] = {}
+    try:
+        prezzi = carica_prezzi()
+    except PrezziError:
+        prezzi = None
+
+    if prezzi is not None:
+        for modello in modelli:
+            try:
+                prezzo = prezzi.prezzo(modello)
+            except PrezziError:
+                continue
+
+            token_input = token_output = 0
+            for chiamata, prompt, render in chiamate_da_stimare:
+                token_input += len(prompt) // 4  # solo il testo del prompt: stima approssimata
+                for _png, larghezza, altezza in render:
+                    try:
+                        token_input += stima_token_immagine(prezzo, larghezza, altezza)
+                    except TipoFormulaSconosciuto:
+                        continue  # nessuna formula dichiarata: il modello resta fuori dalla stima
+                token_output += len(chiamata.campi_mancanti) * _TOKEN_OUTPUT_STIMATI_PER_CAMPO
+
+            costo_per_modello[modello] = StimaCostoModello(
+                token_input_stimati=token_input,
+                token_output_stimati=token_output,
+                costo_stimato=prezzo.costo(token_input, token_output),
+            )
+
+    return StimaDryRun(
+        chiamate_necessarie=len(chiamate),
+        gia_in_cache=gia_in_cache,
+        file_disallineati=file_disallineati,
+        costo_per_modello=costo_per_modello,
+    )
+
+
+def formatta_dry_run(stima: StimaDryRun) -> str:
+    righe = [
+        "sacor eval --dry-run",
+        "",
+        f"Chiamate tier 1 necessarie (solo campi None dopo tier 0, ADR-035): "
+        f"{stima.chiamate_necessarie}",
+        f"Gia' in cache: {stima.gia_in_cache}",
+        f"Da chiamare: {stima.chiamate_necessarie - stima.gia_in_cache}",
+    ]
+    if stima.file_disallineati:
+        righe.append(
+            "File con segmentazione disallineata dall'oracle (esclusi dalla stima): "
+            f"{stima.file_disallineati}"
+        )
+    righe.append("")
+    if stima.costo_per_modello:
+        righe.append(
+            "Stima per modello (token immagine da pagina renderizzata, C1/T4.5 — "
+            "formula per provider in config/prezzi_modelli.yaml):"
+        )
+        for modello, s in stima.costo_per_modello.items():
+            righe.append(
+                f"  {modello:<20} {s.token_input_stimati:>7} tok input, "
+                f"{s.token_output_stimati:>5} tok output  ->  ${s.costo_stimato:.4f}"
+            )
+    else:
+        righe.append("Tabella prezzi non disponibile: nessuna stima di costo per modello.")
+    righe.append("")
+    righe.append("Nessuna chiamata effettuata.")
+    return "\n".join(righe)
+
+
 def main() -> int:
+    if "--dry-run" in sys.argv[1:]:
+        try:
+            stima = esegui_dry_run()
+        except SchemaError as exc:
+            print(f"errore schema: {exc}", file=sys.stderr)
+            return 1
+        except OracleError as exc:
+            print(f"errore oracle: {exc}", file=sys.stderr)
+            return 1
+
+        if stima is None:
+            print("corpus non ancora presente: manca corpus/attesi.json")
+            return 0
+
+        print(formatta_dry_run(stima))
+        return 0
+
     try:
         report = carica_report()
     except SchemaError as exc:

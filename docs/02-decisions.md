@@ -597,3 +597,43 @@ facendo sembrare risolto un difetto strutturale. Il report a quattro colonne
 distinguerlo in un colpo solo: `non normalizzabile` a zero ovunque escludeva
 il Repair, e `normalizzato 70/140` con `corretto 61/140` isolava il problema
 ai soli valori letti dal posto sbagliato.
+
+## ADR-034 — La cache è una precondizione del tier 1, non un'ottimizzazione
+**2026-08-10.** Dal Blocco 4 ogni esecuzione dell'eval chiama un modello a
+pagamento. Su 14 documenti × N rilanci al giorno, il costo diventa una ragione
+per **non rilanciare l'eval** — e l'eval eseguito di rado è l'eval che smette
+di trovare regressioni.
+
+L'intero metodo di questo progetto si regge sul rieseguire la misura a ogni
+modifica. Un attrito economico su quel gesto disattiva il metodo, senza che
+nessuno decida di disattivarlo.
+
+**Decisione.** La cache entra insieme alla prima chiamata a un modello, non
+dopo. Chiave: SHA-256 di (immagine/testo della pagina + prompt + identificativo
+modello + versione schema). Persistente su disco, ignorata da git.
+
+Corollario: l'eval su corpus invariato dopo il primo giro costa zero. Un cambio
+di prompt o di modello invalida la cache per costruzione, ed è corretto: è un
+esperimento diverso.
+
+Serve anche `--dry-run`, che stima il costo senza chiamare nulla. Sapere quanto
+si sta per spendere prima di spenderlo.
+
+## ADR-035 — Tier 1 riempie, non sovrascrive (provvisorio)
+**2026-08-10.** Il tier 0 chiude il Blocco 3 con `corretto == normalizzato` su
+ogni campo: **100% di precisione su 50% di copertura**. Si astiene sulle
+scansioni e non sbaglia mai dove agisce.
+
+Regola per il Blocco 4: il tier 1 viene invocato **solo sui campi dove il tier 0
+ha restituito `None`**. Un valore deterministico non viene mai sovrascritto da
+un valore probabilistico.
+
+**Provvisoria, e va detto perché.** Regge finché la precisione del tier 0 è
+100%, e quel 100% è misurato su corpus sintetico, dove i pattern sono stati
+scritti guardando il generatore. Su bollette reali una regex sbaglierà —
+`IT\d{3}E\d{8}` cattura il POD anche dentro un'intestazione di pagina 3 che
+appartiene a un'altra fornitura.
+
+Quando arriverà il primo corpus reale, la regola va rimisurata. Se la
+precisione del tier 0 scende, i due tier diventano **due fonti in disaccordo**
+e la decisione passa allo strato Arbitrate, che è il posto giusto per farla.
