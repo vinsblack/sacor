@@ -13,61 +13,71 @@
       "file": "S001.pdf",
       "pagine": [
         1,
-        1
+        3
       ],
       "layout": "Alfa Energia",
       "tipo_lettura": "effettiva",
-      "monoraria": false,
+      "monoraria": true,
       "qualita": "digitale",
-      "flag_attivi": []
+      "flag_attivi": [
+        "monoraria"
+      ]
     },
     "S002": {
       "file": "S002.pdf",
       "pagine": [
         1,
-        1
+        3
       ],
       "layout": "Beta Luce",
       "tipo_lettura": "effettiva",
       "monoraria": false,
       "qualita": "digitale",
-      "flag_attivi": []
+      "flag_attivi": [
+        "periodo_mensile"
+      ]
     },
     "S003": {
       "file": "S003.pdf",
       "pagine": [
         1,
-        1
+        3
       ],
       "layout": "Gamma Power",
-      "tipo_lettura": "effettiva",
+      "tipo_lettura": "stimata",
       "monoraria": false,
       "qualita": "digitale",
-      "flag_attivi": []
+      "flag_attivi": [
+        "periodo_mensile",
+        "consumo_stimato"
+      ]
     },
     "S004": {
       "file": "S004.pdf",
       "pagine": [
         1,
-        1
+        3
       ],
       "layout": "Alfa Energia",
       "tipo_lettura": "effettiva",
-      "monoraria": false,
+      "monoraria": true,
       "qualita": "digitale",
-      "flag_attivi": []
+      "flag_attivi": [
+        "monoraria"
+      ]
     },
     "S005": {
       "file": "S005.pdf",
       "pagine": [
         1,
-        1
+        3
       ],
       "layout": "Beta Luce",
       "tipo_lettura": "effettiva",
       "monoraria": false,
       "qualita": "scansione_degradata",
       "flag_attivi": [
+        "periodo_mensile",
         "scansione"
       ]
     },
@@ -75,13 +85,15 @@
       "file": "S006.pdf",
       "pagine": [
         1,
-        1
+        3
       ],
       "layout": "Gamma Power",
-      "tipo_lettura": "effettiva",
+      "tipo_lettura": "stimata",
       "monoraria": false,
       "qualita": "scansione_degradata",
       "flag_attivi": [
+        "periodo_mensile",
+        "consumo_stimato",
         "scansione"
       ]
     },
@@ -89,13 +101,14 @@
       "file": "S007.pdf",
       "pagine": [
         1,
-        1
+        3
       ],
       "layout": "Alfa Energia",
       "tipo_lettura": "effettiva",
-      "monoraria": false,
+      "monoraria": true,
       "qualita": "scansione_sporca",
       "flag_attivi": [
+        "monoraria",
         "scansione_sporca"
       ]
     },
@@ -103,13 +116,14 @@
       "file": "S008.pdf",
       "pagine": [
         1,
-        1
+        3
       ],
       "layout": "Beta Luce",
       "tipo_lettura": "effettiva",
       "monoraria": false,
       "qualita": "scansione_sporca",
       "flag_attivi": [
+        "periodo_mensile",
         "scansione_sporca"
       ]
     },
@@ -120,10 +134,12 @@
         1
       ],
       "layout": "Gamma Power",
-      "tipo_lettura": "effettiva",
+      "tipo_lettura": "stimata",
       "monoraria": false,
       "qualita": "ibrida",
       "flag_attivi": [
+        "periodo_mensile",
+        "consumo_stimato",
         "pagina_ibrida"
       ]
     },
@@ -131,35 +147,37 @@
       "file": "S010.pdf",
       "pagine": [
         1,
-        1
+        3
       ],
       "layout": "Alfa Energia",
       "tipo_lettura": "effettiva",
-      "monoraria": false,
+      "monoraria": true,
       "qualita": "digitale",
       "flag_attivi": [
-        "multi_fattura"
+        "multi_fattura",
+        "monoraria"
       ]
     },
     "S010b": {
       "file": "S010.pdf",
       "pagine": [
-        2,
-        2
+        4,
+        6
       ],
       "layout": "Alfa Energia",
       "tipo_lettura": "effettiva",
-      "monoraria": false,
+      "monoraria": true,
       "qualita": "digitale",
       "flag_attivi": [
-        "multi_fattura"
+        "multi_fattura",
+        "monoraria"
       ]
     },
     "S011a": {
       "file": "S011.pdf",
       "pagine": [
         1,
-        1
+        3
       ],
       "layout": "Beta Luce",
       "tipo_lettura": "effettiva",
@@ -167,14 +185,15 @@
       "qualita": "scansione_degradata",
       "flag_attivi": [
         "multi_fattura",
+        "periodo_mensile",
         "scansione"
       ]
     },
     "S011b": {
       "file": "S011.pdf",
       "pagine": [
-        1,
-        1
+        4,
+        6
       ],
       "layout": "Beta Luce",
       "tipo_lettura": "effettiva",
@@ -182,6 +201,7 @@
       "qualita": "scansione_degradata",
       "flag_attivi": [
         "multi_fattura",
+        "periodo_mensile",
         "scansione"
       ]
     },
@@ -189,13 +209,15 @@
       "file": "S012.pdf",
       "pagine": [
         1,
-        1
+        3
       ],
       "layout": "Gamma Power",
-      "tipo_lettura": "effettiva",
+      "tipo_lettura": "stimata",
       "monoraria": false,
       "qualita": "digitale",
       "flag_attivi": [
+        "periodo_mensile",
+        "consumo_stimato",
         "ruotata"
       ]
     }

@@ -83,6 +83,22 @@ def _assegna_id(file: Path, spezzoni: list[tuple[int, int]]) -> tuple[Istanza, .
     )
 
 
+def _riempi_in_avanti(valori: Sequence[str | None]) -> list[str | None]:
+    """Una pagina senza match APPARTIENE all'istanza aperta dall'ultimo
+    match visto, non e' un valore diverso (T4.9: un'istanza reale occupa
+    piu' pagine — 'Fattura n. X' compare solo sulla prima, ADR-039 — le
+    pagine successive non lo ripetono). Senza questo riempimento, None
+    confrontato col valore precedente leggeva come un cambio e spezzava
+    un'unica fattura multipagina in piu' istanze."""
+    riempiti: list[str | None] = []
+    corrente: str | None = None
+    for v in valori:
+        if v is not None:
+            corrente = v
+        riempiti.append(corrente)
+    return riempiti
+
+
 def _cambio_valore(file: Path, testi: Sequence[str], pattern: str) -> SegmentazioneResult:
     regex = re.compile(pattern)
     valori: list[str | None] = [
@@ -95,7 +111,7 @@ def _cambio_valore(file: Path, testi: Sequence[str], pattern: str) -> Segmentazi
             confidenza=ConfidenzaSegmentazione.PRESUNTA,
         )
 
-    spezzoni = _raggruppa(valori)
+    spezzoni = _raggruppa(_riempi_in_avanti(valori))
     return SegmentazioneResult(
         istanze=_assegna_id(file, spezzoni),
         confidenza=ConfidenzaSegmentazione.CERTA,

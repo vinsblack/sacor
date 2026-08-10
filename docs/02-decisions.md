@@ -637,3 +637,127 @@ appartiene a un'altra fornitura.
 Quando arriverà il primo corpus reale, la regola va rimisurata. Se la
 precisione del tier 0 scende, i due tier diventano **due fonti in disaccordo**
 e la decisione passa allo strato Arbitrate, che è il posto giusto per farla.
+
+## ADR-036 — I parametri del generatore vanno calibrati come le soglie del codice
+**2026-08-10.** Il bake-off ha dato 0% con 8 campi inventati. Causa: le pagine
+`--scansione` sono degradate al punto che **un umano non legge il POD**. Non è
+un fallimento del sistema, è un difetto del corpus.
+
+È la terza volta che il generatore invalida una misura: la copertura immagine
+perfetta (ADR-021), le scansioni a zero caratteri (ADR-019), ora il degrado
+illeggibile. Ogni volta la causa è la stessa: **i parametri del generatore sono
+stati scelti a occhio e mai verificati**, mentre ogni soglia del codice è stata
+misurata prima di essere fissata.
+
+Un generatore non calibrato è un oracolo non calibrato: produce numeri che
+sembrano misure del sistema e sono misure di se stesso.
+
+**Decisione.** Il degrado ha un criterio di accettazione esplicito e
+verificabile: una pagina `scansione` deve restare **leggibile da un umano** sui
+campi dello schema. Il criterio operativo, in assenza di un umano nel ciclo di
+CI: il testo dei campi obbligatori deve essere recuperabile da un OCR di
+riferimento sopra una soglia dichiarata.
+
+Una scansione illeggibile è un caso legittimo, ma è un caso **diverso** —
+`--scansione-illeggibile` — e il comportamento atteso lì non è "estrarre bene",
+è **`reject`**.
+
+Regola generale: ogni parametro del generatore che influenza una metrica va
+trattato come una soglia, quindi misurato e annotato con il proprio margine.
+
+## ADR-037 — Su input illeggibile il modello inventa, non si astiene
+**2026-08-10.** Scoperta indipendente dal difetto del corpus, e più importante:
+davanti a un'immagine da cui un umano non ricava nulla, il modello ha prodotto
+**8 valori** invece di dichiarare di non vedere. Zero corretti, zero
+astensioni sui campi che ha compilato.
+
+Questa è la conferma sperimentale della tesi del progetto: un modello non
+segnala la propria incertezza spontaneamente. Riempie.
+
+Conseguenze:
+1. Il prompt deve imporre esplicitamente l'astensione: "se un valore non è
+   leggibile, restituisci null; non dedurlo, non stimarlo".
+2. **Non ci si può fidare comunque.** L'istruzione riduce il fenomeno, non lo
+   elimina. Le invarianti aritmetiche e il gate restano l'unica difesa reale,
+   e la colonna `inventati` va monitorata a ogni giro come metrica di prima
+   classe.
+3. Il tier 1 non può essere valutato sulla sola accuratezza. Un modello con
+   accuratezza più alta e più invenzioni è peggiore, per questo progetto, di
+   uno più conservativo.
+
+## ADR-038 — Una scansione è il rendering dello stesso documento, non un documento diverso
+**2026-08-10.** Lo sweep sul degrado ha trovato che i parametri (blur,
+downscale, qualità JPEG) non sono il collo di bottiglia: anche a
+quasi-lossless il recupero OCR resta al 13%, POD 2/10. Il muro è il **font**:
+`_pdf_scansione` disegna il testo con `ImageFont.load_default()`, la bitmap
+minuscola integrata in PIL (~11px). Il tetto è fissato prima che qualunque
+degrado entri in gioco.
+
+Il difetto non è parametrico, è di modello. Il generatore costruisce la pagina
+scansionata come **un documento diverso**, disegnato con altri strumenti. Una
+scansione reale non è questo: è **la stessa pagina stampata, fotografata**.
+Stessa tipografia, stesso impaginato, poi rumore.
+
+**Decisione.** Il percorso scansione si ottiene per rasterizzazione:
+
+    layout reportlab (identico al digitale)
+      -> render PNG ad alta risoluzione
+      -> degrado (blur / downscale / JPEG)
+      -> pagina immagine
+
+Nessun disegno di testo con PIL. Il contenuto della versione scansionata è per
+costruzione identico a quello digitale, il che rende confrontabili le due
+metà del corpus: stessa verità, due qualità di input.
+
+Solo dopo questa correzione lo sweep sul degrado ha senso, perché il tetto
+diventa la tipografia reale del documento invece di un font giocattolo.
+
+**Quarto difetto del generatore in quattro misure.** Copertura immagine
+tautologica (ADR-021), scansioni a zero caratteri (ADR-019), degrado
+illeggibile (ADR-036), ora il font. Il codice è stato revisionato a ogni
+passo; il generatore quasi mai — eppure è la base di ogni numero pubblicato.
+Da qui in avanti riceve la stessa disciplina: ogni suo parametro è una soglia,
+ogni sua scelta di rendering è una decisione da motivare.
+
+## ADR-039 — Struttura osservata: luce e gas (nessun dato reale)
+**2026-08-10.** Osservazione strutturale su bollette reali. **Nessun valore
+reale è riportato qui né entra nel repo**: solo la forma, che è know-how
+trasferibile (ADR-002, ADR-012).
+
+### Luce — invarianti di layout
+
+- POD in pagina 2, in un blocco con potenza impegnata e disponibile
+- "Scontrino dell'energia": quota per consumi / quota fissa / quota potenza /
+  accise e IVA / totale, con colonne quantità - prezzo medio - importo
+- "Box dell'offerta": nome, tipologia (fisso/variabile), tipologia prezzo
+  (monoraria/fasce), codice offerta, scadenze, formula, indice PUN
+- "Letture e consumi": tabella con lettura precedente e attuale, segnanti per
+  fascia, consumo fatturato per fascia
+- Imposte: accisa per scaglioni di periodo, poi IVA con base imponibile
+
+### Gas — differenze sostanziali dal luce
+
+| | luce | gas |
+|---|---|---|
+| identificativo | POD, `IT` + 3 cifre + `E` + 8 | PDR, 14 cifre numeriche |
+| unità | kWh | Smc |
+| fasce | F1/F2/F3 | assenti, sempre monorario |
+| indice | PUN | PSV |
+| quota potenza | presente | assente |
+| coefficiente | — | coefficiente C (mc → Smc) |
+| pronto intervento | distributore elettrico | distributore gas, numero diverso |
+
+Il gas **non è il luce con altri nomi di campo**: sparisce l'intera dimensione
+fasce (3 campi su 10), sparisce la quota potenza, compare la conversione
+volumetrica. Uno schema gas non si ottiene rinominando quello luce.
+
+Conferma dell'impostazione dichiarativa: sono due YAML diversi, zero codice
+nuovo. Ma resta subordinato a G2 — nessun secondo schema prima di un numero
+pubblicato e un utente esterno.
+
+### Casi limite aggiuntivi osservati
+- Stesso fornitore, stesso cliente, luce e gas in due fatture separate con
+  codice utenza diverso e numero fattura contiguo
+- Periodo espresso come nome del mese anche sul gas
+- Consumo annuo dichiarato su finestra mobile di 12 mesi, distinto dal periodo
+  fatturato — fonte del caso "trimestrale dichiarato annuale" (ADR-013)

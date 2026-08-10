@@ -17,6 +17,7 @@ from eval.triage import motivo_copertura_rotazione_bassa  # noqa: E402
 from eval.triage import valuta as valuta_triage  # noqa: E402
 from sacor.oracle import OracleError  # noqa: E402
 from sacor.schema import SchemaError  # noqa: E402
+from scripts.genera_corpus import DEGRADO_DEFAULT  # noqa: E402
 
 OUTPUT = REPO_ROOT / "docs" / "03-current-state.md"
 
@@ -109,6 +110,14 @@ def _accuratezza_triage() -> AccuratezzaTriage:
     )
 
 
+def _degrado_scansione() -> str:
+    d = DEGRADO_DEFAULT
+    return (
+        f"{d.nome} (blur {d.blur_radius}, downscale {d.fattore_downscale}, "
+        f"jpeg {d.qualita_jpeg})"
+    )
+
+
 def genera() -> str:
     acc_campo, acc_documento = _accuratezza()
     triage = _accuratezza_triage()
@@ -130,12 +139,22 @@ def genera() -> str:
 | Triage — rotazione (motivo copertura bassa) | {triage.rotazione_motivo} |
 | Triage — rotazione (accuratezza) | {triage.rotazione_accuratezza} |
 | Triage — attributo peggiore (per accuratezza) | {triage.peggiore} |
+| Degrado scansione (produzione, ADR-036) | {_degrado_scansione()} |
 | Tasso di escalation | n/d |
 | Generato il | {timestamp} |
 
 ## Blocco corrente
 
-Blocco 1 — Il metro. Vedi `docs/04-roadmap.md`.
+Blocco 4 — Tier 1, provider e corpus realistico. Vedi `docs/04-roadmap.md`.
+
+## Cali noti, non correzioni (T4.11, C2)
+
+- Periodo mensile su Beta/Gamma (`periodo_da`/`periodo_a`/`giorni` non
+  estratti dal tier 0): e' il caso reale che il tier 1 esiste per coprire,
+  non un difetto del layout.
+- `S011.pdf` (multi-fattura scansionato): segmentazione non determinabile su
+  pagine senza text layer — limite noto (ADR-024), si risolve con la
+  ri-segmentazione su testo OCR nel prossimo blocco, non nel generatore.
 """
 
 

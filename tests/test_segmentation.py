@@ -47,7 +47,8 @@ def test_documento_normale_produce_una_istanza_certa(tmp_path: Path) -> None:
     assert risultato.confidenza is ConfidenzaSegmentazione.CERTA
     assert len(risultato.istanze) == 1
     assert risultato.istanze[0].pagina_da == 1
-    assert risultato.istanze[0].pagina_a == 1
+    # ADR-039: una fattura digitale e' sempre a tre pagine.
+    assert risultato.istanze[0].pagina_a == 3
 
 
 def test_schema_senza_segmentazione_produce_una_istanza(tmp_path: Path) -> None:

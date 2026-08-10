@@ -16,7 +16,9 @@ def _scrivi(tmp_path: Path, nome: str, pdf_bytes: bytes) -> Path:
     return p
 
 
-def _istanza_intero_file(path: Path, pagina_da: int = 1, pagina_a: int = 1) -> Istanza:
+def _istanza_intero_file(path: Path, pagina_da: int = 1, pagina_a: int = 3) -> Istanza:
+    # ADR-039: una fattura digitale/scansione non ibrida e' sempre a tre
+    # pagine — il default copre l'intero documento a fattura singola.
     return Istanza(id=path.stem, file=path, pagina_da=pagina_da, pagina_a=pagina_a)
 
 
@@ -95,19 +97,25 @@ def test_estrattore_confinato_non_legge_oltre_la_propria_istanza(tmp_path: Path)
     pagina 1 (S010a): con la vecchia firma extract(pdf, schema) sull'intero
     file, re.search trovava sempre il primo match, quello di pagina 1."""
     schema = load(SCHEMA_PATH)
+    # Alfa Energia, non Beta Luce: lo stile di default di Beta (T4.9, C2) e'
+    # periodo scritto come nome del mese, che il tier 0 non estrae per
+    # costruzione — irrilevante qui, il confinamento e' l'unica cosa sotto
+    # test, e con Alfa il confronto con l'oracle resta un'uguaglianza piena.
     pdf_bytes, oracle_entries, metadata_entries = genera_documento(
-        random.Random(1), "S010", "Beta Luce", Flags(multi_fattura=True)
+        random.Random(1), "S010", "Alfa Energia", Flags(multi_fattura=True)
     )
     path = _scrivi(tmp_path, "S010.pdf", pdf_bytes)
 
     chiave_a, chiave_b = sorted(metadata_entries)
     pagina_a = metadata_entries[chiave_a]["pagine"]
     pagina_b = metadata_entries[chiave_b]["pagine"]
-    assert pagina_a == [1, 1]
-    assert pagina_b == [2, 2]
+    # ADR-039: ogni fattura e' a tre pagine (totale/periodo, POD/scontrino,
+    # letture/imposte) — la seconda fattura inizia dopo le tre della prima.
+    assert pagina_a == [1, 3]
+    assert pagina_b == [4, 6]
 
-    istanza_pagina_1 = Istanza(id=chiave_a, file=path, pagina_da=1, pagina_a=1)
-    istanza_pagina_2 = Istanza(id=chiave_b, file=path, pagina_da=2, pagina_a=2)
+    istanza_pagina_1 = Istanza(id=chiave_a, file=path, pagina_da=1, pagina_a=3)
+    istanza_pagina_2 = Istanza(id=chiave_b, file=path, pagina_da=4, pagina_a=6)
 
     estratti_1 = TierZeroExtractor().extract(istanza_pagina_1, schema)
     estratti_2 = TierZeroExtractor().extract(istanza_pagina_2, schema)

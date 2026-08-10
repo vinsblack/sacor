@@ -3,7 +3,11 @@
 Principio: l'oracle e' l'INPUT del generatore, non una lettura del PDF. I
 valori si generano prima, il PDF li rappresenta dopo: e' esatto per
 costruzione. Nessun dato reale: anagrafiche, fornitori e POD sono inventati.
-"""
+
+ADR-038: una pagina "scansione" e' il rendering ad alta risoluzione dello
+STESSO layout digitale, degradato — non un documento disegnato a parte con
+altri strumenti. ADR-039: struttura a tre pagine osservata su bollette luce
+reali (nessun valore reale riportato, solo la forma)."""
 
 from __future__ import annotations
 
@@ -16,7 +20,8 @@ from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+import pdfplumber
+from PIL import Image, ImageDraw, ImageFilter
 from pypdf import PdfReader, PdfWriter
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
@@ -56,6 +61,8 @@ FLAG_NOMI: tuple[str, ...] = (
     "ruotata",
     "scansione",
     "scansione_sporca",
+    "scansione_aggressiva",
+    "scansione_illeggibile",
     "pagina_ibrida",
 )
 
@@ -70,10 +77,33 @@ class Flags:
     ruotata: bool = False
     scansione: bool = False
     scansione_sporca: bool = False
+    # T4.10, C1: casi dichiarati distinti dal degrado di produzione (MEDIO).
+    # scansione_aggressiva -> caso difficile ma leggibile (97% misurato).
+    # scansione_illeggibile -> atteso reject, non "estrarre bene" (ADR-036).
+    scansione_aggressiva: bool = False
+    scansione_illeggibile: bool = False
     pagina_ibrida: bool = False
 
     def attivi(self) -> list[str]:
         return [nome for nome in FLAG_NOMI if getattr(self, nome)]
+
+
+# T4.9, C2 (ADR-039): stile di contenuto di default per fornitore — non e'
+# un flag esplicito del caso, e' cio' che quel fornitore fa sempre ("Alfa
+# bimestrale monoraria, Beta mensile a fasce, Gamma mensile stimato"). Si
+# somma ai flag del caso (struttura: scansione/rotazione/multi-fattura),
+# non li sostituisce — sono due assi indipendenti.
+_STILE_LAYOUT: dict[str, Flags] = {
+    "Alfa Energia": Flags(monoraria=True),
+    "Beta Luce": Flags(periodo_mensile=True),
+    "Gamma Power": Flags(periodo_mensile=True, consumo_stimato=True),
+}
+
+
+def _flags_effettivi(layout: str, flags: Flags) -> Flags:
+    stile = _STILE_LAYOUT.get(layout, Flags())
+    valori = {nome: getattr(flags, nome) or getattr(stile, nome) for nome in FLAG_NOMI}
+    return Flags(**valori)
 
 
 @dataclass(frozen=True)
@@ -115,23 +145,50 @@ class DatiFattura:
     periodo_da: date
     periodo_a: date
     giorni: int
+    scadenza: date
     kwh_f1: Decimal
     kwh_f2: Decimal
     kwh_f3: Decimal
     kwh_totale: Decimal
+    consumo_annuo_kwh: Decimal
+    prezzo_kwh: Decimal
+    quota_energia: Decimal
+    quota_fissa: Decimal
+    quota_potenza: Decimal
+    accisa: Decimal
+    iva: Decimal
     importo_totale: Decimal
+    potenza_impegnata_kw: Decimal
+    potenza_disponibile_kw: Decimal
+    lettura_precedente_f1: Decimal
+    lettura_attuale_f1: Decimal
+    lettura_precedente_f2: Decimal
+    lettura_attuale_f2: Decimal
+    lettura_precedente_f3: Decimal
+    lettura_attuale_f3: Decimal
+    codice_offerta: str
+    nome_offerta: str
+    tipologia_offerta: str  # "fisso" | "variabile"
+    indice_pun: Decimal
 
 
 def _due_decimali(valore: Decimal) -> Decimal:
     return valore.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
+_PREZZO_KWH = Decimal("0.28")
+_ALIQUOTA_ACCISA = Decimal("0.05")
+_ALIQUOTA_IVA = Decimal("0.10")
+
+
 def _genera_dati_fattura(
-    rng: random.Random, fornitore_stampato: str, monoraria: bool
+    rng: random.Random, fornitore_stampato: str, monoraria: bool, bimestrale: bool = False
 ) -> DatiFattura:
+    giorni_min, giorni_max = (55, 62) if bimestrale else (28, 62)
     periodo_da = date(2025, rng.randint(1, 10), rng.randint(1, 28))
-    periodo_a = periodo_da + timedelta(days=rng.randint(28, 62) - 1)
+    periodo_a = periodo_da + timedelta(days=rng.randint(giorni_min, giorni_max) - 1)
     giorni = (periodo_a - periodo_da).days + 1
+    scadenza = periodo_a + timedelta(days=rng.randint(15, 30))
 
     pod = f"IT{rng.randint(1, 999):03d}E{rng.randint(0, 99_999_999):08d}"
     numero_fattura = str(rng.randint(1_000_000, 9_999_999))
@@ -145,10 +202,31 @@ def _genera_dati_fattura(
         kwh_f2 = _due_decimali(Decimal(rng.randint(500, 8000)) / 100)
         kwh_f3 = _due_decimali(Decimal(rng.randint(500, 8000)) / 100)
     kwh_totale = _due_decimali(kwh_f1 + kwh_f2 + kwh_f3)
+    consumo_annuo_kwh = _due_decimali(kwh_totale * Decimal(365) / Decimal(giorni))
 
-    prezzo_kwh = Decimal("0.28")
+    quota_energia = _due_decimali(kwh_totale * _PREZZO_KWH)
     quota_fissa = _due_decimali(Decimal(rng.randint(500, 2000)) / 100)
-    importo_totale = _due_decimali(kwh_totale * prezzo_kwh + quota_fissa)
+    quota_potenza = _due_decimali(Decimal(rng.randint(200, 600)) / 100)
+    subtotale = quota_energia + quota_fissa + quota_potenza
+    accisa = _due_decimali(subtotale * _ALIQUOTA_ACCISA)
+    imponibile = subtotale + accisa
+    iva = _due_decimali(imponibile * _ALIQUOTA_IVA)
+    importo_totale = _due_decimali(imponibile + iva)
+
+    potenza_impegnata_kw = _due_decimali(Decimal(rng.randint(300, 600)) / 100)
+    potenza_disponibile_kw = _due_decimali(potenza_impegnata_kw * Decimal("1.1"))
+
+    lettura_precedente_f1 = _due_decimali(Decimal(rng.randint(10_000, 80_000)) / 10)
+    lettura_precedente_f2 = _due_decimali(Decimal(rng.randint(10_000, 80_000)) / 10)
+    lettura_precedente_f3 = _due_decimali(Decimal(rng.randint(10_000, 80_000)) / 10)
+
+    tipologia_offerta = "fisso" if rng.random() < 0.5 else "variabile"
+    codice_offerta = (
+        f"{fornitore_stampato[:3].upper()}{periodo_da.year % 100}"
+        f"{'F' if tipologia_offerta == 'fisso' else 'V'}"
+    )
+    nome_offerta = f"{fornitore_stampato} {'Fissa' if tipologia_offerta == 'fisso' else 'Flex'}"
+    indice_pun = _due_decimali(Decimal(rng.randint(8, 18)) / 100)
 
     return DatiFattura(
         pod=pod,
@@ -157,11 +235,31 @@ def _genera_dati_fattura(
         periodo_da=periodo_da,
         periodo_a=periodo_a,
         giorni=giorni,
+        scadenza=scadenza,
         kwh_f1=kwh_f1,
         kwh_f2=kwh_f2,
         kwh_f3=kwh_f3,
         kwh_totale=kwh_totale,
+        consumo_annuo_kwh=consumo_annuo_kwh,
+        prezzo_kwh=_PREZZO_KWH,
+        quota_energia=quota_energia,
+        quota_fissa=quota_fissa,
+        quota_potenza=quota_potenza,
+        accisa=accisa,
+        iva=iva,
         importo_totale=importo_totale,
+        potenza_impegnata_kw=potenza_impegnata_kw,
+        potenza_disponibile_kw=potenza_disponibile_kw,
+        lettura_precedente_f1=lettura_precedente_f1,
+        lettura_attuale_f1=_due_decimali(lettura_precedente_f1 + kwh_f1),
+        lettura_precedente_f2=lettura_precedente_f2,
+        lettura_attuale_f2=_due_decimali(lettura_precedente_f2 + kwh_f2),
+        lettura_precedente_f3=lettura_precedente_f3,
+        lettura_attuale_f3=_due_decimali(lettura_precedente_f3 + kwh_f3),
+        codice_offerta=codice_offerta,
+        nome_offerta=nome_offerta,
+        tipologia_offerta=tipologia_offerta,
+        indice_pun=indice_pun,
     )
 
 
@@ -189,21 +287,79 @@ def _testo_periodo(dati: DatiFattura, periodo_mensile: bool) -> str:
     return f"Dal {da} al {a} ({dati.giorni} giorni)"
 
 
-def _righe_fattura(dati: DatiFattura, flags: Flags) -> list[str]:
+# --- contenuto a tre pagine (ADR-039) ---
+# Pagina 1: totale da pagare, scadenza, periodo, consumo del periodo,
+# consumo annuo su finestra 12 mesi.
+# Pagina 2: POD + potenza impegnata/disponibile, scontrino energia, offerta.
+# Pagina 3: letture e consumi, imposte.
+#
+# I campi tracciati dallo schema (schemas/bolletta_luce_it.yaml) restano
+# etichettati esattamente come le regex del tier 0 li cercano (T4.9 non
+# tocca schema o estrazione): "POD: ...", "Fornitore: ...", "Dal ... al
+# ... (N giorni)" / "Periodo di fatturazione: ...", "Energia FN: ... kWh",
+# "Importo totale: EUR ...". Il resto e' realismo strutturale, non tracciato.
+
+PagineFattura = tuple[list[str], list[str], list[str]]
+
+
+def _righe_pagina1(dati: DatiFattura, flags: Flags) -> list[str]:
     righe = [
         f"Fattura n. {dati.numero_fattura}",
-        f"POD: {dati.pod}",
         f"Fornitore: {dati.fornitore_stampato}",
-        _testo_periodo(dati, flags.periodo_mensile),
-        f"Energia F1: {dati.kwh_f1} kWh",
-        f"Energia F2: {dati.kwh_f2} kWh",
-        f"Energia F3: {dati.kwh_f3} kWh",
-        f"Energia totale: {dati.kwh_totale} kWh",
+        "TOTALE DA PAGARE",
         f"Importo totale: EUR {dati.importo_totale}",
+        f"Scadenza: {dati.scadenza.strftime('%d/%m/%Y')}",
+        _testo_periodo(dati, flags.periodo_mensile),
+        f"Consumo del periodo: {dati.kwh_totale} kWh",
+        f"Consumo annuo (ultimi 12 mesi): {dati.consumo_annuo_kwh} kWh",
     ]
     if flags.consumo_stimato:
-        righe.append("Nota: consumo stimato, soggetto a conguaglio nella prossima fattura")
+        righe.append(
+            "Nota: consumo stimato, soggetto a conguaglio/ricalcolo nella prossima fattura"
+        )
     return righe
+
+
+def _righe_pagina2(dati: DatiFattura, flags: Flags) -> list[str]:
+    return [
+        f"POD: {dati.pod}",
+        f"Potenza impegnata: {dati.potenza_impegnata_kw} kW",
+        f"Potenza disponibile: {dati.potenza_disponibile_kw} kW",
+        "SCONTRINO DELL'ENERGIA",
+        "Voce                 Quantita'        Prezzo medio        Importo",
+        f"Energia F1: {dati.kwh_f1} kWh    x {dati.prezzo_kwh} EUR/kWh",
+        f"Energia F2: {dati.kwh_f2} kWh    x {dati.prezzo_kwh} EUR/kWh",
+        f"Energia F3: {dati.kwh_f3} kWh    x {dati.prezzo_kwh} EUR/kWh",
+        f"Energia totale: {dati.kwh_totale} kWh    Importo: EUR {dati.quota_energia}",
+        f"Quota fissa: EUR {dati.quota_fissa}",
+        f"Quota potenza: EUR {dati.quota_potenza}",
+        f"Accise e IVA: EUR {dati.accisa + dati.iva}",
+        f"Totale scontrino: EUR {dati.importo_totale}",
+        "",
+        "BOX DELL'OFFERTA",
+        f"Nome offerta: {dati.nome_offerta}",
+        f"Tipologia: {dati.tipologia_offerta}",
+        f"Tipologia prezzo: {'monoraria' if flags.monoraria else 'fasce'}",
+        f"Codice offerta: {dati.codice_offerta}",
+        "Formula: prezzo indicizzato all'indice PUN",
+        f"Indice PUN: {dati.indice_pun} EUR/kWh",
+    ]
+
+
+def _righe_pagina3(dati: DatiFattura, flags: Flags) -> list[str]:
+    return [
+        "LETTURE E CONSUMI",
+        f"F1  precedente {dati.lettura_precedente_f1} kWh  ->  attuale "
+        f"{dati.lettura_attuale_f1} kWh  ->  consumo fatturato {dati.kwh_f1} kWh",
+        f"F2  precedente {dati.lettura_precedente_f2} kWh  ->  attuale "
+        f"{dati.lettura_attuale_f2} kWh  ->  consumo fatturato {dati.kwh_f2} kWh",
+        f"F3  precedente {dati.lettura_precedente_f3} kWh  ->  attuale "
+        f"{dati.lettura_attuale_f3} kWh  ->  consumo fatturato {dati.kwh_f3} kWh",
+        "",
+        "IMPOSTE",
+        f"Accisa sui consumi: EUR {dati.accisa}",
+        f"IVA (10% su imponibile): EUR {dati.iva}",
+    ]
 
 
 # --- rendering digitale (reportlab), tre layout distinti ---
@@ -260,56 +416,65 @@ def _disegna_logo_e_qr(c: Canvas, rng: random.Random, layout: str) -> None:
     )
 
 
-def _disegna_layout_alfa(c: Canvas, rng: random.Random, blocchi: list[list[str]]) -> None:
+def _disegna_layout_alfa(c: Canvas, rng: random.Random, blocchi: list[PagineFattura]) -> None:
     _, altezza = A4
-    for indice, blocco in enumerate(blocchi):
-        if indice > 0:
-            c.showPage()  # --multi-fattura: una pagina per fattura (T2.4)
-        _disegna_logo_e_qr(c, rng, "Alfa Energia")
-        y = altezza - 100
-        c.setFont("Helvetica-Bold", 16)
-        c.drawString(50, y, "ALFA ENERGIA — Bolletta luce")
-        y -= 30
-        c.setFont("Helvetica", 11)
-        for riga in blocco:
-            c.drawString(50, y, riga)
-            y -= 16
+    prima_pagina = True
+    for pagine in blocchi:
+        for pagina_righe in pagine:
+            if not prima_pagina:
+                c.showPage()
+            prima_pagina = False
+            _disegna_logo_e_qr(c, rng, "Alfa Energia")
+            y = altezza - 100
+            c.setFont("Helvetica-Bold", 16)
+            c.drawString(50, y, "ALFA ENERGIA — Bolletta luce")
+            y -= 30
+            c.setFont("Helvetica", 11)
+            for riga in pagina_righe:
+                c.drawString(50, y, riga)
+                y -= 16
 
 
-def _disegna_layout_beta(c: Canvas, rng: random.Random, blocchi: list[list[str]]) -> None:
+def _disegna_layout_beta(c: Canvas, rng: random.Random, blocchi: list[PagineFattura]) -> None:
     larghezza, altezza = A4
-    for indice, blocco in enumerate(blocchi):
-        if indice > 0:
-            c.showPage()
-        _disegna_logo_e_qr(c, rng, "Beta Luce")
-        y = altezza - 100
-        c.setFont("Helvetica-Bold", 16)
-        c.drawCentredString(larghezza / 2, y, "Beta Luce S.r.l.")
-        c.line(50, y - 8, larghezza - 50, y - 8)
-        y -= 40
-        c.setFont("Helvetica-Oblique", 11)
-        for riga in blocco:
-            c.drawString(70, y, riga)
-            y -= 16
+    prima_pagina = True
+    for pagine in blocchi:
+        for pagina_righe in pagine:
+            if not prima_pagina:
+                c.showPage()
+            prima_pagina = False
+            _disegna_logo_e_qr(c, rng, "Beta Luce")
+            y = altezza - 100
+            c.setFont("Helvetica-Bold", 16)
+            c.drawCentredString(larghezza / 2, y, "Beta Luce S.r.l.")
+            c.line(50, y - 8, larghezza - 50, y - 8)
+            y -= 40
+            c.setFont("Helvetica-Oblique", 11)
+            for riga in pagina_righe:
+                c.drawString(70, y, riga)
+                y -= 16
 
 
-def _disegna_layout_gamma(c: Canvas, rng: random.Random, blocchi: list[list[str]]) -> None:
+def _disegna_layout_gamma(c: Canvas, rng: random.Random, blocchi: list[PagineFattura]) -> None:
     _, altezza = A4
-    for indice, blocco in enumerate(blocchi):
-        if indice > 0:
-            c.showPage()
-        _disegna_logo_e_qr(c, rng, "Gamma Power")
-        y = altezza - 90
-        c.setFont("Helvetica-Bold", 14)
-        c.drawString(50, y, "GAMMA POWER")
-        y -= 20
-        c.setFont("Helvetica", 9)
-        c.drawString(50, y, "www.gammapower-esempio.it")
-        y -= 30
-        c.setFont("Courier", 10)
-        for riga in blocco:
-            c.drawString(50, y, "> " + riga)
-            y -= 15
+    prima_pagina = True
+    for pagine in blocchi:
+        for pagina_righe in pagine:
+            if not prima_pagina:
+                c.showPage()
+            prima_pagina = False
+            _disegna_logo_e_qr(c, rng, "Gamma Power")
+            y = altezza - 90
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(50, y, "GAMMA POWER")
+            y -= 20
+            c.setFont("Helvetica", 9)
+            c.drawString(50, y, "www.gammapower-esempio.it")
+            y -= 30
+            c.setFont("Courier", 10)
+            for riga in pagina_righe:
+                c.drawString(50, y, "> " + riga)
+                y -= 15
 
 
 _DISEGNATORI = {
@@ -319,7 +484,7 @@ _DISEGNATORI = {
 }
 
 
-def _pdf_digitale(layout: str, blocchi: list[list[str]], rng: random.Random) -> bytes:
+def _pdf_digitale(layout: str, blocchi: list[PagineFattura], rng: random.Random) -> bytes:
     buf = io.BytesIO()
     c = Canvas(buf, pagesize=A4, invariant=1)
     _DISEGNATORI[layout](c, rng, blocchi)
@@ -328,7 +493,7 @@ def _pdf_digitale(layout: str, blocchi: list[list[str]], rng: random.Random) -> 
     return buf.getvalue()
 
 
-# --- rendering "scansione": immagine degradata, nessun text layer ---
+# --- rendering "scansione": rasterizzazione del layout digitale (ADR-038) ---
 
 
 _ALFABETO_RUMORE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -342,42 +507,116 @@ def _frammenti_rumorosi(rng: random.Random, n: int = 12) -> list[str]:
     ]
 
 
-def _pdf_scansione(blocchi: list[list[str]], rng: random.Random, sporca: bool) -> bytes:
-    larghezza_px, altezza_px = 1240, 1754  # ~150dpi su A4
-    img = Image.new("L", (larghezza_px, altezza_px), color=255)
-    disegno = ImageDraw.Draw(img)
-    font = ImageFont.load_default()
+@dataclass(frozen=True)
+class LivelloDegrado:
+    nome: str
+    blur_radius: float
+    fattore_downscale: float  # 1.0 = nessun downscale/upscale
+    qualita_jpeg: int
 
-    y = 60
-    for blocco in blocchi:
-        for riga in blocco:
-            disegno.text((60, y), riga, fill=0, font=font)
-            y += 22
-        y += 25
 
-    # degrado deterministico: sfocatura + downscale/upscale (artefatti di
-    # ricampionamento), nessuna sorgente di casualita' non seedata.
-    img = img.filter(ImageFilter.GaussianBlur(radius=1.2))
-    piccola = img.resize((larghezza_px // 2, altezza_px // 2))
-    img = piccola.resize((larghezza_px, altezza_px))
+# Livello di produzione (T4.10, C1; ADR-036). Misura, scripts/calibra_degrado.py,
+# n=10 documenti/livello, 3 campi obbligatori (pod/periodo_da/periodo_a):
+#
+#   medio (0.6, 1.5, 70)            100%
+#   aggressivo (1.2, 2.0, 55)        97%
+#   quasi-lossless (0.0, 1.0, 95)    83%
+#
+# Scelto MEDIO, non il migliore in assoluto. Il migliore misurato era
+# "leggero" a pari merito col 100%, ma scegliere il livello che massimizza
+# il recupero significa ottimizzare il corpus per far bella figura —
+# esattamente l'errore gia' corretto tre volte in questo progetto (copertura
+# immagine tautologica ADR-021, scansioni a zero caratteri ADR-019, degrado
+# illeggibile ADR-036 stesso). MEDIO e' il punto centrale della scala
+# misurata: non il piu' comodo per il benchmark, non il piu' vicino al
+# collasso — un compromesso motivato dal margine, non dal risultato.
+#
+# Risultato controintuitivo, annotato perche' e' vero e non ovvio: MENO
+# degrado non implica PIU' leggibile. Quasi-lossless (zero blur, zero
+# downscale, JPEG 95) recupera peggio (83%) di aggressivo (97%). Un filo di
+# sfocatura/compressione ammorbidisce i bordi vettoriali netti del font
+# reportlab in modi che aiutano il motore OCR a segmentare i caratteri;
+# senza, i bordi duri del rendering ad alta risoluzione confondono Tesseract
+# piu' spesso. Non e' rumore di campione (n=10, scarto consistente) — e' un
+# effetto reale del rendering, il motivo per cui "degrado zero" non era mai
+# stata l'ipotesi da testare per prima.
+DEGRADO_DEFAULT = LivelloDegrado("medio", blur_radius=0.6, fattore_downscale=1.5, qualita_jpeg=70)
 
-    buf_img = io.BytesIO()
-    img.save(buf_img, format="JPEG", quality=55)
-    buf_img.seek(0)
+# Caso difficile dichiarato (--scansione-aggressiva): leggibile ma al limite
+# (97% misurato), non il livello di produzione. Serve a misurare quanto il
+# tier 1 degrada quando il documento e' peggiore del caso comune.
+DEGRADO_AGGRESSIVO = LivelloDegrado(
+    "aggressivo", blur_radius=1.2, fattore_downscale=2.0, qualita_jpeg=55
+)
+
+# --scansione-illeggibile: comportamento atteso e' reject, non estrazione
+# (ADR-036) — un caso volutamente oltre il collasso, piu' severo di
+# "aggressivo". Non misurato nello sweep di calibrazione (che cerca il
+# livello di produzione, non il fondo della scala): il punto di questo
+# livello e' proprio essere fuori dalla scala utile. Verificato a parte
+# (non per intuito, la regola vale anche qui): un primo tentativo
+# (blur 3.0, downscale 4.0, jpeg 15) recuperava ancora 14/15 campi — il
+# font vettoriale reportlab e' piu' robusto del vecchio font PIL anche sotto
+# degrado pesante. Questi parametri, misurati, danno 0/15.
+DEGRADO_ILLEGGIBILE = LivelloDegrado(
+    "illeggibile", blur_radius=4.0, fattore_downscale=8.0, qualita_jpeg=10
+)
+
+# ADR-038: rasterizzare "ad alta risoluzione" prima del degrado, non alla
+# risoluzione a cui il documento verra' poi riletto (150dpi, eval.run.
+# RISOLUZIONE_RENDER_DPI) — evita di sommare due arrotondamenti indipendenti.
+_RISOLUZIONE_RASTER_DPI = 300
+
+
+def _pdf_scansione(
+    layout: str,
+    blocchi: list[PagineFattura],
+    rng: random.Random,
+    sporca: bool,
+    livello: LivelloDegrado = DEGRADO_DEFAULT,
+) -> bytes:
+    """ADR-038: una scansione e' il rendering dello STESSO layout digitale,
+    non un documento disegnato a parte. Percorso: layout reportlab identico
+    al digitale -> raster ad alta risoluzione -> degrado -> pagina immagine,
+    senza text layer (a meno di --scansione-sporca, che aggiunge rumore reale
+    SOPRA l'immagine, non testo del documento)."""
+    pdf_digitale = _pdf_digitale(layout, blocchi, rng)
 
     buf_pdf = io.BytesIO()
     c = Canvas(buf_pdf, pagesize=A4, invariant=1)
     larghezza_pt, altezza_pt = A4
-    c.drawImage(ImageReader(buf_img), 0, 0, width=larghezza_pt, height=altezza_pt)
 
-    if sporca:
-        # text layer rado e rumoroso SOPRA l'immagine: caratteri reali ed
-        # estraibili, a differenza del testo "cotto" nei pixel sopra.
-        c.setFont("Helvetica", 6)
-        for frammento in _frammenti_rumorosi(rng):
-            x = rng.uniform(20, larghezza_pt - 20)
-            y_pt = rng.uniform(20, altezza_pt - 20)
-            c.drawString(x, y_pt, frammento)
+    with pdfplumber.open(io.BytesIO(pdf_digitale)) as documento:
+        for indice, pagina in enumerate(documento.pages):
+            if indice > 0:
+                c.showPage()
+
+            immagine = pagina.to_image(resolution=_RISOLUZIONE_RASTER_DPI).original.convert("L")
+            if livello.blur_radius > 0:
+                immagine = immagine.filter(ImageFilter.GaussianBlur(radius=livello.blur_radius))
+            if livello.fattore_downscale > 1.0:
+                larghezza_px, altezza_px = immagine.size
+                piccola = immagine.resize(
+                    (
+                        int(larghezza_px / livello.fattore_downscale),
+                        int(altezza_px / livello.fattore_downscale),
+                    )
+                )
+                immagine = piccola.resize((larghezza_px, altezza_px))
+
+            buf_img = io.BytesIO()
+            immagine.save(buf_img, format="JPEG", quality=livello.qualita_jpeg)
+            buf_img.seek(0)
+            c.drawImage(ImageReader(buf_img), 0, 0, width=larghezza_pt, height=altezza_pt)
+
+            if sporca:
+                # text layer rado e rumoroso SOPRA l'immagine: caratteri reali
+                # ed estraibili, a differenza del contenuto "cotto" nei pixel.
+                c.setFont("Helvetica", 6)
+                for frammento in _frammenti_rumorosi(rng):
+                    x = rng.uniform(20, larghezza_pt - 20)
+                    y_pt = rng.uniform(20, altezza_pt - 20)
+                    c.drawString(x, y_pt, frammento)
 
     c.showPage()
     c.save()
@@ -454,6 +693,11 @@ def _ruota(pdf_bytes: bytes) -> bytes:
 
 _LETTERE_ISTANZA = "abcdefghijklmnopqrstuvwxyz"
 
+# ADR-039: una fattura e' sempre a tre pagine (totale/scadenza/periodo; POD e
+# scontrino; letture e imposte) — tranne --pagina-ibrida, un caso a se' che
+# non passa mai da DatiFattura/blocchi.
+PAGINE_PER_FATTURA = 3
+
 
 def genera_documento(
     rng: random.Random, doc_id: str, layout: str, flags: Flags
@@ -465,18 +709,38 @@ def genera_documento(
     "S007b" per --multi-fattura. Mai interpretate: il legame con il file
     fisico vive solo in metadata_entries[...]["file"].
     """
+    flags = _flags_effettivi(layout, flags)
     fornitore_stampato = NOME_ESTESO[layout] if flags.fornitore_esteso else layout
 
     n_fatture = 2 if flags.multi_fattura else 1
+    bimestrale = layout == "Alfa Energia"
     fatture = [
-        _genera_dati_fattura(rng, fornitore_stampato, flags.monoraria) for _ in range(n_fatture)
+        _genera_dati_fattura(rng, fornitore_stampato, flags.monoraria, bimestrale=bimestrale)
+        for _ in range(n_fatture)
     ]
-    blocchi = [_righe_fattura(dati, flags) for dati in fatture]
+    blocchi: list[PagineFattura] = [
+        (_righe_pagina1(dati, flags), _righe_pagina2(dati, flags), _righe_pagina3(dati, flags))
+        for dati in fatture
+    ]
 
+    e_scansione = (
+        flags.scansione
+        or flags.scansione_sporca
+        or flags.scansione_aggressiva
+        or flags.scansione_illeggibile
+    )
     if flags.pagina_ibrida:
         pdf_bytes = _pdf_ibrida(rng)
-    elif flags.scansione or flags.scansione_sporca:
-        pdf_bytes = _pdf_scansione(blocchi, rng, sporca=flags.scansione_sporca)
+    elif e_scansione:
+        if flags.scansione_illeggibile:
+            livello = DEGRADO_ILLEGGIBILE
+        elif flags.scansione_aggressiva:
+            livello = DEGRADO_AGGRESSIVO
+        else:
+            livello = DEGRADO_DEFAULT
+        pdf_bytes = _pdf_scansione(
+            layout, blocchi, rng, sporca=flags.scansione_sporca, livello=livello
+        )
     else:
         pdf_bytes = _pdf_digitale(layout, blocchi, rng)
     if flags.ruotata:
@@ -492,6 +756,10 @@ def genera_documento(
 
     if flags.pagina_ibrida:
         qualita = "ibrida"
+    elif flags.scansione_illeggibile:
+        qualita = "scansione_illeggibile"  # atteso: reject, non estrazione (ADR-036)
+    elif flags.scansione_aggressiva:
+        qualita = "scansione_aggressiva"  # caso difficile dichiarato, leggibile (97%)
     elif flags.scansione_sporca:
         qualita = "scansione_sporca"
     elif flags.scansione:
@@ -499,17 +767,15 @@ def genera_documento(
     else:
         qualita = "digitale"
 
-    # Solo il percorso digitale mette --multi-fattura su pagine separate
-    # (T2.4: serve al pattern di segmentazione un confine di pagina reale).
-    # scansione/ibrida restano a pagina singola: il rendering non le separa.
-    e_multipagina = n_fatture > 1 and qualita == "digitale"
+    pagine_per_fattura = 1 if flags.pagina_ibrida else PAGINE_PER_FATTURA
 
     metadata_entries = {}
     for indice, (instanza_id, _) in enumerate(istanze):
-        pagina = indice + 1 if e_multipagina else 1
+        pagina_da = indice * pagine_per_fattura + 1
+        pagina_a = pagina_da + pagine_per_fattura - 1
         metadata_entries[instanza_id] = {
             "file": nome_file,
-            "pagine": [pagina, pagina],
+            "pagine": [pagina_da, pagina_a],
             "layout": layout,
             "tipo_lettura": "stimata" if flags.consumo_stimato else "effettiva",
             "monoraria": flags.monoraria,
