@@ -47,6 +47,21 @@ def test_prompt_chiede_esattamente_i_campi_passati() -> None:
     assert "JSON" in prompt
 
 
+def test_prompt_con_campo_data_vieta_deduzione_da_mese_parziale() -> None:
+    # T4.12: misurato che il modello deduce primo/ultimo giorno del mese da
+    # una data parziale ("giugno 2025") invece di rispondere null — regola
+    # esplicita per il caso concreto, non solo quella generica anti-invenzione.
+    campi = _campi(("periodo_da", "date"))
+    prompt = costruisci_prompt(campi)
+    assert "primo o l'ultimo giorno del mese" in prompt
+
+
+def test_prompt_senza_campi_data_non_menziona_la_regola_data() -> None:
+    campi = _campi(("pod", "string"))
+    prompt = costruisci_prompt(campi)
+    assert "primo o l'ultimo giorno del mese" not in prompt
+
+
 def test_prompt_generato_dallo_schema_reale_senza_hardcode() -> None:
     schema = load(SCHEMA_PATH)
     prompt = costruisci_prompt(schema.campi)

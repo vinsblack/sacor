@@ -37,10 +37,11 @@ from sacor.providers.errors import ErroreProvider  # noqa: E402
 from sacor.providers.prompt import costruisci_prompt  # noqa: E402
 from sacor.segmentation import Istanza  # noqa: E402
 
-# T4.5, C2: se il costo REALE dell'intero giro supera questo tetto, ci si
-# ferma — e' due ordini di grandezza sopra la stima attesa; se lo si supera
-# il problema non e' il prezzo (istruzione utente verbatim).
-LIMITE_SPESA_USD = 0.50
+# T4.5/T4.12, C2: se il costo REALE dell'intero giro supera questo tetto, ci
+# si ferma. Alzato da $0.50 a $5 per lasciare margine a test piu' ampi
+# (es. claude-opus-5, o corpus futuri piu' grandi) — resta un tetto basso in
+# assoluto, monitorato ad ogni giro (costo reale vs stimato riportato sempre).
+LIMITE_SPESA_USD = 5.0
 
 
 def _provider_per_modello(modello: str) -> ModelProvider:

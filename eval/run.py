@@ -41,7 +41,7 @@ CORPUS_RAW = REPO_ROOT / "corpus" / "synth"
 # stessa lista, non una copia). Nessun modello "scelto" nel codice — e' solo
 # l'insieme su cui gira il confronto; la tabella prodotta dal bake-off
 # decide, non questa lista (istruzione utente verbatim).
-MODELLI_BAKEOFF: tuple[str, ...] = ("claude-haiku-4-5", "gpt-4o-mini")
+MODELLI_BAKEOFF: tuple[str, ...] = ("claude-haiku-4-5", "gpt-4o-mini", "claude-opus-5")
 
 # T4.5, C1: stessa risoluzione usata da --dry-run per stimare e da
 # scripts/bakeoff.py per chiamare davvero — la stima deve misurare quello

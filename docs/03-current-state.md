@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| Commit | 85076b3 |
-| Test | 107 passed in 10.43s |
+| Commit | 5f7169d |
+| Test | 107 passed in 11.00s |
 | Accuratezza (per campo) | 43.6% |
 | Accuratezza (per documento) | 28.6% |
 | Triage — numero istanze | 91.7% |
@@ -17,7 +17,7 @@
 | Triage — attributo peggiore (per accuratezza) | numero istanze, 91.7% |
 | Degrado scansione (produzione, ADR-036) | medio (blur 0.6, downscale 1.5, jpeg 70) |
 | Tasso di escalation | n/d |
-| Generato il | 2026-08-10 21:00 UTC |
+| Generato il | 2026-08-10 21:14 UTC |
 
 ## Blocco corrente
 

@@ -22,18 +22,34 @@ def costruisci_prompt(campi: Sequence[Campo]) -> str:
     elenco_campi = "\n".join(f"- {c.nome}: {_DESCRIZIONE_TIPO[c.tipo]}" for c in campi)
     chiavi_attese = ", ".join(f'"{c.nome}"' for c in campi)
 
+    regole = [
+        "- Se un campo non e' presente sul documento o non e' leggibile, il suo "
+        "valore deve essere `null`. Non indovinare, non stimare, non dedurre da "
+        "campi simili o dal contesto: un'astensione e' sempre preferibile a un "
+        "valore inventato.",
+        "- Rispondi con SOLO un oggetto JSON valido, nessun testo prima o dopo, "
+        "nessun blocco di codice markdown.",
+        f"- Le chiavi dell'oggetto devono essere esattamente: {chiavi_attese}.",
+    ]
+    if any(c.tipo == "date" for c in campi):
+        # Misurato (T4.12): il modello a volte NON si astiene su una data
+        # parziale ("giugno 2025", senza giorno) — deduce il primo o
+        # l'ultimo giorno del mese invece di rispondere null. E' esattamente
+        # il tipo di invenzione plausibile che il resto del prompt vieta in
+        # generale; qui va vietato per nome, col caso concreto che l'ha
+        # prodotta, non solo con la regola generica.
+        regole.append(
+            "- Un campo data richiede giorno, mese e anno ESATTI. Se il documento "
+            "indica solo il mese e l'anno (es. 'giugno 2025'), senza un giorno "
+            "specifico, il valore e' `null` — NON dedurre il primo o l'ultimo "
+            "giorno del mese: sarebbe un valore inventato, non letto."
+        )
+
     return (
         "Sei un estrattore di dati da documenti. Ti vengono fornite una o piu' "
         "pagine di un documento come immagini.\n\n"
         "Estrai ESATTAMENTE questi campi, non altri:\n"
         f"{elenco_campi}\n\n"
-        "Regole:\n"
-        "- Se un campo non e' presente sul documento o non e' leggibile, il suo "
-        "valore deve essere `null`. Non indovinare, non stimare, non dedurre da "
-        "campi simili o dal contesto: un'astensione e' sempre preferibile a un "
-        "valore inventato.\n"
-        "- Rispondi con SOLO un oggetto JSON valido, nessun testo prima o dopo, "
-        "nessun blocco di codice markdown.\n"
-        f"- Le chiavi dell'oggetto devono essere esattamente: {chiavi_attese}.\n\n"
+        "Regole:\n" + "\n".join(regole) + "\n\n"
         'Esempio di formato risposta: {"campo_a": "valore letto", "campo_b": null}'
     )
