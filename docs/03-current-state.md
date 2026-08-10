@@ -1,16 +1,15 @@
 # 03 — Stato corrente
 
 > **File generato da `scripts/state.py`. Non modificare a mano.**
-> Finché lo script non esiste (task T1.9), questo è un segnaposto.
 
 | | |
 |---|---|
-| Commit | — |
-| Test | — |
-| Accuratezza (per campo) | — |
-| Accuratezza (per documento) | — |
-| Tasso di escalation | — |
-| Generato il | — |
+| Commit | 546f67b |
+| Test | 17 passed in 0.04s |
+| Accuratezza (per campo) | n/d |
+| Accuratezza (per documento) | n/d |
+| Tasso di escalation | n/d |
+| Generato il | 2026-08-10 15:38 UTC |
 
 ## Blocco corrente
 

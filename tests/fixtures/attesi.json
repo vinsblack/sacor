@@ -1,0 +1,30 @@
+{
+  "oracle_version": 1,
+  "documento": "bolletta_luce_it",
+  "documenti": {
+    "F001": {
+      "pod": "IT001E00000001",
+      "fornitore": "Fornitore Sintetico Uno",
+      "periodo_da": "2025-01-01",
+      "periodo_a": "2025-02-28",
+      "giorni": "59",
+      "kwh_totale": "1234.56",
+      "kwh_f1": "500.00",
+      "kwh_f2": "400.56",
+      "kwh_f3": "334.00",
+      "importo_totale": "312.45"
+    },
+    "F002": {
+      "pod": "IT001E00000002",
+      "fornitore": "Fornitore Sintetico Due",
+      "periodo_da": "2025-03-01",
+      "periodo_a": "2025-04-30",
+      "giorni": "61",
+      "kwh_totale": "800.00",
+      "kwh_f1": null,
+      "kwh_f2": null,
+      "kwh_f3": null,
+      "importo_totale": "201.10"
+    }
+  }
+}

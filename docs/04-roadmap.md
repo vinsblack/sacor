@@ -67,3 +67,52 @@ ultima accuratezza dell'eval.
 leggibile. Il numero sarà 0%. È corretto: adesso esiste il metro.
 
 Il Blocco 2 (primo extractor reale, tier 1) si progetta solo dopo.
+
+---
+
+## Blocco 1-bis — Corpus sintetico (sostituisce T1.6/T1.7)
+
+I documenti reali della commessa VERO sono esclusi (ADR-012). Il corpus si
+genera. Nessun dato reale entra nel repo.
+
+### T1.6 — Generatore di bollette sintetiche
+`scripts/genera_corpus.py`. Produce PDF + oracle nella stessa esecuzione:
+l'oracle è **l'input** del generatore, non una lettura. Esatto per costruzione.
+
+Tre layout distinti, ispirati a fornitori reali ma senza marchi né loghi:
+`Alfa Energia`, `Beta Luce`, `Gamma Power`. Dati anagrafici inventati.
+Rendering: reportlab o HTML→PDF, purché deterministico con un seed.
+
+**Accettazione:** `python scripts/genera_corpus.py --seed 42` genera 10 PDF in
+`corpus/synth/` e `corpus/attesi.json`; rieseguito con lo stesso seed produce
+file identici.
+
+### T1.7 — Casi limite nel generatore
+Ogni caso di ADR-013 deve essere generabile con un flag:
+
+| Flag | Caso |
+|---|---|
+| `--multi-fattura` | due periodi nello stesso PDF |
+| `--periodo-mensile` | "Settembre 2025" invece dell'intervallo |
+| `--fornitore-esteso` | ragione sociale lunga invece del nome breve |
+| `--consumo-stimato` | consumi stimati anziché effettivi |
+| `--monoraria` | F2 e F3 a zero |
+| `--ruotata` | pagina a 180° |
+| `--scansione` | nessun text layer, immagine degradata |
+
+**Accettazione:** un test per flag verifica che il PDF generato abbia la
+caratteristica attesa. Il caso `--multi-fattura` produce due voci nell'oracle
+per lo stesso file.
+
+### T1.7-bis — metadata.json
+`corpus/metadata.json`: per ogni documento, `layout`, `tipo_lettura`,
+`monoraria`, `qualita`, `pagine`, `flag_attivi`.
+Serve a segmentare l'accuratezza ("94% su digitali, 61% su scansioni") senza
+toccare l'oracle.
+
+**Accettazione:** generato insieme al corpus, una voce per documento.
+
+### Nota su corpus reale
+Resta necessario, ma solo con bollette di Vins o di terzi consenzienti
+(`corpus/README.md`). Non blocca il Blocco 1. Il numero pubblicato dovrà
+dichiarare la natura del corpus: "su corpus sintetico" non è "su corpus reale".

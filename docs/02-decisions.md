@@ -62,3 +62,61 @@ Rivedibile se il numero di tipi di nodo nello schema supera ~6.
 caricamento dello schema, non durante l'eval. Un typo in un YAML scoperto tre
 strati dopo costa un'ora di debug; scoperto al load costa zero.
 Stesso principio per `tipo`: deve esistere nel registro delle invarianti.
+
+## ADR-010 — Oracle: numeri come stringhe, null significa "assente"
+**2026-08-10.** In `corpus/attesi.json` tutti i valori sono stringhe, anche i
+decimali (`"1234.56"`, non `1234.56`). Motivo: JSON usa float IEEE-754, e
+`0.1 + 0.2 != 0.3`. Un oracle che non è esatto per costruzione rende ogni numero
+successivo discutibile. La conversione a `Decimal` avviene al confronto.
+
+`null` ha un significato preciso: **il campo non è presente sul documento**.
+Non significa "non lo so". Se l'extractor restituisce `null` e l'oracle dice
+`null`, è una risposta **corretta**: il sistema ha correttamente rilevato
+un'assenza. Senza questa distinzione l'accuratezza è ingannevole.
+
+## ADR-011 — Definizione di accuratezza
+**2026-08-10.** Due metriche, entrambe riportate. Mai una sola.
+
+**Per campo:** match esatti / totale documenti, calcolato per ogni campo dello
+schema. Il match è esatto dopo normalizzazione (trim, `Decimal` per i numerici,
+ISO per le date). Nessuna tolleranza: la tolleranza vive nelle invarianti, non
+nel confronto con l'oracle.
+
+**Per documento:** un documento è corretto solo se **tutti** i campi lo sono.
+È la metrica onesta e sarà molto più bassa dell'altra.
+
+Motivo: dichiarare "99% di accuratezza" misurando per campo è il trucco
+commerciale standard del settore. sacor pubblica entrambe, e mette per prima
+quella per documento.
+
+## ADR-012 — Nessun documento proveniente dalla commessa VERO
+**2026-08-10.** Tre bollette reali (Plenitude, Sorgenia, Iren) provenienti dal
+lavoro con Massimo sono state proposte per il corpus e **rifiutate**.
+Motivi: (a) violano ADR-002; (b) i dati non sono di Massimo ma di clienti finali
+identificabili, che non hanno acconsentito a un uso in un prodotto terzo;
+(c) un corpus non pubblicabile annulla il differenziatore del progetto — un
+numero che nessuno può verificare vale quanto quello dei concorrenti.
+Le **osservazioni** ricavate dalla lettura restano acquisite (ADR-013): il
+know-how è trasferibile, i documenti no.
+
+## ADR-013 — Casi limite osservati su documenti reali
+**2026-08-10.** Riproducibili nel generatore sintetico. Nessun dato reale
+conservato.
+
+1. **Più fatture in un solo PDF.** Un PDF Plenitude conteneva due periodi
+   distinti (gen-feb 2026 e nov-dic 2025) con due numeri fattura e due totali.
+   L'assunzione "un file = un documento" è falsa. Il triage deve rilevare i
+   confini di fattura, altrimenti l'estrattore mescola i periodi. Errore
+   silenzioso: il risultato è formalmente coerente.
+2. **Periodo espresso come mese, non come intervallo.** Sorgenia stampa
+   "Periodo di fatturazione: Settembre 2025". Le date visibili sono date di
+   lettura, non di periodo. `periodo_da`/`periodo_a` vanno derivati, e la
+   derivazione va marcata come tale nella confidence.
+3. **Fornitore ambiguo.** Logo "plenitude" vs ragione sociale "Eni Plenitude
+   SpA Società Benefit"; "Sorgenia" vs "Sorgenia S.p.A."; "iren" vs "IREN
+   MERCATO S.p.A.". Serve normalizzazione, o il campo sbaglia metà delle volte.
+4. **Consumi stimati vs effettivi.** Iren dichiara "di cui consumo stimato 95
+   kWh" e avverte che gli importi saranno ricalcolati. Un consumo stimato non
+   ha lo stesso valore di uno effettivo: va esposto come metadato.
+5. **Fascia unica con fasce a zero.** Offerta monoraria che riporta comunque
+   F1/F2/F3 con F2=0 e F3=0. Zero non è assenza: la somma fasce resta valida.
