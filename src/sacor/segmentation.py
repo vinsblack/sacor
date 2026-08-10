@@ -106,12 +106,29 @@ def segmenta(
 
     Assente -> default una istanza per file, confidenza certa (ADR-017): il
     comportamento semplice resta il default, non un caso speciale.
-    Almeno una pagina SCANSIONE/IBRIDA -> non_determinabile: senza text
-    layer affidabile ovunque il pattern non puo' essere verificato, e "una
-    sola istanza" sarebbe indistinguibile da un vero documento singolo
-    (ADR-024). Si produce comunque un risultato — mai un'eccezione.
+
+    Scorciatoia aritmetica (ADR-031, corregge ADR-029, revocata): CERTA senza
+    leggere il testo SOLO se pagine_totali < 2 * minimo_pagine E tutte le
+    pagine sono DIGITALE. La premessa di ADR-029 — "un'istanza occupa almeno
+    minimo_pagine pagine quindi una pagina ne contiene al piu' una" — era
+    falsa: due fatture possono stare sulla stessa pagina fisica (S011, corpus
+    di default), e la vecchia scorciatoia le dichiarava CERTA/1 istanza
+    mentre la verita' era 2. Un errore silenzioso e sicuro di se', il
+    fallimento esatto che il progetto esiste per prevenire.
+
+    Su una pagina SCANSIONE/IBRIDA la scorciatoia non si applica mai: li'
+    l'incertezza e' reale (ADR-024), non un falso allarme da sopprimere. Si
+    riduce rendendo leggibile la pagina (OCR, Blocco 3), non assumendo.
+    Si produce comunque un risultato — mai un'eccezione.
     """
     if config is None:
+        return SegmentazioneResult(
+            istanze=(_istanza_unica(doc_id, len(pagine)),),
+            confidenza=ConfidenzaSegmentazione.CERTA,
+        )
+
+    tutte_digitale = all(p.tipo is TipoPagina.DIGITALE for p in pagine)
+    if len(pagine) < 2 * config.minimo_pagine and tutte_digitale:
         return SegmentazioneResult(
             istanze=(_istanza_unica(doc_id, len(pagine)),),
             confidenza=ConfidenzaSegmentazione.CERTA,

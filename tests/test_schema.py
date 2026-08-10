@@ -12,7 +12,8 @@ def test_schema_bolletta_luce_carica_10_campi_2_invarianti() -> None:
     schema = load(SCHEMA_REALE)
     assert len(schema.campi) == 10
     assert len(schema.invarianti) == 2
-    assert schema.segmentazione is None  # sezione assente sullo schema reale
+    assert schema.segmentazione is not None  # ADR-028: attivata sullo schema reale
+    assert schema.segmentazione.tipo == "cambio_valore"
 
 
 def test_file_mancante_alza_schema_error(tmp_path: Path) -> None:

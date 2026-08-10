@@ -10,6 +10,7 @@ import tempfile
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 import pdfplumber
 from PIL import Image
@@ -207,3 +208,49 @@ def analizza(
     istanza_unica = Istanza(id=path.stem, pagina_da=1, pagina_a=len(pagine))
 
     return TriageResult(file=path.name, pagine=pagine, istanze=(istanza_unica,))
+
+
+def normalizza_testo(pagina: pdfplumber.page.Page) -> str:
+    """Testo della pagina con la rotazione nota (page.rotation) applicata
+    correttamente all'ordine di lettura (ADR-030).
+
+    pdfplumber riposiziona le bounding box dei caratteri secondo /Rotate, ma
+    pdfminer.six a valle li riordina per coordinate (top, x0) crescenti per
+    ricostruire righe e parole. A 180 gradi questo INVERTE l'ordine di
+    lettura carattere per carattere: "Importo totale" diventa
+    "elatot otropmI" (verificato su un documento sintetico ruotato) — non
+    perche' il testo manchi, ma perche' l'ordinamento e' sbagliato per una
+    pagina capovolta. `sacor.segmentation` legge da qui, non da
+    `extract_text()` direttamente, altrimenti il pattern non trova mai nulla
+    su una pagina ruotata (esito "presunta" invece di "certa").
+
+    Approccio, solo pdfplumber — **non serve pypdf**: a 180 gradi l'ordine
+    con cui pdfplumber elenca `pagina.chars` (ordine di disegno nel content
+    stream, non un sort per coordinate) e' GIA' il corretto ordine di lettura
+    all'interno di ogni riga; e' l'ordinamento di pdfminer a valle che lo
+    inverte. Si raggruppano quindi i caratteri in righe per prossimita' di
+    'top' seguendo l'ordine di enumerazione nativo, poi si riordinano le
+    righe per 'top' crescente — che pdfplumber calcola comunque
+    correttamente nello spazio ruotato. Nessun bisogno di riaprire il PDF
+    o trasformarne il content stream: i dati servono sono gia' quelli che
+    pdfplumber espone, va corretto solo l'ordine con cui si riassemblano.
+
+    A 90/270 gradi le "righe" nello spazio ruotato sono colonne (x costante,
+    non top costante): questa euristica non si applica e non e' comunque
+    verificata su alcun documento reale (`--ruotata` genera solo 180 gradi).
+    In quei casi si ripiega su `extract_text()` non normalizzato — testo
+    probabilmente ancora in ordine scorretto, ma la funzione non fallisce
+    mai (stesso principio "mai un'eccezione" di T2.3 per l'OSD).
+    """
+    if pagina.rotation % 360 != 180:
+        return pagina.extract_text() or ""
+
+    righe: list[list[dict[str, Any]]] = []
+    for c in pagina.chars:
+        if righe and abs(float(c["top"]) - float(righe[-1][-1]["top"])) < 2:
+            righe[-1].append(c)
+        else:
+            righe.append([c])
+
+    righe.sort(key=lambda riga: float(riga[0]["top"]))
+    return "\n".join("".join(str(c["text"]) for c in riga) for riga in righe)

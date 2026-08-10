@@ -48,3 +48,8 @@ invarianti:
     risultato: giorni
     offset: 1
     severita: warning
+
+segmentazione:
+  tipo: cambio_valore
+  pattern: 'Fattura n\.?\s*([0-9]+)'
+  minimo_pagine: 1

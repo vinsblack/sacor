@@ -51,7 +51,13 @@ def _carica_metadata(path: Path) -> dict[str, Mapping[str, object]]:
     if not path.is_file():
         return {}
     dati = json.loads(path.read_text())
-    return dati if isinstance(dati, dict) else {}
+    if not isinstance(dati, dict):
+        return {}
+    # ADR-025: corpus/metadata.json porta un blocco "composizione" in testa;
+    # le voci per istanza vivono sotto "documenti". Formato piatto (senza
+    # wrapper) tollerato per compatibilita' con generazioni non composite.
+    documenti = dati.get("documenti", dati)
+    return documenti if isinstance(documenti, dict) else {}
 
 
 def esegui_eval(

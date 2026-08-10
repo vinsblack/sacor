@@ -1,9 +1,10 @@
 import random
 from pathlib import Path
 
+import pdfplumber
 import pytest
 
-from sacor.triage import TipoPagina, analizza
+from sacor.triage import TipoPagina, analizza, normalizza_testo
 from scripts.genera_corpus import Flags, genera_documento
 
 
@@ -82,6 +83,24 @@ def test_ruotata_rileva_rotazione_180(tmp_path: Path) -> None:
     risultato = analizza(path)
 
     assert all(p.rotazione == 180 for p in risultato.pagine)
+
+
+def test_normalizza_testo_su_pagina_ruotata_180_legge_nel_verso_giusto(tmp_path: Path) -> None:
+    """ADR-030: extract_text() puro su /Rotate=180 restituisce il testo
+    invertito carattere per carattere ("elatot otropmI"); normalizza_testo()
+    deve correggerlo."""
+    pdf_bytes, _, _ = genera_documento(
+        random.Random(18), "S009", "Gamma Power", Flags(ruotata=True)
+    )
+    path = _scrivi(tmp_path, "S009.pdf", pdf_bytes)
+
+    with pdfplumber.open(path) as documento:
+        pagina = documento.pages[0]
+        testo_grezzo = pagina.extract_text() or ""
+        testo = normalizza_testo(pagina)
+
+    assert "Fattura n." in testo
+    assert "Fattura n." not in testo_grezzo  # conferma che senza normalizzare si perde
 
 
 def test_pdf_non_ruotato_ha_rotazione_zero(tmp_path: Path) -> None:

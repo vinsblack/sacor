@@ -1,122 +1,203 @@
 {
-  "S001": {
-    "file": "S001.pdf",
-    "pagine": [
-      1,
-      1
-    ],
-    "layout": "Alfa Energia",
-    "tipo_lettura": "effettiva",
-    "monoraria": false,
-    "qualita": "digitale",
-    "flag_attivi": []
+  "composizione": {
+    "digitale_pulito": 4,
+    "scansione_pulita": 2,
+    "scansione_sporca": 2,
+    "pagina_ibrida": 1,
+    "multi_fattura_digitale": 1,
+    "multi_fattura_scansionato": 1,
+    "ruotato": 1
   },
-  "S002": {
-    "file": "S002.pdf",
-    "pagine": [
-      1,
-      1
-    ],
-    "layout": "Beta Luce",
-    "tipo_lettura": "effettiva",
-    "monoraria": false,
-    "qualita": "digitale",
-    "flag_attivi": []
-  },
-  "S003": {
-    "file": "S003.pdf",
-    "pagine": [
-      1,
-      1
-    ],
-    "layout": "Gamma Power",
-    "tipo_lettura": "effettiva",
-    "monoraria": false,
-    "qualita": "digitale",
-    "flag_attivi": []
-  },
-  "S004": {
-    "file": "S004.pdf",
-    "pagine": [
-      1,
-      1
-    ],
-    "layout": "Alfa Energia",
-    "tipo_lettura": "effettiva",
-    "monoraria": false,
-    "qualita": "digitale",
-    "flag_attivi": []
-  },
-  "S005": {
-    "file": "S005.pdf",
-    "pagine": [
-      1,
-      1
-    ],
-    "layout": "Beta Luce",
-    "tipo_lettura": "effettiva",
-    "monoraria": false,
-    "qualita": "digitale",
-    "flag_attivi": []
-  },
-  "S006": {
-    "file": "S006.pdf",
-    "pagine": [
-      1,
-      1
-    ],
-    "layout": "Gamma Power",
-    "tipo_lettura": "effettiva",
-    "monoraria": false,
-    "qualita": "digitale",
-    "flag_attivi": []
-  },
-  "S007": {
-    "file": "S007.pdf",
-    "pagine": [
-      1,
-      1
-    ],
-    "layout": "Alfa Energia",
-    "tipo_lettura": "effettiva",
-    "monoraria": false,
-    "qualita": "digitale",
-    "flag_attivi": []
-  },
-  "S008": {
-    "file": "S008.pdf",
-    "pagine": [
-      1,
-      1
-    ],
-    "layout": "Beta Luce",
-    "tipo_lettura": "effettiva",
-    "monoraria": false,
-    "qualita": "digitale",
-    "flag_attivi": []
-  },
-  "S009": {
-    "file": "S009.pdf",
-    "pagine": [
-      1,
-      1
-    ],
-    "layout": "Gamma Power",
-    "tipo_lettura": "effettiva",
-    "monoraria": false,
-    "qualita": "digitale",
-    "flag_attivi": []
-  },
-  "S010": {
-    "file": "S010.pdf",
-    "pagine": [
-      1,
-      1
-    ],
-    "layout": "Alfa Energia",
-    "tipo_lettura": "effettiva",
-    "monoraria": false,
-    "qualita": "digitale",
-    "flag_attivi": []
+  "documenti": {
+    "S001": {
+      "file": "S001.pdf",
+      "pagine": [
+        1,
+        1
+      ],
+      "layout": "Alfa Energia",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "digitale",
+      "flag_attivi": []
+    },
+    "S002": {
+      "file": "S002.pdf",
+      "pagine": [
+        1,
+        1
+      ],
+      "layout": "Beta Luce",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "digitale",
+      "flag_attivi": []
+    },
+    "S003": {
+      "file": "S003.pdf",
+      "pagine": [
+        1,
+        1
+      ],
+      "layout": "Gamma Power",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "digitale",
+      "flag_attivi": []
+    },
+    "S004": {
+      "file": "S004.pdf",
+      "pagine": [
+        1,
+        1
+      ],
+      "layout": "Alfa Energia",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "digitale",
+      "flag_attivi": []
+    },
+    "S005": {
+      "file": "S005.pdf",
+      "pagine": [
+        1,
+        1
+      ],
+      "layout": "Beta Luce",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "scansione_degradata",
+      "flag_attivi": [
+        "scansione"
+      ]
+    },
+    "S006": {
+      "file": "S006.pdf",
+      "pagine": [
+        1,
+        1
+      ],
+      "layout": "Gamma Power",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "scansione_degradata",
+      "flag_attivi": [
+        "scansione"
+      ]
+    },
+    "S007": {
+      "file": "S007.pdf",
+      "pagine": [
+        1,
+        1
+      ],
+      "layout": "Alfa Energia",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "scansione_sporca",
+      "flag_attivi": [
+        "scansione_sporca"
+      ]
+    },
+    "S008": {
+      "file": "S008.pdf",
+      "pagine": [
+        1,
+        1
+      ],
+      "layout": "Beta Luce",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "scansione_sporca",
+      "flag_attivi": [
+        "scansione_sporca"
+      ]
+    },
+    "S009": {
+      "file": "S009.pdf",
+      "pagine": [
+        1,
+        1
+      ],
+      "layout": "Gamma Power",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "ibrida",
+      "flag_attivi": [
+        "pagina_ibrida"
+      ]
+    },
+    "S010a": {
+      "file": "S010.pdf",
+      "pagine": [
+        1,
+        1
+      ],
+      "layout": "Alfa Energia",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "digitale",
+      "flag_attivi": [
+        "multi_fattura"
+      ]
+    },
+    "S010b": {
+      "file": "S010.pdf",
+      "pagine": [
+        2,
+        2
+      ],
+      "layout": "Alfa Energia",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "digitale",
+      "flag_attivi": [
+        "multi_fattura"
+      ]
+    },
+    "S011a": {
+      "file": "S011.pdf",
+      "pagine": [
+        1,
+        1
+      ],
+      "layout": "Beta Luce",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "scansione_degradata",
+      "flag_attivi": [
+        "multi_fattura",
+        "scansione"
+      ]
+    },
+    "S011b": {
+      "file": "S011.pdf",
+      "pagine": [
+        1,
+        1
+      ],
+      "layout": "Beta Luce",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "scansione_degradata",
+      "flag_attivi": [
+        "multi_fattura",
+        "scansione"
+      ]
+    },
+    "S012": {
+      "file": "S012.pdf",
+      "pagine": [
+        1,
+        1
+      ],
+      "layout": "Gamma Power",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "digitale",
+      "flag_attivi": [
+        "ruotata"
+      ]
+    }
   }
 }

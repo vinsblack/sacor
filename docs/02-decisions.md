@@ -365,3 +365,171 @@ Conseguenza sull'ordine della pipeline: sui documenti scansionati la
 segmentazione corretta richiede l'OCR, quindi va **dopo** l'estrazione, non
 prima. Il triage produce una segmentazione provvisoria; una ri-segmentazione
 sul testo estratto è lavoro del Blocco 3.
+
+## ADR-025 — Il corpus di valutazione contiene i casi difficili per costruzione
+**2026-08-10.** `eval/triage.py` riporta 100% su tutti e quattro gli attributi.
+Il numero è vuoto: il corpus base generato con `--seed 42` non contiene
+nessuna scansione, nessuna pagina ibrida, nessuna ruotata, nessun
+multi-fattura. Ogni attributo ha una risposta di default ovvia, e il triage la
+indovina senza fare nulla.
+
+I casi difficili esistono nel generatore, ma dietro flag opzionali. Quindi la
+configurazione di default del benchmark **esclude esattamente ciò che il
+benchmark dovrebbe misurare**.
+
+Questo è il trucco del "99% di accuratezza" applicato a noi stessi: un numero
+alto ottenuto scegliendo cosa misurare. Un progetto che esiste per denunciarlo
+non può commetterlo.
+
+**Decisione.** Il corpus generato di default è una miscela dichiarata:
+
+| casi | n | copre |
+|---|---|---|
+| digitale pulito | 4 | baseline, un layout ciascuno |
+| scansione pulita | 2 | tipo pagina |
+| scansione sporca | 2 | soglia copertura |
+| pagina ibrida | 1 | banda intermedia |
+| multi-fattura digitale | 1 | segmentazione CERTA |
+| multi-fattura scansionato | 1 | segmentazione NON_DETERMINABILE |
+| ruotato | 1 | OSD |
+
+`corpus/metadata.json` dichiara la composizione in testa. I flag restano, ma
+servono a generare casi isolati nei test unitari, non a definire il corpus.
+
+Regola generale: **se un caso difficile è opt-in, la metrica di default non lo
+misura.** Vale per ogni benchmark che il progetto pubblicherà.
+
+## ADR-026 — Mai una media unica nello stato del progetto
+**2026-08-10.** `scripts/state.py` riportava l'accuratezza triage come
+micro-media sui quattro attributi. Una media nasconde quale attributo sta
+fallendo: 100/100/100/60 e 90/90/90/90 danno numeri simili e significano cose
+opposte.
+
+È lo stesso errore vietato da ADR-011 per l'estrazione. Vale ovunque:
+`03-current-state.md` riporta gli attributi separatamente, più il **peggiore**
+in evidenza. Nessuna media aggregata come dato principale.
+
+## ADR-027 — Accuratezza e copertura sono due numeri diversi
+**2026-08-10.** La rotazione segna 53,8%. Ma i 6 fallimenti sono tutti `None`
+prodotti dall'assenza di Tesseract: il sistema non ha sbagliato, **non ha
+potuto rispondere**. Mischiare le due cose produce un numero che sembra un
+difetto del triage e non lo è.
+
+È la stessa distinzione di ADR-010 (`null` = assente, non "non lo so"),
+applicata alle metriche.
+
+**Decisione.** Ogni attributo che può essere non determinabile riporta due
+numeri:
+
+    rotazione — copertura 53,8% (7/13 determinabili)
+                accuratezza 100,0% (7/7 sui determinabili)
+
+Mai un numero solo. La copertura misura la capacità dell'ambiente, l'accuratezza
+la correttezza del sistema. Una copertura bassa è un problema di installazione;
+un'accuratezza bassa è un problema di codice. Confonderle manda a debuggare la
+cosa sbagliata.
+
+Corollario: `03-current-state.md` deve dire perché la copertura è bassa
+("Tesseract non installato"), altrimenti il numero resta inspiegabile.
+
+## ADR-028 — Una feature non raggiungibile dalla configurazione reale è codice morto
+**2026-08-10.** `schemas/bolletta_luce_it.yaml` non dichiara la sezione
+`segmentazione`. Quindi `segmenta()` prende sempre il ramo di default e tutto
+T2.4 — `cambio_valore`, il percorso `NON_DETERMINABILE`, la segmentazione
+multi-fattura — **non viene mai eseguito in produzione**. La confidenza mostra
+`certa 12` per assenza di logica, non per certezza.
+
+44 test unitari passavano. Nessuno di essi verificava che la feature fosse
+*raggiungibile* dalla configurazione reale. L'ha scoperto l'eval.
+
+Questo è il principale argomento a favore dell'eval harness come test di
+integrazione, non solo come metrica commerciale: i test unitari dimostrano che
+il codice funziona, l'eval dimostra che il codice viene usato.
+
+Regola: ogni feature introdotta deve essere accompagnata dalla configurazione
+che la attiva, e l'eval deve mostrarne l'effetto. Se un percorso di codice non
+compare mai nei conteggi dell'eval, va trattato come sospetto.
+
+## ADR-029 — L'incertezza dichiarata di troppo distrugge il valore del warning
+**2026-08-10.** `NON_DETERMINABILE` è uscito su 6 documenti su 12: ogni file
+con almeno una pagina `SCANSIONE` o `IBRIDA`, come prescritto da ADR-024.
+Corretto rispetto alla regola, sbagliato come prodotto.
+
+Su un file di **una sola pagina** con `minimo_pagine: 1`, il numero di istanze
+è determinabile per aritmetica: non ci può stare più di un'istanza,
+indipendentemente da cosa contenga il testo. Dichiarare incertezza lì è un
+falso allarme.
+
+Un gate che segnala tutto non segnala nulla: l'utente impara a ignorare il
+flag, e il warning perde valore proprio quando serve. È il rovescio esatto
+dell'errore silenzioso, e danneggia il prodotto allo stesso modo.
+
+**Decisione.** Prima della regola su ADR-024 si applica una scorciatoia
+deterministica: se `pagine_totali < 2 * minimo_pagine`, la confidenza è
+`CERTA` per costruzione, senza leggere alcun testo.
+`NON_DETERMINABILE` resta solo dove la segmentazione è davvero possibile e non
+verificabile.
+
+Regola generale: prima di dichiarare incertezza, verificare che la domanda non
+abbia già una risposta certa per vincoli strutturali.
+
+## ADR-030 — La rotazione va normalizzata prima di leggere il testo
+**2026-08-10.** Su S012 (pagina con `/Rotate 180`) la segmentazione è uscita
+`PRESUNTA`: `pdfplumber.extract_text()` restituisce il testo invertito
+carattere per carattere (`23.45 RUE :elatot otropmI`), quindi il pattern
+`Fattura n. X` non viene mai trovato — non perché manchi, ma perché la
+rotazione corrompe la lettura prima che la regex entri in gioco.
+
+È la stessa famiglia di ADR-013 caso 1 (pagine ruotate invisibili a Tesseract),
+in una forma nuova: la rotazione non degrada solo l'OCR, degrada **qualsiasi**
+lettura testuale a valle.
+
+Oggi il triage *rileva* la rotazione ma nessuno la *applica*. Il rilevamento
+senza correzione è inutile.
+
+**Decisione.** La normalizzazione della rotazione è uno step della pipeline,
+subito dopo il triage e prima di ogni lettura di testo o invio a un modello.
+Ogni consumatore riceve pagine già raddrizzate.
+
+Nota: il sistema ha comunque risposto `PRESUNTA` invece di affermare
+`1 istanza, CERTA`. La confidenza esplicita ha fatto il suo lavoro — senza,
+questo sarebbe stato un errore silenzioso.
+
+## ADR-031 — Revoca ADR-029: la scorciatoia aritmetica produceva errori silenziosi
+**2026-08-10.** ADR-029 introduceva: `pagine_totali < 2 * minimo_pagine`
+→ `CERTA` senza leggere il testo. Sbagliata. **Revocata.**
+
+Effetto misurato su S011 (multi-fattura scansionato, due fatture sulla stessa
+pagina fisica): prima riportava `NON_DETERMINABILE` — onesto. Dopo la
+scorciatoia riporta `1 istanza, CERTA`, mentre la verità è 2. La modifica ha
+trasformato un'incertezza dichiarata in un **errore silenzioso e sicuro di sé**:
+esattamente il fallimento che il progetto esiste per prevenire.
+
+La premessa era falsa: "un'istanza occupa almeno `minimo_pagine` pagine" non
+implica "una pagina contiene al più un'istanza". Due fatture possono stare
+sulla stessa pagina, e il caso era già nel corpus.
+
+L'errore di ragionamento a monte: ADR-029 partiva da un problema reale
+(6 warning su 12 svuotano il valore del warning) e ha scelto la soluzione
+sbagliata — **sopprimere il segnale invece di risolverne la causa**.
+
+**Decisione corretta.** La scorciatoia si applica solo se la pagina è
+leggibile:
+
+| condizione | esito |
+|---|---|
+| `pagine_totali < 2*minimo_pagine` e tutte le pagine `DIGITALE` | `CERTA` |
+| altrimenti, pagine `SCANSIONE`/`IBRIDA` presenti | `NON_DETERMINABILE` |
+
+Su una pagina illeggibile l'incertezza è reale, non un falso allarme.
+
+E il modo giusto di ridurre quei warning non è assumere: è **rendere leggibile
+la pagina**. La ri-segmentazione sul testo estratto via OCR è già prevista nel
+Blocco 3 (ADR-024). Fino ad allora, 6 `NON_DETERMINABILE` su 12 è il numero
+onesto.
+
+Nota di metodo: questa regressione è stata introdotta da Opus e trovata
+dall'eval in un solo giro, perché il report confronta i conteggi di confidenza
+tra esecuzioni. Un cambiamento che *migliora* una metrica (warning da 6 a 0)
+può peggiorare il sistema. Le metriche vanno lette in coppia: mai la
+riduzione dei warning senza l'accuratezza dei casi coinvolti.

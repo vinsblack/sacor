@@ -77,6 +77,37 @@ class Flags:
 
 
 @dataclass(frozen=True)
+class CasoComposizione:
+    etichetta: str
+    layout: str
+    flags: Flags
+
+
+# Corpus di default (ADR-025): una miscela dichiarata di casi difficili, non
+# un campione uniforme. Il corpus base esiste apposta per misurare cio' che
+# il triage dovrebbe misurare — un campione di soli digitali puliti avrebbe
+# una risposta di default ovvia per ogni attributo, e il numero sarebbe vuoto.
+COMPOSIZIONE_DEFAULT: tuple[CasoComposizione, ...] = (
+    CasoComposizione("digitale_pulito", "Alfa Energia", Flags()),
+    CasoComposizione("digitale_pulito", "Beta Luce", Flags()),
+    CasoComposizione("digitale_pulito", "Gamma Power", Flags()),
+    CasoComposizione("digitale_pulito", "Alfa Energia", Flags()),
+    CasoComposizione("scansione_pulita", "Beta Luce", Flags(scansione=True)),
+    CasoComposizione("scansione_pulita", "Gamma Power", Flags(scansione=True)),
+    CasoComposizione("scansione_sporca", "Alfa Energia", Flags(scansione_sporca=True)),
+    CasoComposizione("scansione_sporca", "Beta Luce", Flags(scansione_sporca=True)),
+    CasoComposizione("pagina_ibrida", "Gamma Power", Flags(pagina_ibrida=True)),
+    CasoComposizione("multi_fattura_digitale", "Alfa Energia", Flags(multi_fattura=True)),
+    CasoComposizione(
+        "multi_fattura_scansionato",
+        "Beta Luce",
+        Flags(multi_fattura=True, scansione=True),
+    ),
+    CasoComposizione("ruotato", "Gamma Power", Flags(ruotata=True)),
+)
+
+
+@dataclass(frozen=True)
 class DatiFattura:
     pod: str
     fornitore_stampato: str
@@ -517,10 +548,44 @@ def genera_corpus(
     metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n")
 
 
+def genera_corpus_composito(
+    seed: int,
+    out_dir: Path = REPO_ROOT / "corpus" / "synth",
+    oracle_path: Path = REPO_ROOT / "corpus" / "attesi.json",
+    metadata_path: Path = REPO_ROOT / "corpus" / "metadata.json",
+    composizione: tuple[CasoComposizione, ...] = COMPOSIZIONE_DEFAULT,
+) -> None:
+    """Corpus di default (ADR-025): miscela dichiarata, non n copie uniformi.
+    metadata.json porta un blocco "composizione" in testa con i conteggi, cosi'
+    chi apre il repo vede cosa contiene il benchmark senza aprire i PDF."""
+    rng = random.Random(seed)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    documenti_oracle: dict[str, dict[str, str | None]] = {}
+    documenti_metadata: dict[str, dict[str, object]] = {}
+    conteggi: dict[str, int] = {}
+
+    for i, caso in enumerate(composizione):
+        doc_id = f"S{i + 1:03d}"
+        pdf_bytes, oracle_entries, metadata_entries = genera_documento(
+            rng, doc_id, caso.layout, caso.flags
+        )
+        (out_dir / f"{doc_id}.pdf").write_bytes(pdf_bytes)
+        documenti_oracle.update(oracle_entries)
+        documenti_metadata.update(metadata_entries)
+        conteggi[caso.etichetta] = conteggi.get(caso.etichetta, 0) + 1
+
+    oracle = {"oracle_version": 1, "documento": "bolletta_luce_it", "documenti": documenti_oracle}
+    oracle_path.write_text(json.dumps(oracle, ensure_ascii=False, indent=2) + "\n")
+
+    metadata = {"composizione": conteggi, "documenti": documenti_metadata}
+    metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Genera un corpus sintetico di bollette luce.")
     parser.add_argument("--seed", type=int, required=True)
-    parser.add_argument("--n", type=int, default=10)
+    parser.add_argument("--n", type=int, default=None)
     parser.add_argument("--out", type=Path, default=REPO_ROOT / "corpus" / "synth")
     parser.add_argument("--oracle-out", type=Path, default=REPO_ROOT / "corpus" / "attesi.json")
     parser.add_argument("--metadata-out", type=Path, default=REPO_ROOT / "corpus" / "metadata.json")
@@ -529,15 +594,29 @@ def main() -> int:
     args = parser.parse_args()
 
     flags = Flags(**{nome: getattr(args, nome) for nome in FLAG_NOMI})
+
+    if flags == Flags() and args.n is None:
+        # Nessun flag, nessun --n esplicito: corpus di default composito
+        # (ADR-025), non n copie uniformi.
+        genera_corpus_composito(
+            seed=args.seed,
+            out_dir=args.out,
+            oracle_path=args.oracle_out,
+            metadata_path=args.metadata_out,
+        )
+        print(f"generati {len(COMPOSIZIONE_DEFAULT)} documenti (corpus composito) in {args.out}")
+        return 0
+
+    n = args.n if args.n is not None else 10
     genera_corpus(
         seed=args.seed,
-        n=args.n,
+        n=n,
         out_dir=args.out,
         oracle_path=args.oracle_out,
         metadata_path=args.metadata_out,
         flags=flags,
     )
-    print(f"generati {args.n} documenti in {args.out}")
+    print(f"generati {n} documenti in {args.out}")
     return 0
 
 
