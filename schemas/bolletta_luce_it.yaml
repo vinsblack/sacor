@@ -1,0 +1,50 @@
+schema_version: 1
+documento: bolletta_luce_it
+
+campi:
+  - nome: pod
+    tipo: string
+    obbligatorio: true
+  - nome: fornitore
+    tipo: string
+    obbligatorio: false
+  - nome: periodo_da
+    tipo: date
+    obbligatorio: true
+  - nome: periodo_a
+    tipo: date
+    obbligatorio: true
+  - nome: giorni
+    tipo: integer
+    obbligatorio: false
+  - nome: kwh_totale
+    tipo: decimal
+    obbligatorio: false
+  - nome: kwh_f1
+    tipo: decimal
+    obbligatorio: false
+  - nome: kwh_f2
+    tipo: decimal
+    obbligatorio: false
+  - nome: kwh_f3
+    tipo: decimal
+    obbligatorio: false
+  - nome: importo_totale
+    tipo: decimal
+    obbligatorio: false
+
+invarianti:
+  - id: somma_fasce
+    tipo: somma_approssimata
+    addendi: [kwh_f1, kwh_f2, kwh_f3]
+    totale: kwh_totale
+    tolleranza_relativa: 0.005
+    severita: warning
+
+  - id: giorni_inclusivi
+    tipo: differenza_giorni
+    da: periodo_da
+    a: periodo_a
+    risultato: giorni
+    offset: 1
+    severita: warning

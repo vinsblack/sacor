@@ -47,18 +47,37 @@ Il modello estrae, il codice verifica.
 
 ```yaml
 # schemas/bolletta_luce_it.yaml
+schema_version: 1
+documento: bolletta_luce_it
+
 campi:
   - nome: pod
     tipo: string
-    obbligatorio: true
+    obbligatorio: true      # implica reject se assente
   - nome: kwh_totale
     tipo: decimal
+    obbligatorio: false
+
 invarianti:
-  - somma(kwh_f1, kwh_f2, kwh_f3) ~= kwh_totale  tolleranza: 0.5%
-  - giorni == (data_a - data_da) + 1
-gate:
-  reject_se: [pod, periodo_da, periodo_a]
+  - id: somma_fasce
+    tipo: somma_approssimata
+    addendi: [kwh_f1, kwh_f2, kwh_f3]
+    totale: kwh_totale
+    tolleranza_relativa: 0.005
+    severita: warning
 ```
+
+**Le invarianti sono dichiarative, mai espressioni da parsare.** Ogni `tipo`
+corrisponde a una funzione Python registrata in `sacor.invariants`. Una stringa
+tipo `somma(a,b) ~= c` obbligherebbe a scrivere un parser di espressioni: debito
+tecnico immediato e schema non estendibile.
+
+**Ogni invariante dichiara la propria `severita`** (`warning` o `reject`).
+Senza, il gate a tre livelli non ha come decidere.
+
+**Una sola fonte di verità per l'obbligatorietà:** `obbligatorio: true` sul
+campo. Nessuna lista `reject_se` separata che possa divergere.
+
 
 ## Layout repo
 
