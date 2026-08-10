@@ -1,0 +1,126 @@
+{
+  "oracle_version": 1,
+  "documento": "bolletta_luce_it",
+  "documenti": {
+    "S001": {
+      "pod": "IT251E29958838",
+      "fornitore": "Alfa Energia",
+      "periodo_da": "2025-02-01",
+      "periodo_a": "2025-03-17",
+      "giorni": "45",
+      "kwh_totale": "95.15",
+      "kwh_f1": "16.43",
+      "kwh_f2": "65.33",
+      "kwh_f3": "13.39",
+      "importo_totale": "45.49"
+    },
+    "S002": {
+      "pod": "IT033E03999315",
+      "fornitore": "Beta Luce",
+      "periodo_da": "2025-09-03",
+      "periodo_a": "2025-10-27",
+      "giorni": "55",
+      "kwh_totale": "59.63",
+      "kwh_f1": "12.67",
+      "kwh_f2": "22.91",
+      "kwh_f3": "24.05",
+      "importo_totale": "32.04"
+    },
+    "S003": {
+      "pod": "IT734E87226012",
+      "fornitore": "Gamma Power",
+      "periodo_da": "2025-10-01",
+      "periodo_a": "2025-11-09",
+      "giorni": "40",
+      "kwh_totale": "151.45",
+      "kwh_f1": "62.45",
+      "kwh_f2": "49.64",
+      "kwh_f3": "39.36",
+      "importo_totale": "51.92"
+    },
+    "S004": {
+      "pod": "IT829E00872248",
+      "fornitore": "Alfa Energia",
+      "periodo_da": "2025-08-19",
+      "periodo_a": "2025-10-02",
+      "giorni": "45",
+      "kwh_totale": "156.24",
+      "kwh_f1": "67.16",
+      "kwh_f2": "71.01",
+      "kwh_f3": "18.07",
+      "importo_totale": "63.04"
+    },
+    "S005": {
+      "pod": "IT160E28898923",
+      "fornitore": "Beta Luce",
+      "periodo_da": "2025-07-11",
+      "periodo_a": "2025-08-24",
+      "giorni": "45",
+      "kwh_totale": "113.48",
+      "kwh_f1": "67.54",
+      "kwh_f2": "32.57",
+      "kwh_f3": "13.37",
+      "importo_totale": "38.66"
+    },
+    "S006": {
+      "pod": "IT868E46164955",
+      "fornitore": "Gamma Power",
+      "periodo_da": "2025-07-04",
+      "periodo_a": "2025-08-22",
+      "giorni": "50",
+      "kwh_totale": "152.22",
+      "kwh_f1": "54.45",
+      "kwh_f2": "26.66",
+      "kwh_f3": "71.11",
+      "importo_totale": "48.50"
+    },
+    "S007": {
+      "pod": "IT997E50806024",
+      "fornitore": "Alfa Energia",
+      "periodo_da": "2025-08-18",
+      "periodo_a": "2025-09-21",
+      "giorni": "35",
+      "kwh_totale": "90.68",
+      "kwh_f1": "11.45",
+      "kwh_f2": "50.22",
+      "kwh_f3": "29.01",
+      "importo_totale": "43.26"
+    },
+    "S008": {
+      "pod": "IT592E25808537",
+      "fornitore": "Beta Luce",
+      "periodo_da": "2025-10-28",
+      "periodo_a": "2025-12-17",
+      "giorni": "51",
+      "kwh_totale": "82.15",
+      "kwh_f1": "62.71",
+      "kwh_f2": "10.69",
+      "kwh_f3": "8.75",
+      "importo_totale": "41.54"
+    },
+    "S009": {
+      "pod": "IT082E31244663",
+      "fornitore": "Gamma Power",
+      "periodo_da": "2025-04-25",
+      "periodo_a": "2025-06-09",
+      "giorni": "46",
+      "kwh_totale": "125.38",
+      "kwh_f1": "75.98",
+      "kwh_f2": "13.27",
+      "kwh_f3": "36.13",
+      "importo_totale": "45.80"
+    },
+    "S010": {
+      "pod": "IT167E49684848",
+      "fornitore": "Alfa Energia",
+      "periodo_da": "2025-08-21",
+      "periodo_a": "2025-10-10",
+      "giorni": "51",
+      "kwh_totale": "116.16",
+      "kwh_f1": "34.10",
+      "kwh_f2": "22.16",
+      "kwh_f3": "59.90",
+      "importo_totale": "42.98"
+    }
+  }
+}

@@ -3,7 +3,9 @@ e per documento (ADR-011). In questo blocco l'extractor e' il DummyExtractor."""
 
 from __future__ import annotations
 
+import json
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,7 +17,8 @@ from sacor.schema import Schema, SchemaError, load
 REPO_ROOT = Path(__file__).parent.parent
 SCHEMA_PATH = REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
 ORACLE_PATH = REPO_ROOT / "corpus" / "attesi.json"
-CORPUS_RAW = REPO_ROOT / "corpus" / "raw"
+METADATA_PATH = REPO_ROOT / "corpus" / "metadata.json"
+CORPUS_RAW = REPO_ROOT / "corpus" / "synth"
 
 
 @dataclass(frozen=True)
@@ -44,13 +47,33 @@ class Report:
         return self.documenti_corretti / self.n_documenti if self.n_documenti else 0.0
 
 
-def esegui_eval(schema: Schema, oracle: Oracle, extractor: Extractor, corpus_raw: Path) -> Report:
+def _carica_metadata(path: Path) -> dict[str, Mapping[str, object]]:
+    if not path.is_file():
+        return {}
+    dati = json.loads(path.read_text())
+    return dati if isinstance(dati, dict) else {}
+
+
+def esegui_eval(
+    schema: Schema,
+    oracle: Oracle,
+    extractor: Extractor,
+    corpus_raw: Path,
+    metadata: Mapping[str, Mapping[str, object]] | None = None,
+) -> Report:
+    metadata = metadata or {}
     contatori = {c.nome: 0 for c in schema.campi}
     documenti_corretti = 0
     gate_reject = 0
 
     for doc_id, attesi in oracle.documenti.items():
-        pdf = corpus_raw / f"{doc_id}.pdf"
+        # ADR-014-bis: la chiave oracle e' un id opaco di istanza documentale,
+        # mai interpretata. Il file fisico si legge da metadata.json; se una
+        # voce non ha metadata (es. oracle scritto a mano), si assume che
+        # l'id coincida col nome del file.
+        voce_metadata = metadata.get(doc_id, {})
+        nome_file = voce_metadata.get("file", f"{doc_id}.pdf")
+        pdf = corpus_raw / str(nome_file)
         estratti = extractor.extract(pdf, schema)
 
         tutti_corretti = True
@@ -89,6 +112,7 @@ def carica_report(
     schema_path: Path = SCHEMA_PATH,
     oracle_path: Path = ORACLE_PATH,
     corpus_raw: Path = CORPUS_RAW,
+    metadata_path: Path = METADATA_PATH,
     extractor: Extractor | None = None,
 ) -> Report | None:
     """Ritorna il report, o None se il corpus (oracle) non e' ancora presente."""
@@ -96,7 +120,8 @@ def carica_report(
     if not oracle_path.is_file():
         return None
     oracle = load_oracle(oracle_path, schema)
-    return esegui_eval(schema, oracle, extractor or DummyExtractor(), corpus_raw)
+    metadata = _carica_metadata(metadata_path)
+    return esegui_eval(schema, oracle, extractor or DummyExtractor(), corpus_raw, metadata)
 
 
 def formatta_report(report: Report) -> str:

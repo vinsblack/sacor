@@ -20,7 +20,16 @@ dependencies = ["PyYAML"]
 Homepage = "https://github.com/vinsblack/sacor"
 
 [project.optional-dependencies]
-dev = ["ruff", "mypy", "pytest", "types-PyYAML"]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "types-PyYAML",
+    "reportlab~=5.0",
+    "pypdf~=6.15",
+    "Pillow~=12.3",
+    "pdfplumber~=0.11",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sacor"]

@@ -120,3 +120,61 @@ conservato.
    ha lo stesso valore di uno effettivo: va esposto come metadato.
 5. **Fascia unica con fasce a zero.** Offerta monoraria che riporta comunque
    F1/F2/F3 con F2=0 e F3=0. Zero non è assenza: la somma fasce resta valida.
+
+## ADR-014 (proposta CC, da rivedere Opus) — Chiave oracle per --multi-fattura
+**2026-08-10.** Con `--multi-fattura` un solo file PDF contiene due fatture,
+quindi due voci oracle. `corpus/attesi.json` non può più usare il nome del
+file come chiave univoca.
+
+**Proposta:** chiave composita `"{doc_id}#{indice}"`, indice 1-based
+nell'ordine di lettura nel PDF (es. `"S007#1"`, `"S007#2"`).
+
+Motivi: (a) preserva la tracciabilità al file fisico (il prefisso prima di
+`#` è sempre il nome del PDF, `{doc_id}.pdf`); (b) `oracle.documenti` resta
+una mappa piatta stringa → campi, senza introdurre un secondo modello dati
+annidato che l'eval harness (T1.8, `sacor.oracle`/`eval/run.py`) dovrebbe
+gestire come caso speciale; (c) `#` non compare altrove nei doc_id (`S001`…),
+zero rischio di collisione.
+
+Alternativa scartata: nidificare le fatture sotto il doc_id
+(`{"S007": {"1": {...}, "2": {...}}}`). Scartata perché rompe il contratto
+attuale di `load_oracle`/`esegui_eval` (mappa piatta id → campi) senza
+nessun beneficio proporzionato al costo di migrazione.
+
+Nessuna modifica richiesta a `sacor/oracle.py`: la validazione dei campi
+opera sul dict di ciascuna voce, non sul formato della chiave.
+
+## ADR-014-bis — Chiave oracle opaca, supera ADR-014 (proposta CC)
+**2026-08-10.** CC ha proposto `{doc_id}#{indice}` come chiave per i PDF
+multi-fattura, con `eval/run.py` che fa split su `#` per risalire al file.
+**Respinta.**
+
+Motivo: è la stessa anti-pattern già rifiutata per le invarianti YAML
+(vedi 01-architecture, "mai espressioni da parsare"). Codificare struttura
+dentro una stringa e poi riparsarla crea un formato implicito che ogni
+consumatore deve conoscere: l'eval oggi, il nodo n8n domani, l'API dopo.
+Inoltre introduce un caso speciale — chiave semplice per documento singolo,
+composita per multi-fattura — quindi due percorsi di codice per la stessa cosa.
+
+**Decisione.** La chiave dell'oracle è un identificatore **opaco** di istanza
+documentale (`S007a`, `S007b`), mai da interpretare. Il legame con il file
+fisico vive in `corpus/metadata.json`:
+
+    "S007a": { "file": "S007.pdf", "pagine": [1, 6], ... }
+    "S007b": { "file": "S007.pdf", "pagine": [7, 8], ... }
+
+`eval/run.py` legge il percorso dal metadata. Nessuno split, nessun caso
+speciale: un documento singolo è semplicemente un'istanza le cui pagine
+coprono l'intero file.
+
+Corollario di dominio: un file PDF non è un documento. È un contenitore di una
+o più istanze documentali. Il modello dati lo riflette da subito, perché
+cambiarlo dopo significherebbe toccare oracle, eval, triage e API insieme.
+
+## ADR-015 — Dipendenze dev pinnate
+**2026-08-10.** Introdotte come dev-only: reportlab (rendering), pypdf
+(rotazione), Pillow (degrado immagine), pdfplumber (verifica text layer).
+Nessuna dipendenza runtime aggiunta oltre PyYAML.
+CI ora è verde: da questo commit le dev-dependencies si pinnano alla minor,
+così un rilascio a monte non rompe la build in un momento casuale.
+Nota: `pdfplumber` diventerà dipendenza **runtime** con lo strato Triage.

@@ -4,12 +4,12 @@
 
 | | |
 |---|---|
-| Commit | 546f67b |
-| Test | 17 passed in 0.04s |
-| Accuratezza (per campo) | n/d |
-| Accuratezza (per documento) | n/d |
+| Commit | ed5987c |
+| Test | 27 passed in 0.19s |
+| Accuratezza (per campo) | 0.0% |
+| Accuratezza (per documento) | 0.0% |
 | Tasso di escalation | n/d |
-| Generato il | 2026-08-10 15:38 UTC |
+| Generato il | 2026-08-10 15:59 UTC |
 
 ## Blocco corrente
 
