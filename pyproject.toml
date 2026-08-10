@@ -14,13 +14,13 @@ classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies = []
+dependencies = ["PyYAML"]
 
 [project.urls]
 Homepage = "https://github.com/vinsblack/sacor"
 
 [project.optional-dependencies]
-dev = ["ruff", "mypy", "pytest"]
+dev = ["ruff", "mypy", "pytest", "types-PyYAML"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sacor"]

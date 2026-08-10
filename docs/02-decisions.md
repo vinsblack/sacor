@@ -46,3 +46,19 @@ permanente che nasconderà un giorno un fallimento vero. Un test che verifica
 `__version__`; `pyproject.toml` la legge in modo dinamico via hatchling.
 Motivo: due copie della stessa costante divergono sempre, e la versione è il
 campo che comparirà nei report dell'eval e nei bug report degli utenti.
+
+## ADR-008 — Dataclasses, non pydantic, per il modello di schema
+**2026-08-10.** Il loader di schema potrebbe usare pydantic. Scelta: no.
+Motivi: (a) sacor è una libreria che altri installeranno, e ogni dipendenza
+runtime è una tassa su ogni utente; (b) gli errori di validazione devono essere
+di dominio ("il campo kwh_f4 citato nell'invariante somma_fasce non esiste"),
+non ValidationError generici; (c) con `mypy strict` le dataclass frozen danno
+già garanzie sufficienti.
+Unica dipendenza runtime introdotta ora: PyYAML.
+Rivedibile se il numero di tipi di nodo nello schema supera ~6.
+
+## ADR-009 — Le referenze dei campi si validano al load
+**2026-08-10.** Un'invariante che cita un campo inesistente deve fallire al
+caricamento dello schema, non durante l'eval. Un typo in un YAML scoperto tre
+strati dopo costa un'ora di debug; scoperto al load costa zero.
+Stesso principio per `tipo`: deve esistere nel registro delle invarianti.
