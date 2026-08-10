@@ -86,10 +86,17 @@ def _carica_metadata(path: Path) -> dict[str, dict[str, object]]:
 
 
 def _raggruppa_per_file(metadata: dict[str, dict[str, object]]) -> dict[str, list[str]]:
-    """file -> chiavi istanza che vi appartengono, nell'ordine di apparizione."""
+    """file -> chiavi istanza che vi appartengono, nell'ordine di apparizione.
+
+    Nota: diversa da eval.run._raggruppa_per_file per design, non per
+    trascuratezza — questa itera le chiavi di METADATA (il triage misura il
+    generatore, non serve l'oracle), quella itera le chiavi dell'ORACLE
+    (T3.4: e' cio' che va valutato). Stessa tolleranza pero' su "file"
+    mancante (T4.13): un typo in metadata.json non deve far crashare
+    l'intero eval con un KeyError."""
     per_file: dict[str, list[str]] = {}
     for chiave, voce in metadata.items():
-        per_file.setdefault(str(voce["file"]), []).append(chiave)
+        per_file.setdefault(str(voce.get("file", f"{chiave}.pdf")), []).append(chiave)
     return per_file
 
 

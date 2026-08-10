@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import os
+import stat
 import sys
 from pathlib import Path
 
@@ -92,6 +93,23 @@ def _chiamata_raw_openai(modello: str, pagine: list[bytes], prompt: str) -> str:
     return messaggio if isinstance(messaggio, str) else ""
 
 
+def _crea_dir_privata(percorso: Path) -> None:
+    percorso.mkdir(parents=True, exist_ok=True)
+    os.chmod(percorso, stat.S_IRWXU)  # 0o700
+
+
+def _scrivi_privato(percorso: Path, contenuto: str | bytes) -> None:
+    # T4.13 (security review): puo' contenere immagini e valori di
+    # documenti REALI (non solo del corpus sintetico) sotto un path fisso
+    # in /tmp, condiviso da tutti gli utenti locali — permessi ristretti,
+    # non l'umask di default del processo.
+    if isinstance(contenuto, bytes):
+        percorso.write_bytes(contenuto)
+    else:
+        percorso.write_text(contenuto)
+    os.chmod(percorso, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+
+
 def _chiamata_raw(modello: str, pagine: list[bytes], prompt: str) -> str:
     if modello.startswith("claude-"):
         return _chiamata_raw_anthropic(modello, pagine, prompt)
@@ -104,15 +122,15 @@ def ispeziona_chiamata(
     chiamata: ChiamataDaCompletare, indice: int, atteso: dict[str, str | None]
 ) -> None:
     cartella = OUTPUT_ROOT / f"{chiamata.istanza.file.stem}_istanza{indice}"
-    cartella.mkdir(parents=True, exist_ok=True)
+    _crea_dir_privata(cartella)
 
     render = renderizza_pagine_istanza(chiamata.istanza)
     prompt = costruisci_prompt(chiamata.campi_mancanti)
-    (cartella / "prompt.txt").write_text(prompt)
+    _scrivi_privato(cartella / "prompt.txt", prompt)
 
     nomi_campi = [c.nome for c in chiamata.campi_mancanti]
     righe_oracle = [f"{nome}: {atteso.get(nome)!r}" for nome in nomi_campi]
-    (cartella / "oracle_atteso.txt").write_text("\n".join(righe_oracle))
+    _scrivi_privato(cartella / "oracle_atteso.txt", "\n".join(righe_oracle))
 
     print(
         f"\n=== {chiamata.istanza.file.name} istanza {indice} "
@@ -125,7 +143,7 @@ def ispeziona_chiamata(
     pagine_bytes: list[bytes] = []
     for i, (png, larghezza, altezza) in enumerate(render):
         percorso = cartella / f"pagina_{i}.png"
-        percorso.write_bytes(png)
+        _scrivi_privato(percorso, png)
         pagine_bytes.append(png)
         print(f"  pagina {i}: {larghezza}x{altezza}px, {len(png)} byte -> {percorso.name}")
 
@@ -135,7 +153,7 @@ def ispeziona_chiamata(
         except ErroreProvider as exc:
             testo = f"[CHIAMATA FALLITA] {exc}"
         percorso = cartella / f"risposta_{modello}.txt"
-        percorso.write_text(testo)
+        _scrivi_privato(percorso, testo)
         print(f"  risposta {modello} -> {percorso.name}")
 
 
@@ -146,7 +164,7 @@ def main() -> int:
         return 1
     _schema, oracle, chiamate, _file_disallineati = esito
 
-    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    _crea_dir_privata(OUTPUT_ROOT)
 
     for nome_file in FILE_DA_ISPEZIONARE:
         trovate = _chiamate_per_file(chiamate, nome_file)

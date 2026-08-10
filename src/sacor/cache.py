@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import stat
 import time
 from collections.abc import Sequence
 from pathlib import Path
@@ -64,7 +66,14 @@ class CacheDisco:
         if not isinstance(voce, dict) or "scritta_il" not in voce or "risposta" not in voce:
             return None
 
-        eta_secondi = time.time() - voce["scritta_il"]
+        scritta_il = voce["scritta_il"]
+        if not isinstance(scritta_il, int | float) or isinstance(scritta_il, bool):
+            # T4.13: file di cache scritto a mano, o da una versione futura
+            # dello schema — stesso principio di un JSON malformato: cache
+            # miss, mai un crash (era un TypeError non gestito qui).
+            return None
+
+        eta_secondi = time.time() - scritta_il
         if eta_secondi > self._ttl:
             return None
 
@@ -72,9 +81,16 @@ class CacheDisco:
         return risposta if isinstance(risposta, dict) else None
 
     def scrivi(self, chiave: str, risposta: dict[str, object]) -> None:
+        # T4.13 (security review): contiene campi estratti da documenti
+        # reali per fino a 30 giorni — permessi ristretti al solo utente,
+        # non l'umask di default del processo (spesso 022 -> leggibile da
+        # chiunque altro sulla stessa macchina).
         self._dir.mkdir(parents=True, exist_ok=True)
+        os.chmod(self._dir, stat.S_IRWXU)  # 0o700, anche se la dir esisteva gia'
         voce = {"risposta": risposta, "scritta_il": time.time()}
-        self._percorso(chiave).write_text(json.dumps(voce))
+        percorso = self._percorso(chiave)
+        percorso.write_text(json.dumps(voce))
+        os.chmod(percorso, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
 
     def contiene(self, chiave: str) -> bool:
         return self.leggi(chiave) is not None

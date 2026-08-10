@@ -86,16 +86,29 @@ def _assegna_id(file: Path, spezzoni: list[tuple[int, int]]) -> tuple[Istanza, .
 def _riempi_in_avanti(valori: Sequence[str | None]) -> list[str | None]:
     """Una pagina senza match APPARTIENE all'istanza aperta dall'ultimo
     match visto, non e' un valore diverso (T4.9: un'istanza reale occupa
-    piu' pagine — 'Fattura n. X' compare solo sulla prima, ADR-039 — le
+    piu' pagine — 'Fattura n. X' compare solo sulla prima, ADR-033 — le
     pagine successive non lo ripetono). Senza questo riempimento, None
     confrontato col valore precedente leggeva come un cambio e spezzava
-    un'unica fattura multipagina in piu' istanze."""
+    un'unica fattura multipagina in piu' istanze.
+
+    Le pagine PRIMA del primo match (nessun 'corrente' ancora noto quando le
+    si processa) restavano None e finivano isolate in un'istanza fantasma a
+    parte, dichiarata CERTA (T4.13, trovato in review: un'eventuale copertina
+    o pagina non riconosciuta prima del primo marcatore va assegnata
+    all'istanza che apre — non lasciata a se stessa)."""
     riempiti: list[str | None] = []
     corrente: str | None = None
     for v in valori:
         if v is not None:
             corrente = v
         riempiti.append(corrente)
+
+    primo_valore = next((v for v in valori if v is not None), None)
+    if primo_valore is not None:
+        for i, v in enumerate(riempiti):
+            if v is not None:
+                break
+            riempiti[i] = primo_valore
     return riempiti
 
 

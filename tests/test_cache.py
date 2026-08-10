@@ -76,3 +76,18 @@ def test_voce_entro_ttl_e_un_hit(tmp_path: Path) -> None:
     cache.scrivi(chiave, {"pod": "X"})
 
     assert cache.leggi(chiave) == {"pod": "X"}
+
+
+def test_scritta_il_non_numerico_e_un_miss_non_un_crash(tmp_path: Path) -> None:
+    """T4.13 (trovato in code review): un file di cache scritto a mano (o da
+    una versione futura) con 'scritta_il' non numerico faceva sollevare un
+    TypeError non gestito invece di un cache miss."""
+    cache = CacheDisco(cache_dir=tmp_path, ttl_secondi=3600)
+    chiave = chiave_cache([b"pagina"], "prompt", "modello-x", 1)
+
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    percorso = tmp_path / f"{chiave}.json"
+    voce = {"risposta": {"pod": "X"}, "scritta_il": "non-un-numero"}
+    percorso.write_text(json.dumps(voce))
+
+    assert cache.leggi(chiave) is None

@@ -168,3 +168,31 @@ def test_pattern_mai_trovato_e_presunta(tmp_path: Path) -> None:
 
     assert risultato.confidenza is ConfidenzaSegmentazione.PRESUNTA
     assert len(risultato.istanze) == 1
+
+
+def test_pagina_prima_del_primo_match_non_diventa_istanza_fantasma() -> None:
+    """T4.13 (trovato in code review): una pagina senza match PRIMA che il
+    pattern compaia per la prima volta (es. una copertina, o un OCR/match
+    mancato sulla prima pagina reale) restava isolata come istanza a se',
+    dichiarata CERTA — un falso sicuro. Deve appartenere alla prima istanza
+    che apre, non restare a parte."""
+    pagine = tuple(
+        PaginaInfo(
+            numero=i,
+            ha_text_layer=True,
+            densita_testo=1.0,
+            copertura_immagine=0.0,
+            tipo=TipoPagina.DIGITALE,
+            rotazione=0,
+        )
+        for i in range(1, 5)
+    )
+    testi = ["nessun marcatore qui", "Fattura n. 100", "Fattura n. 100", "Fattura n. 200"]
+    config = SegmentazioneConfig(tipo="cambio_valore", pattern=PATTERN_FATTURA, minimo_pagine=1)
+
+    risultato = segmenta(Path("XXX.pdf"), pagine, testi, config)
+
+    assert risultato.confidenza is ConfidenzaSegmentazione.CERTA
+    assert len(risultato.istanze) == 2
+    assert (risultato.istanze[0].pagina_da, risultato.istanze[0].pagina_a) == (1, 3)
+    assert (risultato.istanze[1].pagina_da, risultato.istanze[1].pagina_a) == (4, 4)

@@ -392,6 +392,8 @@ class StimaDryRun:
     gia_in_cache: int
     file_disallineati: int
     costo_per_modello: dict[str, StimaCostoModello]  # vuoto se i prezzi non si caricano
+    # T4.13: senza formula token_immagine per una pagina, mai stimati per difetto.
+    modelli_esclusi: tuple[str, ...] = ()
 
 
 def esegui_dry_run(
@@ -441,6 +443,7 @@ def esegui_dry_run(
     except PrezziError:
         prezzi = None
 
+    modelli_esclusi: list[str] = []
     if prezzi is not None:
         for modello in modelli:
             try:
@@ -449,14 +452,29 @@ def esegui_dry_run(
                 continue
 
             token_input = token_output = 0
+            formula_mancante = False
             for chiamata, prompt, render in chiamate_da_stimare:
                 token_input += len(prompt) // 4  # solo il testo del prompt: stima approssimata
                 for _png, larghezza, altezza in render:
                     try:
                         token_input += stima_token_immagine(prezzo, larghezza, altezza)
                     except TipoFormulaSconosciuto:
-                        continue  # nessuna formula dichiarata: il modello resta fuori dalla stima
+                        # T4.13: nessuna formula token_immagine per questo
+                        # modello -> il modello va escluso DAL TUTTO, non
+                        # sommato con un pezzo mancante. Una stima che conta
+                        # solo il testo del prompt e salta ogni immagine e'
+                        # sottostimata di un ordine di grandezza e peggio
+                        # di nessuna stima (vedi token_stima.py: "una stima
+                        # che sbaglia per difetto no" — istruzione verbatim).
+                        formula_mancante = True
+                        break
+                if formula_mancante:
+                    break
                 token_output += len(chiamata.campi_mancanti) * _TOKEN_OUTPUT_STIMATI_PER_CAMPO
+
+            if formula_mancante:
+                modelli_esclusi.append(modello)
+                continue
 
             costo_per_modello[modello] = StimaCostoModello(
                 token_input_stimati=token_input,
@@ -467,6 +485,7 @@ def esegui_dry_run(
     return StimaDryRun(
         chiamate_necessarie=len(chiamate),
         gia_in_cache=gia_in_cache,
+        modelli_esclusi=tuple(modelli_esclusi),
         file_disallineati=file_disallineati,
         costo_per_modello=costo_per_modello,
     )
@@ -499,6 +518,13 @@ def formatta_dry_run(stima: StimaDryRun) -> str:
             )
     else:
         righe.append("Tabella prezzi non disponibile: nessuna stima di costo per modello.")
+    if stima.modelli_esclusi:
+        righe.append("")
+        righe.append(
+            "ATTENZIONE — esclusi dalla stima (nessuna formula 'token_immagine' in "
+            "config/prezzi_modelli.yaml, una stima senza i token immagine sarebbe "
+            f"sottostimata): {', '.join(stima.modelli_esclusi)}"
+        )
     righe.append("")
     righe.append("Nessuna chiamata effettuata.")
     return "\n".join(righe)
