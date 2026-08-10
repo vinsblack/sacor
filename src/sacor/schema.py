@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,6 +12,8 @@ from typing import Any, Literal, cast, get_args
 import yaml
 
 from sacor.invariants import TIPI_NOTI
+from sacor.segmentation import TIPI_NOTI as TIPI_SEGMENTAZIONE_NOTI
+from sacor.segmentation import SegmentazioneConfig
 
 TipoCampo = Literal["string", "date", "integer", "decimal"]
 Severita = Literal["warning", "reject"]
@@ -44,6 +47,7 @@ class Schema:
     documento: str
     campi: tuple[Campo, ...]
     invarianti: tuple[Invariante, ...]
+    segmentazione: SegmentazioneConfig | None
 
     def campo(self, nome: str) -> Campo | None:
         for c in self.campi:
@@ -75,6 +79,7 @@ def load(path: Path) -> Schema:
         documento=_leggi_documento(dati),
         campi=campi,
         invarianti=_leggi_invarianti(dati, campi),
+        segmentazione=_leggi_segmentazione(dati),
     )
 
 
@@ -175,6 +180,35 @@ def _leggi_invarianti(dati: dict[str, Any], campi: tuple[Campo, ...]) -> tuple[I
         )
 
     return tuple(invarianti)
+
+
+def _leggi_segmentazione(dati: dict[str, Any]) -> SegmentazioneConfig | None:
+    grezza = dati.get("segmentazione")
+    if grezza is None:
+        return None
+    if not isinstance(grezza, dict):
+        raise SchemaError("'segmentazione' deve essere un mapping YAML")
+
+    tipo = grezza.get("tipo")
+    if tipo not in TIPI_SEGMENTAZIONE_NOTI:
+        raise SchemaError(
+            f"segmentazione: tipo '{tipo}' sconosciuto "
+            f"(ammessi: {', '.join(TIPI_SEGMENTAZIONE_NOTI)})"
+        )
+
+    pattern = grezza.get("pattern")
+    if not isinstance(pattern, str) or not pattern:
+        raise SchemaError("segmentazione: 'pattern' mancante o vuoto")
+    try:
+        re.compile(pattern)
+    except re.error as exc:
+        raise SchemaError(f"segmentazione: 'pattern' non compilabile: {exc}") from exc
+
+    minimo_pagine = grezza.get("minimo_pagine", 1)
+    if not isinstance(minimo_pagine, int) or isinstance(minimo_pagine, bool) or minimo_pagine < 1:
+        raise SchemaError("segmentazione: 'minimo_pagine' deve essere un intero >= 1")
+
+    return SegmentazioneConfig(tipo=tipo, pattern=pattern, minimo_pagine=minimo_pagine)
 
 
 def _valida_referenze_campo(

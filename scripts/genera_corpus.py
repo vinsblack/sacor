@@ -80,6 +80,7 @@ class Flags:
 class DatiFattura:
     pod: str
     fornitore_stampato: str
+    numero_fattura: str
     periodo_da: date
     periodo_a: date
     giorni: int
@@ -102,6 +103,7 @@ def _genera_dati_fattura(
     giorni = (periodo_a - periodo_da).days + 1
 
     pod = f"IT{rng.randint(1, 999):03d}E{rng.randint(0, 99_999_999):08d}"
+    numero_fattura = str(rng.randint(1_000_000, 9_999_999))
 
     if monoraria:
         kwh_f1 = _due_decimali(Decimal(rng.randint(2000, 20000)) / 100)
@@ -120,6 +122,7 @@ def _genera_dati_fattura(
     return DatiFattura(
         pod=pod,
         fornitore_stampato=fornitore_stampato,
+        numero_fattura=numero_fattura,
         periodo_da=periodo_da,
         periodo_a=periodo_a,
         giorni=giorni,
@@ -157,6 +160,7 @@ def _testo_periodo(dati: DatiFattura, periodo_mensile: bool) -> str:
 
 def _righe_fattura(dati: DatiFattura, flags: Flags) -> list[str]:
     righe = [
+        f"Fattura n. {dati.numero_fattura}",
         f"POD: {dati.pod}",
         f"Fornitore: {dati.fornitore_stampato}",
         _testo_periodo(dati, flags.periodo_mensile),
@@ -227,51 +231,54 @@ def _disegna_logo_e_qr(c: Canvas, rng: random.Random, layout: str) -> None:
 
 def _disegna_layout_alfa(c: Canvas, rng: random.Random, blocchi: list[list[str]]) -> None:
     _, altezza = A4
-    _disegna_logo_e_qr(c, rng, "Alfa Energia")
-    y = altezza - 100
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, y, "ALFA ENERGIA — Bolletta luce")
-    y -= 30
-    for blocco in blocchi:
+    for indice, blocco in enumerate(blocchi):
+        if indice > 0:
+            c.showPage()  # --multi-fattura: una pagina per fattura (T2.4)
+        _disegna_logo_e_qr(c, rng, "Alfa Energia")
+        y = altezza - 100
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(50, y, "ALFA ENERGIA — Bolletta luce")
+        y -= 30
         c.setFont("Helvetica", 11)
         for riga in blocco:
             c.drawString(50, y, riga)
             y -= 16
-        y -= 20
 
 
 def _disegna_layout_beta(c: Canvas, rng: random.Random, blocchi: list[list[str]]) -> None:
     larghezza, altezza = A4
-    _disegna_logo_e_qr(c, rng, "Beta Luce")
-    y = altezza - 100
-    c.setFont("Helvetica-Bold", 16)
-    c.drawCentredString(larghezza / 2, y, "Beta Luce S.r.l.")
-    c.line(50, y - 8, larghezza - 50, y - 8)
-    y -= 40
-    for blocco in blocchi:
+    for indice, blocco in enumerate(blocchi):
+        if indice > 0:
+            c.showPage()
+        _disegna_logo_e_qr(c, rng, "Beta Luce")
+        y = altezza - 100
+        c.setFont("Helvetica-Bold", 16)
+        c.drawCentredString(larghezza / 2, y, "Beta Luce S.r.l.")
+        c.line(50, y - 8, larghezza - 50, y - 8)
+        y -= 40
         c.setFont("Helvetica-Oblique", 11)
         for riga in blocco:
             c.drawString(70, y, riga)
             y -= 16
-        y -= 20
 
 
 def _disegna_layout_gamma(c: Canvas, rng: random.Random, blocchi: list[list[str]]) -> None:
     _, altezza = A4
-    _disegna_logo_e_qr(c, rng, "Gamma Power")
-    y = altezza - 90
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "GAMMA POWER")
-    y -= 20
-    c.setFont("Helvetica", 9)
-    c.drawString(50, y, "www.gammapower-esempio.it")
-    y -= 30
-    for blocco in blocchi:
+    for indice, blocco in enumerate(blocchi):
+        if indice > 0:
+            c.showPage()
+        _disegna_logo_e_qr(c, rng, "Gamma Power")
+        y = altezza - 90
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(50, y, "GAMMA POWER")
+        y -= 20
+        c.setFont("Helvetica", 9)
+        c.drawString(50, y, "www.gammapower-esempio.it")
+        y -= 30
         c.setFont("Courier", 10)
         for riga in blocco:
             c.drawString(50, y, "> " + riga)
             y -= 15
-        y -= 20
 
 
 _DISEGNATORI = {
@@ -452,10 +459,6 @@ def genera_documento(
 
     oracle_entries = {instanza_id: _a_oracle(dati) for instanza_id, dati in istanze}
 
-    # ponytail: il generatore produce un solo file a pagina singola per ogni
-    # doc_id (anche con --multi-fattura, le fatture stanno sulla stessa
-    # pagina). "pagine" e' quindi [1, 1] per ogni istanza finche' non serve
-    # un rendering multi-pagina con sezioni davvero separate.
     if flags.pagina_ibrida:
         qualita = "ibrida"
     elif flags.scansione_sporca:
@@ -465,18 +468,23 @@ def genera_documento(
     else:
         qualita = "digitale"
 
-    metadata_entries = {
-        instanza_id: {
+    # Solo il percorso digitale mette --multi-fattura su pagine separate
+    # (T2.4: serve al pattern di segmentazione un confine di pagina reale).
+    # scansione/ibrida restano a pagina singola: il rendering non le separa.
+    e_multipagina = n_fatture > 1 and qualita == "digitale"
+
+    metadata_entries = {}
+    for indice, (instanza_id, _) in enumerate(istanze):
+        pagina = indice + 1 if e_multipagina else 1
+        metadata_entries[instanza_id] = {
             "file": nome_file,
-            "pagine": [1, 1],
+            "pagine": [pagina, pagina],
             "layout": layout,
             "tipo_lettura": "stimata" if flags.consumo_stimato else "effettiva",
             "monoraria": flags.monoraria,
             "qualita": qualita,
             "flag_attivi": flags.attivi(),
         }
-        for instanza_id, _ in istanze
-    }
 
     return pdf_bytes, oracle_entries, metadata_entries
 

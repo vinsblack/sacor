@@ -1,6 +1,8 @@
 import random
 from pathlib import Path
 
+import pytest
+
 from sacor.triage import TipoPagina, analizza
 from scripts.genera_corpus import Flags, genera_documento
 
@@ -69,6 +71,43 @@ def test_pagina_ibrida_e_classificata_ibrida(tmp_path: Path) -> None:
     assert all(p.tipo is TipoPagina.IBRIDA for p in risultato.pagine)
     assert all(p.ha_text_layer for p in risultato.pagine)
     assert all(0.15 <= p.copertura_immagine <= 0.85 for p in risultato.pagine)
+
+
+def test_ruotata_rileva_rotazione_180(tmp_path: Path) -> None:
+    pdf_bytes, _, _ = genera_documento(
+        random.Random(15), "S006", "Beta Luce", Flags(ruotata=True)
+    )
+    path = _scrivi(tmp_path, "S006.pdf", pdf_bytes)
+
+    risultato = analizza(path)
+
+    assert all(p.rotazione == 180 for p in risultato.pagine)
+
+
+def test_pdf_non_ruotato_ha_rotazione_zero(tmp_path: Path) -> None:
+    pdf_bytes, _, _ = genera_documento(random.Random(16), "S007", "Gamma Power", Flags())
+    path = _scrivi(tmp_path, "S007.pdf", pdf_bytes)
+
+    risultato = analizza(path)
+
+    assert all(p.rotazione == 0 for p in risultato.pagine)
+
+
+def test_rotazione_none_se_tesseract_non_disponibile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """SCANSIONE senza /Rotate esplicito richiede OSD (T2.3). Se il binario
+    Tesseract non e' installato, il risultato e' None — mai un'eccezione."""
+    pdf_bytes, _, _ = genera_documento(
+        random.Random(17), "S008", "Alfa Energia", Flags(scansione=True)
+    )
+    path = _scrivi(tmp_path, "S008.pdf", pdf_bytes)
+
+    monkeypatch.setattr("sacor.triage.shutil.which", lambda *_args: None)
+
+    risultato = analizza(path)
+
+    assert all(p.rotazione is None for p in risultato.pagine)
 
 
 def test_istanza_di_default_copre_tutto_il_file(tmp_path: Path) -> None:

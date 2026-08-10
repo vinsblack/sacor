@@ -318,3 +318,50 @@ va rimisurato su documenti reali). Ibrido osservato 0,79, dentro la banda.
 La banda ibrida non è un ripiego: è lo stesso principio dell'arbitrato e del
 gate a tre livelli. Dove il segnale è incerto, il sistema lo dichiara invece di
 scegliere in silenzio.
+
+## ADR-023 — Posizionamento: framework di affidabilità, bollette come primo schema
+**2026-08-10.** Decisione di Vins, contro la raccomandazione di Opus (che
+suggeriva racconto verticale e ambizione implicita).
+
+sacor si presenta come **framework di affidabilità documentale**: il valore è
+la pipeline deterministica, le soglie misurate, l'incertezza dichiarata. Le
+bollette sono il primo schema, non l'identità.
+
+Argomento a favore: l'architettura è già agnostica, e il racconto verticale la
+sottorappresenta. Le ADR 016–022 non parlano di kWh ma di margini, errori
+silenziosi e stati intermedi.
+
+Rischio accettato: "framework" non è una query che qualcuno digita, e un
+progetto generico non produce il numero che è il differenziatore. Mitigazione
+vincolante: **il README apre comunque con il caso concreto e il numero
+misurato.** L'ambizione sta nella sezione architettura, mai al posto del dato.
+
+G2 resta invariato: nessun secondo schema prima di un numero pubblicato e un
+utente esterno. Il posizionamento cambia il racconto, non la roadmap.
+
+## ADR-024 — La segmentazione non è affidabile senza text layer
+**2026-08-10.** `cambio_valore` (ADR-017) cerca un pattern nel testo di ogni
+pagina. Su pagine `SCANSIONE` non c'è testo: la regex non trova nulla e il
+risultato è "una sola istanza" — indistinguibile dal caso in cui davvero c'è
+un solo documento.
+
+È un errore silenzioso della stessa famiglia già vista due volte: due fatture
+lette come una, nessuna eccezione, risultato plausibile. E qui il danno è
+massimo, perché tutti gli strati successivi lavorano su confini sbagliati.
+
+**Decisione.** La segmentazione espone una confidenza esplicita:
+
+| esito | quando |
+|---|---|
+| `certa` | tutte le pagine hanno text layer e il pattern è stato trovato |
+| `presunta` | tutte le pagine hanno text layer ma il pattern non compare mai |
+| `non_determinabile` | almeno una pagina è `SCANSIONE` o `IBRIDA` |
+
+In tutti e tre i casi si produce comunque un risultato: il default resta una
+istanza per file. Ma `non_determinabile` deve propagarsi fino al gate del
+documento come `warning`, mai come `pass` silenzioso.
+
+Conseguenza sull'ordine della pipeline: sui documenti scansionati la
+segmentazione corretta richiede l'OCR, quindi va **dopo** l'estrazione, non
+prima. Il triage produce una segmentazione provvisoria; una ri-segmentazione
+sul testo estratto è lavoro del Blocco 3.

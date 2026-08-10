@@ -30,6 +30,13 @@ migliaia; fornitura trimestrale interpretata come annuale.
 (somma fasce ≈ totale, giorni = differenza date + 1). È ciò che permette la
 verifica senza fonti esterne.
 
+**Istanza documentale** — un file PDF non è un documento, è un contenitore di
+una o più istanze documentali (caso reale: un PDF con due fatture su due
+periodi distinti, ADR-013/ADR-014-bis). L'unità che l'estrazione tratta è
+l'istanza, non il file: ha un id opaco proprio, un intervallo di pagine nel
+file, e — quando la segmentazione non è certa (ADR-024) — una confidenza
+esplicita sul fatto che quell'intervallo sia corretto.
+
 ## Dominio bollette
 
 **POD** — Point of Delivery. Identificativo univoco del punto di prelievo

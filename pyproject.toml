@@ -14,20 +14,19 @@ classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies = ["PyYAML", "pdfplumber~=0.11"]
+dependencies = ["PyYAML~=6.0", "pdfplumber~=0.11", "Pillow~=12.3"]
 
 [project.urls]
 Homepage = "https://github.com/vinsblack/sacor"
 
 [project.optional-dependencies]
 dev = [
-    "ruff",
-    "mypy",
-    "pytest",
+    "ruff~=0.16",
+    "mypy~=2.3",
+    "pytest~=9.1",
     "types-PyYAML",
     "reportlab~=5.0",
     "pypdf~=6.15",
-    "Pillow~=12.3",
 ]
 
 [tool.hatch.build.targets.wheel]

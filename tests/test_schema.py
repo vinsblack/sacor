@@ -12,6 +12,7 @@ def test_schema_bolletta_luce_carica_10_campi_2_invarianti() -> None:
     schema = load(SCHEMA_REALE)
     assert len(schema.campi) == 10
     assert len(schema.invarianti) == 2
+    assert schema.segmentazione is None  # sezione assente sullo schema reale
 
 
 def test_file_mancante_alza_schema_error(tmp_path: Path) -> None:
@@ -125,3 +126,80 @@ invarianti:
     messaggio = str(exc_info.value)
     assert "somma_fasce" in messaggio
     assert "kwh_f4" in messaggio
+
+
+def _schema_base_con_segmentazione(segmentazione_yaml: str) -> str:
+    return f"""
+schema_version: 1
+documento: test
+campi:
+  - nome: pod
+    tipo: string
+    obbligatorio: true
+invarianti: []
+{segmentazione_yaml}
+"""
+
+
+def test_segmentazione_valida_carica(tmp_path: Path) -> None:
+    p = tmp_path / "schema.yaml"
+    p.write_text(
+        _schema_base_con_segmentazione(
+            """
+segmentazione:
+  tipo: cambio_valore
+  pattern: 'Fattura(?: elettronica)? n\\.?\\s*([0-9]+)'
+  minimo_pagine: 1
+"""
+        )
+    )
+    schema = load(p)
+    assert schema.segmentazione is not None
+    assert schema.segmentazione.tipo == "cambio_valore"
+    assert schema.segmentazione.minimo_pagine == 1
+
+
+def test_segmentazione_tipo_sconosciuto_alza_schema_error(tmp_path: Path) -> None:
+    p = tmp_path / "schema.yaml"
+    p.write_text(
+        _schema_base_con_segmentazione(
+            """
+segmentazione:
+  tipo: tipo_inesistente
+  pattern: 'abc'
+"""
+        )
+    )
+    with pytest.raises(SchemaError):
+        load(p)
+
+
+def test_segmentazione_pattern_non_compilabile_alza_schema_error(tmp_path: Path) -> None:
+    p = tmp_path / "schema.yaml"
+    p.write_text(
+        _schema_base_con_segmentazione(
+            """
+segmentazione:
+  tipo: cambio_valore
+  pattern: '(['
+"""
+        )
+    )
+    with pytest.raises(SchemaError):
+        load(p)
+
+
+def test_segmentazione_minimo_pagine_invalido_alza_schema_error(tmp_path: Path) -> None:
+    p = tmp_path / "schema.yaml"
+    p.write_text(
+        _schema_base_con_segmentazione(
+            """
+segmentazione:
+  tipo: cambio_valore
+  pattern: 'abc'
+  minimo_pagine: 0
+"""
+        )
+    )
+    with pytest.raises(SchemaError):
+        load(p)

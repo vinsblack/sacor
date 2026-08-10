@@ -4,11 +4,15 @@ esiste — il triage e' l'unica fonte. Costo di inferenza zero: nessuna AI."""
 
 from __future__ import annotations
 
+import shutil
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
 import pdfplumber
+from PIL import Image
 
 
 class TipoPagina(StrEnum):
@@ -102,6 +106,64 @@ def _copertura_immagine(pagina: pdfplumber.page.Page) -> float:
     return celle_coperte / (_GRID * _GRID)
 
 
+def _rasterizza_pagina(pagina: pdfplumber.page.Page) -> Image.Image:
+    """Rasterizza l'intera pagina, non solo l'immagine incorporata piu'
+    grande: cosi' l'OSD vede anche eventuale testo digitale reale sopra
+    l'immagine (--scansione-sporca, --pagina-ibrida), non solo lo sfondo.
+
+    Via pypdfium2 (dipendenza di pdfplumber stesso, gia' presente): nessuna
+    dipendenza aggiuntiva, nessun binario di sistema.
+    """
+    return pagina.to_image(resolution=150).original
+
+
+def _rotazione_via_osd(pagina: pdfplumber.page.Page) -> int | None:
+    """OSD Tesseract (binario esterno, opzionale) per l'orientamento.
+
+    None in ogni caso di incertezza — Tesseract assente, output inatteso,
+    timeout: MAI un'eccezione (T2.3). Tesseract non e' una dipendenza
+    obbligatoria del pacchetto.
+    """
+    if shutil.which("tesseract") is None:
+        return None
+
+    immagine = _rasterizza_pagina(pagina)
+
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".png") as tmp:
+            immagine.save(tmp.name)
+            esito = subprocess.run(
+                ["tesseract", tmp.name, "-", "--psm", "0"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=True,
+            )
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+    for riga in esito.stdout.splitlines():
+        if riga.startswith("Rotate:"):
+            try:
+                return int(riga.split(":", 1)[1].strip())
+            except ValueError:
+                return None
+    return None
+
+
+def _rotazione(pagina: pdfplumber.page.Page, tipo: TipoPagina) -> int | None:
+    """/Rotate dai metadati se presente (autoritativo, letto da pdfplumber
+    che lo espone gia' come page.rotation). Se assente (0, che pdfplumber non
+    distingue da "esplicitamente zero") e la pagina e' SCANSIONE o IBRIDA,
+    OSD Tesseract. Su DIGITALE l'OSD e' solo rumore (T2.3): /Rotate assente
+    vale 0, senza escalation."""
+    if pagina.rotation != 0:
+        return int(pagina.rotation)
+    if tipo in (TipoPagina.SCANSIONE, TipoPagina.IBRIDA):
+        return _rotazione_via_osd(pagina)
+    return 0
+
+
 def _classifica(
     copertura: float, soglia_digitale: float, soglia_scansione: float
 ) -> TipoPagina:
@@ -119,13 +181,14 @@ def _pagina_info(
     area = pagina.width * pagina.height
     densita = n_caratteri / area if area else 0.0
     copertura = _copertura_immagine(pagina)
+    tipo = _classifica(copertura, soglia_digitale, soglia_scansione)
     return PaginaInfo(
         numero=pagina.page_number,
         ha_text_layer=n_caratteri > 0,
         densita_testo=densita,
         copertura_immagine=copertura,
-        tipo=_classifica(copertura, soglia_digitale, soglia_scansione),
-        rotazione=None,  # T2.3, non ancora implementato
+        tipo=tipo,
+        rotazione=_rotazione(pagina, tipo),
     )
 
 

@@ -4,12 +4,12 @@
 
 | | |
 |---|---|
-| Commit | ed5987c |
-| Test | 27 passed in 0.19s |
+| Commit | c5ba969 |
+| Test | 44 passed in 0.58s |
 | Accuratezza (per campo) | 0.0% |
 | Accuratezza (per documento) | 0.0% |
 | Tasso di escalation | n/d |
-| Generato il | 2026-08-10 15:59 UTC |
+| Generato il | 2026-08-10 16:46 UTC |
 
 ## Blocco corrente
 
