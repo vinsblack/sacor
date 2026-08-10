@@ -416,7 +416,9 @@ def _disegna_logo_e_qr(c: Canvas, rng: random.Random, layout: str) -> None:
     )
 
 
-def _disegna_layout_alfa(c: Canvas, rng: random.Random, blocchi: list[PagineFattura]) -> None:
+def _disegna_layout_alfa(
+    c: Canvas, rng: random.Random, blocchi: list[PagineFattura], fornitore_stampato: str
+) -> None:
     _, altezza = A4
     prima_pagina = True
     for pagine in blocchi:
@@ -435,7 +437,14 @@ def _disegna_layout_alfa(c: Canvas, rng: random.Random, blocchi: list[PagineFatt
                 y -= 16
 
 
-def _disegna_layout_beta(c: Canvas, rng: random.Random, blocchi: list[PagineFattura]) -> None:
+def _disegna_layout_beta(
+    c: Canvas, rng: random.Random, blocchi: list[PagineFattura], fornitore_stampato: str
+) -> None:
+    # Testata allineata al campo "fornitore" dell'oracle: prima diceva
+    # sempre "Beta Luce S.r.l." a prescindere da fornitore_esteso, un
+    # fornitore diverso da quello nella riga "Fornitore: ..." che il tier 0
+    # legge — il modello vedeva due nomi sulla stessa pagina e inventava
+    # scegliendo quello sbagliato (T4.11, campo inventato su S008).
     larghezza, altezza = A4
     prima_pagina = True
     for pagine in blocchi:
@@ -446,7 +455,7 @@ def _disegna_layout_beta(c: Canvas, rng: random.Random, blocchi: list[PagineFatt
             _disegna_logo_e_qr(c, rng, "Beta Luce")
             y = altezza - 100
             c.setFont("Helvetica-Bold", 16)
-            c.drawCentredString(larghezza / 2, y, "Beta Luce S.r.l.")
+            c.drawCentredString(larghezza / 2, y, fornitore_stampato)
             c.line(50, y - 8, larghezza - 50, y - 8)
             y -= 40
             c.setFont("Helvetica-Oblique", 11)
@@ -455,7 +464,9 @@ def _disegna_layout_beta(c: Canvas, rng: random.Random, blocchi: list[PagineFatt
                 y -= 16
 
 
-def _disegna_layout_gamma(c: Canvas, rng: random.Random, blocchi: list[PagineFattura]) -> None:
+def _disegna_layout_gamma(
+    c: Canvas, rng: random.Random, blocchi: list[PagineFattura], fornitore_stampato: str
+) -> None:
     _, altezza = A4
     prima_pagina = True
     for pagine in blocchi:
@@ -484,10 +495,12 @@ _DISEGNATORI = {
 }
 
 
-def _pdf_digitale(layout: str, blocchi: list[PagineFattura], rng: random.Random) -> bytes:
+def _pdf_digitale(
+    layout: str, blocchi: list[PagineFattura], rng: random.Random, fornitore_stampato: str
+) -> bytes:
     buf = io.BytesIO()
     c = Canvas(buf, pagesize=A4, invariant=1)
-    _DISEGNATORI[layout](c, rng, blocchi)
+    _DISEGNATORI[layout](c, rng, blocchi, fornitore_stampato)
     c.showPage()
     c.save()
     return buf.getvalue()
@@ -573,6 +586,7 @@ def _pdf_scansione(
     blocchi: list[PagineFattura],
     rng: random.Random,
     sporca: bool,
+    fornitore_stampato: str,
     livello: LivelloDegrado = DEGRADO_DEFAULT,
 ) -> bytes:
     """ADR-038: una scansione e' il rendering dello STESSO layout digitale,
@@ -580,7 +594,7 @@ def _pdf_scansione(
     al digitale -> raster ad alta risoluzione -> degrado -> pagina immagine,
     senza text layer (a meno di --scansione-sporca, che aggiunge rumore reale
     SOPRA l'immagine, non testo del documento)."""
-    pdf_digitale = _pdf_digitale(layout, blocchi, rng)
+    pdf_digitale = _pdf_digitale(layout, blocchi, rng, fornitore_stampato)
 
     buf_pdf = io.BytesIO()
     c = Canvas(buf_pdf, pagesize=A4, invariant=1)
@@ -739,10 +753,15 @@ def genera_documento(
         else:
             livello = DEGRADO_DEFAULT
         pdf_bytes = _pdf_scansione(
-            layout, blocchi, rng, sporca=flags.scansione_sporca, livello=livello
+            layout,
+            blocchi,
+            rng,
+            sporca=flags.scansione_sporca,
+            fornitore_stampato=fornitore_stampato,
+            livello=livello,
         )
     else:
-        pdf_bytes = _pdf_digitale(layout, blocchi, rng)
+        pdf_bytes = _pdf_digitale(layout, blocchi, rng, fornitore_stampato)
     if flags.ruotata:
         pdf_bytes = _ruota(pdf_bytes)
 

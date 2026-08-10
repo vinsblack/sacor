@@ -110,7 +110,14 @@ def misura_livello(livello: LivelloDegrado, semi: tuple[int, ...]) -> dict[str, 
         blocchi = [
             (_righe_pagina1(dati, flags), _righe_pagina2(dati, flags), _righe_pagina3(dati, flags))
         ]
-        pdf_bytes = _pdf_scansione("Alfa Energia", blocchi, rng, sporca=False, livello=livello)
+        pdf_bytes = _pdf_scansione(
+            "Alfa Energia",
+            blocchi,
+            rng,
+            sporca=False,
+            fornitore_stampato="Fornitore Test",
+            livello=livello,
+        )
         testo_ocr = _pulisci(_ocr_documento(pdf_bytes))
 
         for campo, valore_atteso in _campi_obbligatori_attesi(dati).items():
