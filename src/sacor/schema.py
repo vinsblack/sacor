@@ -11,6 +11,8 @@ from typing import Any, Literal, cast, get_args
 
 import yaml
 
+from sacor.extraction import TIPI_NOTI as TIPI_ESTRAZIONE_NOTI
+from sacor.extraction import EstrazioneConfig
 from sacor.invariants import TIPI_NOTI
 from sacor.segmentation import TIPI_NOTI as TIPI_SEGMENTAZIONE_NOTI
 from sacor.segmentation import SegmentazioneConfig
@@ -31,6 +33,7 @@ class Campo:
     nome: str
     tipo: TipoCampo
     obbligatorio: bool
+    estrazione: EstrazioneConfig | None
 
 
 @dataclass(frozen=True)
@@ -127,9 +130,45 @@ def _leggi_campi(dati: dict[str, Any]) -> tuple[Campo, ...]:
         if not isinstance(obbligatorio, bool):
             raise SchemaError(f"campo '{nome}': 'obbligatorio' mancante o non booleano")
 
-        campi.append(Campo(nome=nome, tipo=cast(TipoCampo, tipo), obbligatorio=obbligatorio))
+        estrazione = _leggi_estrazione(grezzo, nome)
+
+        campi.append(
+            Campo(
+                nome=nome,
+                tipo=cast(TipoCampo, tipo),
+                obbligatorio=obbligatorio,
+                estrazione=estrazione,
+            )
+        )
 
     return tuple(campi)
+
+
+def _leggi_estrazione(grezzo: dict[str, Any], nome_campo: str) -> EstrazioneConfig | None:
+    sezione = grezzo.get("estrazione")
+    if sezione is None:
+        return None
+    if not isinstance(sezione, dict):
+        raise SchemaError(f"campo '{nome_campo}': 'estrazione' deve essere un mapping YAML")
+
+    tipo = sezione.get("tipo")
+    if tipo not in TIPI_ESTRAZIONE_NOTI:
+        raise SchemaError(
+            f"campo '{nome_campo}': tipo di estrazione '{tipo}' sconosciuto "
+            f"(ammessi: {', '.join(TIPI_ESTRAZIONE_NOTI)})"
+        )
+
+    pattern = sezione.get("pattern")
+    if not isinstance(pattern, str) or not pattern:
+        raise SchemaError(f"campo '{nome_campo}': estrazione 'pattern' mancante o vuoto")
+    try:
+        re.compile(pattern)
+    except re.error as exc:
+        raise SchemaError(
+            f"campo '{nome_campo}': estrazione 'pattern' non compilabile: {exc}"
+        ) from exc
+
+    return EstrazioneConfig(tipo=tipo, pattern=pattern)
 
 
 def _leggi_invarianti(dati: dict[str, Any], campi: tuple[Campo, ...]) -> tuple[Invariante, ...]:

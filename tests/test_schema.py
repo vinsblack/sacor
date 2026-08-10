@@ -204,3 +204,85 @@ segmentazione:
     )
     with pytest.raises(SchemaError):
         load(p)
+
+
+def test_estrazione_valida_carica(tmp_path: Path) -> None:
+    p = tmp_path / "schema.yaml"
+    p.write_text(
+        """
+schema_version: 1
+documento: test
+campi:
+  - nome: pod
+    tipo: string
+    obbligatorio: true
+    estrazione:
+      tipo: regex
+      pattern: 'IT\\d{3}E\\d{8}'
+invarianti: []
+"""
+    )
+    schema = load(p)
+    campo = schema.campo("pod")
+    assert campo is not None
+    assert campo.estrazione is not None
+    assert campo.estrazione.tipo == "regex"
+
+
+def test_campo_senza_estrazione_ha_estrazione_none(tmp_path: Path) -> None:
+    p = tmp_path / "schema.yaml"
+    p.write_text(
+        """
+schema_version: 1
+documento: test
+campi:
+  - nome: pod
+    tipo: string
+    obbligatorio: true
+invarianti: []
+"""
+    )
+    schema = load(p)
+    campo = schema.campo("pod")
+    assert campo is not None
+    assert campo.estrazione is None
+
+
+def test_estrazione_tipo_sconosciuto_alza_schema_error(tmp_path: Path) -> None:
+    p = tmp_path / "schema.yaml"
+    p.write_text(
+        """
+schema_version: 1
+documento: test
+campi:
+  - nome: pod
+    tipo: string
+    obbligatorio: true
+    estrazione:
+      tipo: magia
+      pattern: 'abc'
+invarianti: []
+"""
+    )
+    with pytest.raises(SchemaError):
+        load(p)
+
+
+def test_estrazione_pattern_non_compilabile_alza_schema_error(tmp_path: Path) -> None:
+    p = tmp_path / "schema.yaml"
+    p.write_text(
+        """
+schema_version: 1
+documento: test
+campi:
+  - nome: pod
+    tipo: string
+    obbligatorio: true
+    estrazione:
+      tipo: regex
+      pattern: '(['
+invarianti: []
+"""
+    )
+    with pytest.raises(SchemaError):
+        load(p)

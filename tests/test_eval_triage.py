@@ -55,7 +55,7 @@ def test_segmentazione_e_raggiungibile_dal_corpus_di_default(tmp_path: Path) -> 
         pagine = analizza(path).pagine
         with pdfplumber.open(path) as documento:
             testi = [normalizza_testo(p) for p in documento.pages]
-        esito = segmenta(path.stem, pagine, testi, schema.segmentazione)
+        esito = segmenta(path, pagine, testi, schema.segmentazione)
         conteggi_istanze.append(len(esito.istanze))
 
     assert any(n > 1 for n in conteggi_istanze), (

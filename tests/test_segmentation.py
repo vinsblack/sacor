@@ -26,7 +26,7 @@ def test_multi_fattura_produce_due_istanze_identiche_a_metadata_certa(tmp_path: 
     pagine = analizza(path).pagine
     config = SegmentazioneConfig(tipo="cambio_valore", pattern=PATTERN_FATTURA, minimo_pagine=1)
 
-    risultato = segmenta("S007", pagine, testi, config)
+    risultato = segmenta(path, pagine, testi, config)
 
     assert risultato.confidenza is ConfidenzaSegmentazione.CERTA
     assert len(risultato.istanze) == 2
@@ -42,7 +42,7 @@ def test_documento_normale_produce_una_istanza_certa(tmp_path: Path) -> None:
     pagine = analizza(path).pagine
     config = SegmentazioneConfig(tipo="cambio_valore", pattern=PATTERN_FATTURA, minimo_pagine=1)
 
-    risultato = segmenta("S001", pagine, testi, config)
+    risultato = segmenta(path, pagine, testi, config)
 
     assert risultato.confidenza is ConfidenzaSegmentazione.CERTA
     assert len(risultato.istanze) == 1
@@ -55,7 +55,7 @@ def test_schema_senza_segmentazione_produce_una_istanza(tmp_path: Path) -> None:
     path, testi = _scrivi_e_estrai_testi(tmp_path, "S002.pdf", pdf_bytes)
     pagine = analizza(path).pagine
 
-    risultato = segmenta("S002", pagine, testi, None)
+    risultato = segmenta(path, pagine, testi, None)
 
     assert len(risultato.istanze) == 1
     assert risultato.confidenza is ConfidenzaSegmentazione.CERTA
@@ -70,7 +70,7 @@ def test_pagina_singola_digitale_e_certa_per_scorciatoia(tmp_path: Path) -> None
     pagine = analizza(path).pagine
     config = SegmentazioneConfig(tipo="cambio_valore", pattern=PATTERN_FATTURA, minimo_pagine=1)
 
-    risultato = segmenta("S010", pagine, testi, config)
+    risultato = segmenta(path, pagine, testi, config)
 
     assert risultato.confidenza is ConfidenzaSegmentazione.CERTA
     assert len(risultato.istanze) == 1
@@ -88,7 +88,7 @@ def test_pagina_scansionata_singola_e_non_determinabile(tmp_path: Path) -> None:
     pagine = analizza(path).pagine
     config = SegmentazioneConfig(tipo="cambio_valore", pattern=PATTERN_FATTURA, minimo_pagine=1)
 
-    risultato = segmenta("S003", pagine, testi, config)
+    risultato = segmenta(path, pagine, testi, config)
 
     assert risultato.confidenza is ConfidenzaSegmentazione.NON_DETERMINABILE
     assert len(risultato.istanze) == 1
@@ -109,7 +109,7 @@ def test_multi_fattura_scansionato_resta_non_determinabile_regressione(tmp_path:
 
     assert len(metadata_entries) == 2  # la verita': due fatture vere
 
-    risultato = segmenta("S011", pagine, testi, config)
+    risultato = segmenta(path, pagine, testi, config)
 
     assert risultato.confidenza is ConfidenzaSegmentazione.NON_DETERMINABILE
     assert len(risultato.istanze) == 1  # dichiarato incerto, non affermato falso
@@ -142,7 +142,7 @@ def test_multipagina_con_pagina_scansionata_resta_non_determinabile() -> None:
     testi = ["Fattura n. 111", ""]
     config = SegmentazioneConfig(tipo="cambio_valore", pattern=PATTERN_FATTURA, minimo_pagine=1)
 
-    risultato = segmenta("XXX", pagine, testi, config)
+    risultato = segmenta(Path("XXX.pdf"), pagine, testi, config)
 
     assert risultato.confidenza is ConfidenzaSegmentazione.NON_DETERMINABILE
     assert len(risultato.istanze) == 1
@@ -163,7 +163,7 @@ def test_pattern_mai_trovato_e_presunta(tmp_path: Path) -> None:
         tipo="cambio_valore", pattern=r"PATTERN-CHE-NON-COMPARE-MAI-([0-9]+)", minimo_pagine=1
     )
 
-    risultato = segmenta("S004", pagine, testi, config)
+    risultato = segmenta(path, pagine, testi, config)
 
     assert risultato.confidenza is ConfidenzaSegmentazione.PRESUNTA
     assert len(risultato.istanze) == 1

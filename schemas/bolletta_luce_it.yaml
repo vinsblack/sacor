@@ -5,33 +5,63 @@ campi:
   - nome: pod
     tipo: string
     obbligatorio: true
+    estrazione:
+      tipo: regex
+      pattern: 'IT\d{3}E\d{8}'
   - nome: fornitore
     tipo: string
     obbligatorio: false
+    estrazione:
+      tipo: regex
+      pattern: 'Fornitore:\s*(.+)'
   - nome: periodo_da
     tipo: date
     obbligatorio: true
+    estrazione:
+      tipo: regex
+      pattern: 'Dal\s+(\d{2}/\d{2}/\d{4})'
   - nome: periodo_a
     tipo: date
     obbligatorio: true
+    estrazione:
+      tipo: regex
+      pattern: '\bal\s+(\d{2}/\d{2}/\d{4})'
   - nome: giorni
     tipo: integer
     obbligatorio: false
+    estrazione:
+      tipo: regex
+      pattern: '\((\d+)\s*giorni\)'
   - nome: kwh_totale
     tipo: decimal
     obbligatorio: false
+    estrazione:
+      tipo: regex
+      pattern: 'Energia totale:\s*([\d.]+)\s*kWh'
   - nome: kwh_f1
     tipo: decimal
     obbligatorio: false
+    estrazione:
+      tipo: regex
+      pattern: 'Energia F1:\s*([\d.]+)\s*kWh'
   - nome: kwh_f2
     tipo: decimal
     obbligatorio: false
+    estrazione:
+      tipo: regex
+      pattern: 'Energia F2:\s*([\d.]+)\s*kWh'
   - nome: kwh_f3
     tipo: decimal
     obbligatorio: false
+    estrazione:
+      tipo: regex
+      pattern: 'Energia F3:\s*([\d.]+)\s*kWh'
   - nome: importo_totale
     tipo: decimal
     obbligatorio: false
+    estrazione:
+      tipo: regex
+      pattern: 'Importo totale:\s*EUR\s*([\d.]+)'
 
 invarianti:
   - id: somma_fasce

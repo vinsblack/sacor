@@ -533,3 +533,67 @@ dall'eval in un solo giro, perché il report confronta i conteggi di confidenza
 tra esecuzioni. Un cambiamento che *migliora* una metrica (warning da 6 a 0)
 può peggiorare il sistema. Le metriche vanno lette in coppia: mai la
 riduzione dei warning senza l'accuratezza dei casi coinvolti.
+
+## ADR-032 — Tier 0: un estrattore deterministico come base di confronto
+**2026-08-10.** Il Blocco 3 potrebbe passare direttamente a un modello. Scelta:
+no. Prima si costruisce un estrattore **senza AI**, che lavora sul text layer
+delle pagine `DIGITALE` con pattern dichiarati nello schema.
+
+Tre motivi.
+
+**1. È la domanda che nessun concorrente si pone.** "Quanto aggiunge davvero
+l'AI?" ha una risposta solo se esiste una base di confronto misurata. Senza
+tier 0, ogni numero prodotto da un modello è un valore assoluto senza
+riferimento: sembra buono e non si sa rispetto a cosa.
+
+**2. Sposta l'accuratezza sopra zero a costo nullo.** Su una bolletta digitale
+POD, date e totali sono in posizioni ricorrenti e con formati vincolati. Una
+parte del lavoro non richiede comprensione semantica.
+
+**3. Definisce la soglia economica del tier 1.** Se il tier 0 prende il 70% dei
+campi, il modello deve giustificare il proprio costo sul 30% restante. Questo
+rende il tasso di escalation (ADR: metrica economica principale) calcolabile
+fin dal primo giorno di inferenza, invece che a posteriori.
+
+I pattern vivono nello schema, accanto ai campi — stesso principio di
+invarianti e segmentazione. Il codice non sa cosa sia un POD.
+
+    - nome: pod
+      tipo: string
+      obbligatorio: true
+      estrazione:
+        tipo: regex
+        pattern: 'IT\d{3}E\d{8}'
+
+Tier 0 non deve mai indovinare: se il pattern non trova, restituisce `None`.
+Un campo mancante è un dato onesto che il gate sa gestire; un campo inventato
+no.
+
+## ADR-033 — L'estrattore lavora su istanze, non su file
+**2026-08-10.** Primo numero reale del motore: 42,9% per documento, 43,6% per
+campo. I 9 campi errati hanno una sola causa, e non è nei pattern né nel Repair.
+
+`Extractor.extract(pdf: Path, schema: Schema)` legge l'intero PDF. Su S010
+(due fatture su due pagine digitali) `re.search` restituisce sempre i valori
+di pagina 1: S010a è corretto perché *è* pagina 1, S010b riceve i valori
+sbagliati. Un documento errato × 9 campi = i 9 errori osservati.
+
+Il Protocol è stato definito nel Blocco 1, **prima** che esistesse il concetto
+di istanza documentale. ADR-014-bis ha stabilito che un PDF è un contenitore
+di istanze, ma la firma dell'estrattore non è mai stata allineata: è rimasta a
+parlare di file.
+
+**Decisione.** La firma diventa:
+
+    def extract(self, istanza: Istanza, schema: Schema) -> dict[str, str | None]
+
+`Istanza` porta file e intervallo di pagine. L'estrattore non vede mai il PDF
+intero, e non ha modo di leggere fuori dai propri confini.
+
+Nota di metodo: il tetto era architetturale, non di configurazione. Nessuna
+regolazione dei pattern avrebbe alzato il numero — l'avrebbe solo mascherato,
+facendo sembrare risolto un difetto strutturale. Il report a quattro colonne
+(non estratto / non normalizzabile / normalizzato / corretto) ha permesso di
+distinguerlo in un colpo solo: `non normalizzabile` a zero ovunque escludeva
+il Repair, e `normalizzato 70/140` con `corretto 61/140` isolava il problema
+ai soli valori letti dal posto sbagliato.

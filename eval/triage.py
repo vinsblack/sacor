@@ -116,9 +116,7 @@ def valuta(
         with pdfplumber.open(path) as documento:
             testi = [normalizza_testo(p) for p in documento.pages]
 
-        esito_segmentazione = segmenta(
-            path.stem, triage_result.pagine, testi, schema.segmentazione
-        )
+        esito_segmentazione = segmenta(path, triage_result.pagine, testi, schema.segmentazione)
         confidenza_conteggi[esito_segmentazione.confidenza.value] += 1
 
         totale_istanze += 1
