@@ -991,3 +991,54 @@ oracle, 4 giri di bake-off, ~$8.30 spesi in totale):
 
 0.0% documenti completamente corretti resta su tutti e 4 i giri — nessun
 pattern residuo grande quanto i tre risolti è stato ancora trovato.
+
+## ADR-045 — Lo strato Arbitrate non esiste: piano per costruirlo
+
+**2026-08-11.** Verifica del disegno a 7 strati (docs/01-architecture.md)
+contro il codice reale: lo strato "Arbitrate" (confronto fonti, tolleranze)
+è dichiarato ma non implementato. `sacor.invariants` è solo un registro di
+TIPI noti (`somma_approssimata`, `differenza_giorni`), usato da
+`sacor.schema` per validare che le invarianti dichiarate nello YAML
+referenzino campi esistenti — nessun codice valuta mai un'invariante
+contro un set di valori estratti. La conferma pratica di oggi (ADR-044,
+R010): F1+F2+F3=91 contro un totale dichiarato 277 dallo stesso modello
+nella stessa risposta — un'incongruenza aritmetica banale, trovata a mano
+da un agente, che l'invariante `somma_fasce` avrebbe segnalato in
+automatico se fosse mai stata eseguita.
+
+Analogamente, "due provider sempre" (ADR di continuità di servizio) non è
+mai stato usato come arbitrato reale: bake-off testa ogni modello contro
+l'oracle separatamente, mai un modello contro l'altro. Il disaccordo tra
+due letture indipendenti è il segnale di bassa confidenza più forte
+disponibile — oggi scartato.
+
+### Piano (atomico, in ordine)
+
+**Fase 1 — motore invarianti (zero costo API, solo codice+test)**
+1. `invariants.py::valuta(invariante, valori) -> Violazione | None` — una
+   funzione per tipo, pura, TDD
+2. `invariants.py::valuta_tutte(schema, valori) -> tuple[Violazione, ...]`
+3. Wire post-estrazione (tier0 e tier1): ogni risposta porta anche le
+   violazioni trovate, non solo i valori
+4. Gate: severità `reject` su un'invariante violata rigetta il documento
+   — oggi il gate reagisce solo a un campo obbligatorio assente, mai a
+   un'incongruenza aritmetica
+5. `eval/run.py`/`scripts/bakeoff*.py`: violazioni contate come metrica
+   separata — segnale valido anche SENZA oracle (in produzione l'oracle
+   non c'è, l'invariante sì)
+
+**Fase 2 — arbitrato tra due provider (raddoppia il costo tier1, decisione
+da prendere prima di costruire, non solo tecnica)**
+6. `estrai_con_arbitrato(istanza, campi, provider_a, provider_b)` — chiama
+   entrambi, confronta campo per campo
+7. Misurare sul corpus reale (con oracle, solo ora misurabile): frequenza
+   di disaccordo, e quando disaccordano chi ha ragione più spesso
+8. Decisione: arbitrato sempre attivo, o solo quando il tier1 singolo
+   viola già un'invariante (tier "1.5" più economico, innescato dal
+   segnale della Fase 1)
+
+**Fase 3 — bloccata da dati, non da codice**
+9. Più bollette tue/consenzienti; rimisurare con arbitrato attivo
+
+Si comincia dalla Fase 1: più preziosa, più economica, nessuna chiamata
+API in più.

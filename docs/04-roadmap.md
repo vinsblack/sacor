@@ -222,7 +222,21 @@ grafici che portano dati (barre/torta, generatore è solo testo).
 
 ---
 
-## Blocco 5+ — non ancora pianificato
+## Blocco 5 — Arbitrate: costruire lo strato che manca (ADR-045) 🔶 in corso
+
+Verificato oggi: lo strato "Arbitrate" del disegno a 7 strati è dichiarato
+ma mai implementato — `sacor.invariants` valida solo che le invarianti
+dichiarate nello schema referenzino campi esistenti, nessun codice le
+esegue mai contro valori estratti veri. Piano completo in ADR-045.
+
+- Fase 1: motore invarianti (`valuta`/`valuta_tutte`), wire post-estrazione,
+  gate su violazione `reject`, conteggio in eval — zero costo API
+- Fase 2: arbitrato tra due provider (chiamata doppia, confronto campo per
+  campo) — raddoppia il costo tier1, decisione da prendere prima di
+  costruire
+- Fase 3: più corpus reale (bloccato da dati, non da codice)
+
+## Blocco 6+ — non ancora pianificato
 
 - **Corpus reale**: ✅ fatto (ADR-042) — 14 bollette luce reali, consenso
   ottenuto, oracle (`corpus/reale/attesi.json`) nel repo, PDF originali
