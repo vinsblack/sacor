@@ -5,6 +5,7 @@ mai eseguito contro un set di valori estratti veri."""
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
@@ -17,6 +18,9 @@ if TYPE_CHECKING:
 TIPI_NOTI: dict[str, tuple[str, ...]] = {
     "somma_approssimata": ("addendi", "totale"),
     "differenza_giorni": ("da", "a", "risultato"),
+    "valore_minimo": ("campo",),
+    "ordine_date": ("precedente", "successiva"),
+    "formato": ("campo",),
 }
 
 
@@ -101,9 +105,78 @@ def _valuta_differenza_giorni(
     )
 
 
+def _valuta_valore_minimo(
+    invariante: Invariante, valori: Mapping[str, str | None]
+) -> Violazione | None:
+    """Un valore negativo (kwh, importo) e' quasi sempre un OCR/parsing
+    andato storto, non un dato reale — soglia INCLUSIVA (0 e' ammesso,
+    non e' una violazione)."""
+    campo_nome = invariante.params["campo"]
+    minimo = Decimal(str(invariante.params["minimo"]))
+
+    valore = _decimal_o_none(valori.get(campo_nome))
+    if valore is None:
+        return None
+    if valore >= minimo:
+        return None
+
+    return Violazione(
+        invariante_id=invariante.id,
+        severita=invariante.severita,
+        messaggio=f"{campo_nome} = {valore}, atteso >= {minimo}",
+    )
+
+
+def _valuta_ordine_date(
+    invariante: Invariante, valori: Mapping[str, str | None]
+) -> Violazione | None:
+    precedente_nome = invariante.params["precedente"]
+    successiva_nome = invariante.params["successiva"]
+
+    precedente_str = valori.get(precedente_nome)
+    successiva_str = valori.get(successiva_nome)
+    if precedente_str is None or successiva_str is None:
+        return None
+
+    try:
+        precedente_data = date.fromisoformat(precedente_str)
+        successiva_data = date.fromisoformat(successiva_str)
+    except ValueError:
+        return None
+
+    if successiva_data >= precedente_data:
+        return None
+
+    return Violazione(
+        invariante_id=invariante.id,
+        severita=invariante.severita,
+        messaggio=f"{successiva_nome} = {successiva_data} precede {precedente_nome} = {precedente_data}",
+    )
+
+
+def _valuta_formato(invariante: Invariante, valori: Mapping[str, str | None]) -> Violazione | None:
+    campo_nome = invariante.params["campo"]
+    pattern = invariante.params["pattern"]
+
+    valore = valori.get(campo_nome)
+    if valore is None:
+        return None
+    if re.fullmatch(pattern, valore) is not None:
+        return None
+
+    return Violazione(
+        invariante_id=invariante.id,
+        severita=invariante.severita,
+        messaggio=f"{campo_nome} = {valore!r} non rispetta il formato '{pattern}'",
+    )
+
+
 _VALUTATORI = {
     "somma_approssimata": _valuta_somma_approssimata,
     "differenza_giorni": _valuta_differenza_giorni,
+    "valore_minimo": _valuta_valore_minimo,
+    "ordine_date": _valuta_ordine_date,
+    "formato": _valuta_formato,
 }
 
 

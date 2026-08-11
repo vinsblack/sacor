@@ -115,6 +115,53 @@ invarianti:
     offset: 1
     severita: warning
 
+  # T4.17: le 6 invarianti sotto sono nuove (prima solo le 2 sopra) — un
+  # valore negativo di kwh/importo o un POD malformato sono quasi sempre
+  # errori di lettura, non dati reali; l'ordine delle date non richiede
+  # 'giorni' (a differenza di giorni_inclusivi sopra, valutabile anche
+  # quando 'giorni' resta None, il caso piu' comune sul reale).
+  - id: kwh_totale_non_negativo
+    tipo: valore_minimo
+    campo: kwh_totale
+    minimo: 0
+    severita: warning
+
+  - id: kwh_f1_non_negativo
+    tipo: valore_minimo
+    campo: kwh_f1
+    minimo: 0
+    severita: warning
+
+  - id: kwh_f2_non_negativo
+    tipo: valore_minimo
+    campo: kwh_f2
+    minimo: 0
+    severita: warning
+
+  - id: kwh_f3_non_negativo
+    tipo: valore_minimo
+    campo: kwh_f3
+    minimo: 0
+    severita: warning
+
+  - id: importo_totale_non_negativo
+    tipo: valore_minimo
+    campo: importo_totale
+    minimo: 0
+    severita: warning
+
+  - id: periodo_ordinato
+    tipo: ordine_date
+    precedente: periodo_da
+    successiva: periodo_a
+    severita: warning
+
+  - id: formato_pod
+    tipo: formato
+    campo: pod
+    pattern: 'IT\d{3}E\d{8}'
+    severita: warning
+
 segmentazione:
   tipo: cambio_valore
   pattern: 'Fattura n\.?\s*([0-9]+)'

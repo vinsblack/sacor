@@ -8,10 +8,10 @@ REPO_ROOT = Path(__file__).parent.parent
 SCHEMA_REALE = REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
 
 
-def test_schema_bolletta_luce_carica_10_campi_2_invarianti() -> None:
+def test_schema_bolletta_luce_carica_10_campi_9_invarianti() -> None:
     schema = load(SCHEMA_REALE)
     assert len(schema.campi) == 10
-    assert len(schema.invarianti) == 2
+    assert len(schema.invarianti) == 9  # T4.17: 2 originali + 7 nuove (valore_minimo x5, ordine_date, formato)
     assert schema.segmentazione is not None  # ADR-028: attivata sullo schema reale
     assert schema.segmentazione.tipo == "cambio_valore"
 

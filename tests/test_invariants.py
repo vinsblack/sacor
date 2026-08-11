@@ -116,6 +116,105 @@ def test_valuta_tutte_su_valori_perfetti_nessuna_violazione() -> None:
     assert valuta_tutte(schema, valori) == ()
 
 
+# --- valore_minimo -----------------------------------------------------
+
+
+def _kwh_non_negativo() -> Invariante:
+    return Invariante(
+        id="kwh_totale_non_negativo",
+        tipo="valore_minimo",
+        severita="warning",
+        params={"campo": "kwh_totale", "minimo": 0},
+    )
+
+
+def test_valore_minimo_sopra_soglia_nessuna_violazione() -> None:
+    assert valuta(_kwh_non_negativo(), {"kwh_totale": "60.00"}) is None
+
+
+def test_valore_minimo_esattamente_sulla_soglia_nessuna_violazione() -> None:
+    assert valuta(_kwh_non_negativo(), {"kwh_totale": "0"}) is None
+
+
+def test_valore_minimo_sotto_soglia_e_violazione() -> None:
+    violazione = valuta(_kwh_non_negativo(), {"kwh_totale": "-5.00"})
+    assert violazione is not None
+    assert violazione.invariante_id == "kwh_totale_non_negativo"
+
+
+def test_valore_minimo_con_campo_none_non_e_determinabile() -> None:
+    assert valuta(_kwh_non_negativo(), {"kwh_totale": None}) is None
+
+
+def test_valore_minimo_valore_non_decimale_non_e_determinabile() -> None:
+    assert valuta(_kwh_non_negativo(), {"kwh_totale": "non-un-numero"}) is None
+
+
+# --- ordine_date ---------------------------------------------------------
+
+
+def _periodo_ordinato() -> Invariante:
+    return Invariante(
+        id="periodo_ordinato",
+        tipo="ordine_date",
+        severita="warning",
+        params={"precedente": "periodo_da", "successiva": "periodo_a"},
+    )
+
+
+def test_ordine_date_corretto_nessuna_violazione() -> None:
+    valori = {"periodo_da": "2025-09-01", "periodo_a": "2025-09-30"}
+    assert valuta(_periodo_ordinato(), valori) is None
+
+
+def test_ordine_date_uguali_nessuna_violazione() -> None:
+    valori = {"periodo_da": "2025-09-01", "periodo_a": "2025-09-01"}
+    assert valuta(_periodo_ordinato(), valori) is None
+
+
+def test_ordine_date_invertite_e_violazione() -> None:
+    valori = {"periodo_da": "2025-09-30", "periodo_a": "2025-09-01"}
+    violazione = valuta(_periodo_ordinato(), valori)
+    assert violazione is not None
+    assert violazione.invariante_id == "periodo_ordinato"
+
+
+def test_ordine_date_con_data_mancante_non_e_determinabile() -> None:
+    valori = {"periodo_da": None, "periodo_a": "2025-09-01"}
+    assert valuta(_periodo_ordinato(), valori) is None
+
+
+def test_ordine_date_malformata_non_e_determinabile() -> None:
+    valori = {"periodo_da": "non-una-data", "periodo_a": "2025-09-01"}
+    assert valuta(_periodo_ordinato(), valori) is None
+
+
+# --- formato ---------------------------------------------------------
+
+
+def _formato_pod() -> Invariante:
+    return Invariante(
+        id="formato_pod",
+        tipo="formato",
+        severita="warning",
+        params={"campo": "pod", "pattern": r"IT\d{3}E\d{8}"},
+    )
+
+
+def test_formato_valido_nessuna_violazione() -> None:
+    assert valuta(_formato_pod(), {"pod": "IT001E12345678"}) is None
+
+
+def test_formato_non_valido_e_violazione() -> None:
+    violazione = valuta(_formato_pod(), {"pod": "non-un-pod"})
+    assert violazione is not None
+    assert violazione.invariante_id == "formato_pod"
+
+
+def test_formato_con_campo_none_non_e_determinabile() -> None:
+    assert valuta(_formato_pod(), {"pod": None}) is None
+
+
 def test_valuta_tutte_su_valori_incongruenti_trova_entrambe() -> None:
     schema = load(SCHEMA_REALE)
     valori = {
