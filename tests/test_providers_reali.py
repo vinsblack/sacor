@@ -122,6 +122,50 @@ def test_normalizza_risposta_campo_assente_e_none() -> None:
     assert valori == {"pod": "IT001E12345678", "importo_totale": None}
 
 
+def test_normalizza_risposta_accetta_numero_json_nativo_decimal() -> None:
+    """T4.16 (trovato analizzando il dump grezzo di haiku-4-5 su bollette
+    reali): il modello risponde spesso con un numero JSON nativo (48.5) e
+    non una stringa ("48.5") per i campi numerici — JSON valido, comportamento
+    naturale, non un errore del modello. Prima di questo fix veniva scartato
+    a None regardless del valore, mai passato a ripara() — spiegava gran
+    parte del basso field-accuracy sul corpus reale, non un problema di
+    prompt (ADR-043/044)."""
+    campi = _campi(("importo_totale", "decimal"))
+    valori = normalizza_risposta('{"importo_totale": 36.11}', campi)
+    assert valori == {"importo_totale": "36.11"}
+
+
+def test_normalizza_risposta_accetta_numero_json_nativo_integer() -> None:
+    campi = _campi(("giorni", "integer"))
+    valori = normalizza_risposta('{"giorni": 30}', campi)
+    assert valori == {"giorni": "30"}
+
+
+def test_normalizza_risposta_accetta_intero_come_float_json() -> None:
+    """Un integer talvolta arriva come float JSON (30.0) quando il modello
+    non distingue i due tipi numerici nella risposta."""
+    campi = _campi(("giorni", "integer"))
+    valori = normalizza_risposta('{"giorni": 30.0}', campi)
+    assert valori == {"giorni": "30"}
+
+
+def test_normalizza_risposta_campo_stringa_non_accetta_numero() -> None:
+    """Un numero al posto di un fornitore/data non e' normalizzabile — la
+    tolleranza al tipo numerico JSON vale solo per i campi decimal/integer,
+    mai per string/date (un 123 non diventa mai un nome fornitore)."""
+    campi = _campi(("fornitore", "string"))
+    valori = normalizza_risposta('{"fornitore": 123}', campi)
+    assert valori == {"fornitore": None}
+
+
+def test_normalizza_risposta_booleano_non_e_un_numero_valido() -> None:
+    """bool e' sottoclasse di int in Python — deve restare escluso
+    esplicitamente, mai normalizzato come se fosse 0/1."""
+    campi = _campi(("giorni", "integer"))
+    valori = normalizza_risposta('{"giorni": true}', campi)
+    assert valori == {"giorni": None}
+
+
 def test_normalizza_risposta_passa_per_repair() -> None:
     # "1.234" e' l'ambiguo documentato in repair.py: ne' migliaia ne'
     # decimale con certezza -> None, stessa regola del tier 0.
