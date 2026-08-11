@@ -1042,3 +1042,46 @@ da prendere prima di costruire, non solo tecnica)**
 
 Si comincia dalla Fase 1: più preziosa, più economica, nessuna chiamata
 API in più.
+
+## ADR-046 — Tasso di escalation reale: 100%, non n/d
+
+**2026-08-11.** `docs/03-current-state.md` e il mirror Notion riportano
+"Tasso di escalation: n/d" da sempre — mai calcolato, non perché manchi
+il dato ma perché nessuno l'ha chiesto esplicitamente. Il dato c'era già
+in `eval/run.py::istanze_da_completare()`: **14 documenti reali su 14
+hanno richiesto almeno una chiamata tier1** (`chiamate` non è mai vuoto
+per nessun documento del corpus reale, prima e dopo i fix T4.17). Tasso
+di escalation reale: **100%**, non "n/d".
+
+Questo confronta direttamente con il criterio di stop già dichiarato nel
+mirror Notion (North Star, mai scritto qui prima): *"tasso di
+escalation — sopra il 20% il margine evapora"*. 100% è 5x sopra quel
+limite. Non è un'anomalia di una release: è la situazione da quando
+esiste un corpus reale (ADR-042).
+
+**Cosa NON significa**: non che il prodotto sia inviabile. Il costo per
+documento con tier1 economico (claude-haiku-4-5) è basso in assoluto
+($0.005-0.015/doc misurato nei bake-off) — il problema non è il costo
+della chiamata, è che l'architettura dichiarata ("tier0 assorbe l'80-90%,
+tier1 solo il resto") descrive un sistema che il corpus reale non
+conferma. tier0 su 14 documenti reali non ne ha chiuso NESSUNO da solo,
+nemmeno dopo T4.17 (16.4%/campo, ancora lontano da chiudere un
+documento intero senza tier1).
+
+**Decisione (chiesta esplicitamente, non assunta)**: il bersaglio di G1
+resta **accuratezza per campo alta su tutto lo schema**, non una
+scorciatoia via gate/confidenza che accetti un'accuratezza più bassa
+purché segnalata. Conseguenza diretta: la Fase 3 di ADR-045 (più corpus
+reale — oggi 14 documenti, 11 fornitori diversi, n≈1.3/fornitore) passa
+da "bloccata da dati, non urgente" a **il vero collo di bottiglia per
+G1**. Continuare a ottimizzare tier0/tier1 sui 14 documenti attuali ha
+reso rendimenti decrescenti già visibili (T4.17: `fornitore`/`kwh_f1-3`/
+`giorni` non chiudibili senza overfit su questo campione). Senza più
+bollette reali/consenzienti, il prossimo miglioramento di accuratezza
+generalizzabile è strutturalmente difficile da ottenere, non solo da
+misurare.
+
+**Non ancora deciso, prossima sessione**: da dove arrivano più bollette
+reali consenzienti (proprie dell'utente, community, altro canale) — è
+una decisione di prodotto/canale, non tecnica, va presa esplicitamente
+prima di continuare a scrivere codice sui 14 documenti attuali.

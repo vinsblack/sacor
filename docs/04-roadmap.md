@@ -258,6 +258,16 @@ esegue mai contro valori estratti veri. Piano completo in ADR-045.
   costruire
 - Fase 3: più corpus reale (bloccato da dati, non da codice)
 
+**ADR-046** (11-08): tasso di escalation tier0→tier1 reale calcolato per
+la prima volta (era "n/d" ovunque) — **100%**, 14/14 documenti reali
+hanno richiesto tier1, 5x sopra il criterio di stop dichiarato ("sopra
+il 20% il margine evapora"). Deciso esplicitamente: il bersaglio di G1
+resta accuratezza per campo alta su tutto lo schema, non una scorciatoia
+via gate. Conseguenza: **Fase 3 (più corpus reale) è ora il vero collo
+di bottiglia per G1**, non più "bloccata ma non urgente" — continuare a
+ottimizzare sui 14 documenti attuali (11 fornitori diversi) ha
+rendimenti decrescenti già visibili (T4.17).
+
 ## Blocco 6+ — non ancora pianificato
 
 - **Corpus reale**: ✅ fatto (ADR-042) — 14 bollette luce reali, consenso
@@ -277,8 +287,9 @@ esegue mai contro valori estratti veri. Piano completo in ADR-045.
 - **Ri-segmentazione su testo OCR** per scansioni multi-fattura (S011):
   la segmentazione oggi legge solo il text layer nativo — su una pagina
   scansionata non può leggere "Fattura n. X", limite noto (ADR-024).
-- **Tier 2** (escalation oltre il tier 1): non ancora misurato nessun
-  tasso di escalation reale (`n/d` in ogni report).
+- **Tier 2** (escalation oltre il tier 1): non ancora costruito, nessun
+  tasso di escalation tier1→tier2 misurato. Diverso dal tasso
+  tier0→tier1, quello sì misurato (ADR-046): **100%**.
 - **Schema gas**: bloccato da **G2** — nessun secondo tipo di documento
   prima di un numero pubblicato + 1 utente esterno (G1 non ancora
   raggiunto). Struttura già osservata (ADR-039), non un ostacolo tecnico.
