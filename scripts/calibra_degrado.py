@@ -32,6 +32,7 @@ from scripts.genera_corpus import (  # noqa: E402
     DatiFattura,
     Flags,
     LivelloDegrado,
+    PagineFattura,
     _genera_dati_fattura,
     _pdf_scansione,
     _righe_pagina1,
@@ -107,7 +108,7 @@ def misura_livello(livello: LivelloDegrado, semi: tuple[int, ...]) -> dict[str, 
         rng = random.Random(seme)
         flags = Flags()
         dati = _genera_dati_fattura(rng, "Fornitore Test", monoraria=False)
-        blocchi = [
+        blocchi: list[PagineFattura] = [
             (_righe_pagina1(dati, flags), _righe_pagina2(dati, flags), _righe_pagina3(dati, flags))
         ]
         pdf_bytes = _pdf_scansione(

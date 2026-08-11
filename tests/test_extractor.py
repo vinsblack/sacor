@@ -64,6 +64,25 @@ def test_importo_totale_corretto_nonostante_canone_extra(tmp_path: Path) -> None
     assert estratti["importo_totale"] == oracle_entries["S003"]["importo_totale"]
 
 
+def test_campi_corretti_nonostante_pagina_allegata_in_piu(tmp_path: Path) -> None:
+    """T4.14 (ADR-041): la segmentazione assorbe la pagina allegata
+    nell'istanza (gap noto, misurato, non corretto qui — vedi ADR-041). I
+    campi tracciati devono restare corretti comunque: le regex cercano
+    etichette specifiche, non l'intero testo, e la pagina allegata non ne
+    contiene nessuna."""
+    schema = load(SCHEMA_PATH)
+    pdf_bytes, oracle_entries, _ = genera_documento(
+        random.Random(32), "S002", "Beta Luce", Flags(pagine_allegate=True)
+    )
+    path = _scrivi(tmp_path, "S002.pdf", pdf_bytes)
+    istanza_con_allegato = _istanza_intero_file(path, pagina_da=1, pagina_a=4)
+
+    estratti = TierZeroExtractor().extract(istanza_con_allegato, schema)
+
+    assert estratti["pod"] == oracle_entries["S002"]["pod"]
+    assert estratti["importo_totale"] == oracle_entries["S002"]["importo_totale"]
+
+
 def test_diagnostica_distingue_non_estratto_da_normalizzato(tmp_path: Path) -> None:
     schema = load(SCHEMA_PATH)
     pdf_bytes, _, _ = genera_documento(random.Random(22), "S003", "Gamma Power", Flags())

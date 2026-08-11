@@ -4,20 +4,20 @@
 
 | | |
 |---|---|
-| Commit | 3803521 |
-| Test | 127 passed in 85.14s (0:01:25) |
-| Accuratezza (per campo) | 43.6% |
-| Accuratezza (per documento) | 28.6% |
-| Triage — numero istanze | 91.7% |
-| Triage — intervalli pagine | 91.7% |
+| Commit | 23ad3cb |
+| Test | 129 passed in 71.12s (0:01:11) |
+| Accuratezza (per campo) | 45.3% |
+| Accuratezza (per documento) | 26.7% |
+| Triage — numero istanze | 92.3% |
+| Triage — intervalli pagine | 84.6% |
 | Triage — tipo pagina | 100.0% |
-| Triage — rotazione (copertura) | 97.5% |
+| Triage — rotazione (copertura) | 97.7% |
 | Triage — rotazione (motivo copertura bassa) | motivo non determinato |
 | Triage — rotazione (accuratezza) | 100.0% |
-| Triage — attributo peggiore (per accuratezza) | numero istanze, 91.7% |
+| Triage — attributo peggiore (per accuratezza) | intervalli pagine, 84.6% |
 | Degrado scansione (produzione, ADR-036) | medio (blur 0.6, downscale 1.5, jpeg 70) |
 | Tasso di escalation | n/d |
-| Generato il | 2026-08-11 09:58 UTC |
+| Generato il | 2026-08-11 10:28 UTC |
 
 ## Blocco corrente
 

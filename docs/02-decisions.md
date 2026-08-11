@@ -802,3 +802,30 @@ stesso documento, canone RAI/sconti come righe extra, documenti 4-16 pagine
 con allegati (moduli SEPA/pagoPA) contro le 3 fisse del generatore, un
 generatore gas (bloccato da G2), grafici che portano dati (barre/torta,
 mai renderizzati dal generatore).
+
+## ADR-041 — Pagina allegata: assorbita nella segmentazione per costruzione
+**2026-08-11.** Estende ADR-040 (T4.14): il generatore ora sa produrre una
+pagina di modulo di pagamento allegata dopo le `PAGINE_PER_FATTURA` (3)
+pagine vere di una fattura (`Flags.pagine_allegate`, caso
+`documento_con_allegato` in `COMPOSIZIONE_DEFAULT`) — pattern osservato su
+piu' bollette reali (bollettino postale, modulo SEPA, avviso pagoPA).
+
+**Non contraddice ADR-039** ("una fattura digitale e' sempre a tre pagine"):
+resta vero per il CONTENUTO della fattura. La pagina allegata e' aggiuntiva,
+non parte del conteggio.
+
+**Comportamento atteso, non un difetto da correggere qui**: la pagina
+allegata non contiene alcun marcatore "Fattura n." — la segmentazione
+(`sacor.segmentation._riempi_in_avanti`) la assorbe per costruzione
+nell'istanza precedente (nessun nuovo match = stessa istanza aperta).
+L'intervallo di pagine rilevato (es. 1-4) non combacia con la verita' dei
+metadata (1-3, ADR-025: ground truth esclude l'allegato) — un mismatch
+`intervalli_pagine` atteso e misurato, stesso principio di S011 (ADR-024).
+Costruire un rilevatore di "pagina non-fattura" e' un item MEDIA a se',
+non incluso qui: servirebbe classificare il contenuto della pagina, non solo
+misurare l'assenza del marcatore.
+
+**Verificato**: l'estrazione dei campi tracciati (pod, importo_totale, ecc.)
+resta corretta nonostante l'istanza si estenda anche sulla pagina allegata
+— le regex cercano etichette specifiche, non l'intero contenuto della
+pagina, e la pagina allegata non ne contiene nessuna.

@@ -66,6 +66,7 @@ FLAG_NOMI: tuple[str, ...] = (
     "pagina_ibrida",
     "data_con_punti",
     "canone_extra",
+    "pagine_allegate",
 )
 
 
@@ -86,6 +87,11 @@ class Flags:
     # T4.14 (ADR-040): canone RAI + "Totale da pagare" diverso dal "Totale
     # scontrino" — rumore puro, mai un campo tracciato (vedi _CANONE_RAI_*).
     canone_extra: bool = False
+    # T4.14 (ADR-041): una pagina di modulo di pagamento allegata dopo le
+    # PAGINE_PER_FATTURA pagine vere — assorbita nell'istanza dalla
+    # segmentazione per costruzione (nessun marcatore "Fattura n." sopra),
+    # gap noto e misurato, non un difetto da correggere qui (vedi ADR-041).
+    pagine_allegate: bool = False
     # T4.10, C1: casi dichiarati distinti dal degrado di produzione (MEDIO).
     # scansione_aggressiva -> caso difficile ma leggibile (97% misurato).
     # scansione_illeggibile -> atteso reject, non "estrarre bene" (ADR-036).
@@ -143,6 +149,7 @@ COMPOSIZIONE_DEFAULT: tuple[CasoComposizione, ...] = (
         Flags(multi_fattura=True, scansione=True),
     ),
     CasoComposizione("ruotato", "Gamma Power", Flags(ruotata=True)),
+    CasoComposizione("documento_con_allegato", "Beta Luce", Flags(pagine_allegate=True)),
 )
 
 
@@ -327,7 +334,21 @@ def _testo_periodo(dati: DatiFattura, periodo_mensile: bool, data_con_punti: boo
 # ... (N giorni)" / "Periodo di fatturazione: ...", "Energia FN: ... kWh",
 # "Importo totale: EUR ...". Il resto e' realismo strutturale, non tracciato.
 
-PagineFattura = tuple[list[str], list[str], list[str]]
+PagineFattura = tuple[list[str], ...]
+
+
+def _righe_modulo_pagamento() -> list[str]:
+    """T4.14 (ADR-041): pagina di modulo di pagamento allegata — nessuna
+    delle etichette che le regex del tier 0 cercano, struttura estranea al
+    contenuto della bolletta (bollettino postale/SEPA osservato su piu'
+    bollette reali)."""
+    return [
+        "MODULO DI PAGAMENTO",
+        "Bollettino postale allegato",
+        "Conto corrente: da compilare a cura del pagatore",
+        "Causale: pagamento utenza",
+        "ATTENZIONE: piegare e staccare lungo le perforazioni",
+    ]
 
 
 def _canone_extra(dati: DatiFattura) -> tuple[Decimal, Decimal, Decimal]:
@@ -788,7 +809,12 @@ def genera_documento(
         for _ in range(n_fatture)
     ]
     blocchi: list[PagineFattura] = [
-        (_righe_pagina1(dati, flags), _righe_pagina2(dati, flags), _righe_pagina3(dati, flags))
+        (
+            _righe_pagina1(dati, flags),
+            _righe_pagina2(dati, flags),
+            _righe_pagina3(dati, flags),
+            *([_righe_modulo_pagamento()] if flags.pagine_allegate else []),
+        )
         for dati in fatture
     ]
 

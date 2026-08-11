@@ -6,7 +6,8 @@
     "pagina_ibrida": 1,
     "multi_fattura_digitale": 1,
     "multi_fattura_scansionato": 1,
-    "ruotato": 1
+    "ruotato": 1,
+    "documento_con_allegato": 1
   },
   "documenti": {
     "S001": {
@@ -228,6 +229,21 @@
         "consumo_stimato",
         "ruotata",
         "canone_extra"
+      ]
+    },
+    "S013": {
+      "file": "S013.pdf",
+      "pagine": [
+        1,
+        3
+      ],
+      "layout": "Beta Luce",
+      "tipo_lettura": "effettiva",
+      "monoraria": false,
+      "qualita": "digitale",
+      "flag_attivi": [
+        "periodo_mensile",
+        "pagine_allegate"
       ]
     }
   }

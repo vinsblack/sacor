@@ -169,6 +169,18 @@
       "kwh_f2": "64.23",
       "kwh_f3": "42.54",
       "importo_totale": "74.20"
+    },
+    "S013": {
+      "pod": "IT203E58733846",
+      "fornitore": "Beta Luce",
+      "periodo_da": "2025-03-17",
+      "periodo_a": "2025-04-20",
+      "giorni": "35",
+      "kwh_totale": "125.47",
+      "kwh_f1": "8.19",
+      "kwh_f2": "77.54",
+      "kwh_f3": "39.74",
+      "importo_totale": "61.38"
     }
   }
 }

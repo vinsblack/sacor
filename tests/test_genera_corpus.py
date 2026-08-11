@@ -121,6 +121,20 @@ def test_periodo_alfa_usa_punti_come_separatore_data() -> None:
     assert not re.search(r"Dal \d{2}/\d{2}/\d{4}", testo)
 
 
+def test_pagine_allegate_aggiunge_una_pagina_oltre_le_tre_vere() -> None:
+    """T4.14 (ADR-041): pagina di modulo di pagamento allegata dopo le 3
+    pagine vere — osservata su piu' bollette reali (bollettino postale,
+    SEPA, pagoPA). Non fa parte del conteggio ADR-039 (3 pagine per
+    fattura), e' aggiuntiva."""
+    pdf, _, _ = genera_documento(
+        random.Random(12), "S001", "Beta Luce", Flags(pagine_allegate=True)
+    )
+    with pdfplumber.open(io.BytesIO(pdf)) as doc:
+        assert len(doc.pages) == 4
+        testo_ultima = doc.pages[3].extract_text() or ""
+    assert "MODULO DI PAGAMENTO" in testo_ultima
+
+
 def test_genera_corpus_scrive_una_voce_metadata_per_documento(tmp_path: Path) -> None:
     genera_corpus(
         seed=99,
