@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| Commit | 23ad3cb |
-| Test | 129 passed in 71.12s (0:01:11) |
+| Commit | d715200 |
+| Test | 173 passed in 67.21s (0:01:07) |
 | Accuratezza (per campo) | 45.3% |
 | Accuratezza (per documento) | 26.7% |
 | Triage — numero istanze | 92.3% |
@@ -17,7 +17,7 @@
 | Triage — attributo peggiore (per accuratezza) | intervalli pagine, 84.6% |
 | Degrado scansione (produzione, ADR-036) | medio (blur 0.6, downscale 1.5, jpeg 70) |
 | Tasso di escalation | n/d |
-| Generato il | 2026-08-11 10:28 UTC |
+| Generato il | 2026-08-11 19:58 UTC |
 
 ## Blocco corrente
 
