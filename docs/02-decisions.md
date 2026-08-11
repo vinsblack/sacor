@@ -908,3 +908,48 @@ campo richiesto.
 **Non affrontato qui**: riprogettare il prompt per la diversità reale è
 lavoro a parte, non fatto in questa sessione. Questo ADR fissa solo la
 misura e la sua interpretazione onesta.
+
+## ADR-044 — Il vero bug non era il prompt: parsing scartava numeri JSON
+
+**2026-08-11.** Correzione di ADR-043. Il primo tentativo di fix
+(disambiguazione nel prompt, ADR-043) non aveva spostato i numeri perché
+non era quello il problema — nessuno aveva mai guardato una risposta vera
+del modello prima di ipotizzare.
+
+**Metodo che ha trovato il bug**: `scripts/diagnosi_reale.py` (nuovo) ha
+dumpato la risposta grezza di claude-haiku-4-5 su 4 documenti reali, PRIMA
+di qualunque parsing. Un agente ha letto quel dump riga per riga contro
+l'oracle. Diagnosi concreta, non un'altra ipotesi: il modello rispondeva
+correttamente (es. `"kwh_f1": 11.5`), ma `sacor.providers.parsing.
+normalizza_risposta()` accettava SOLO valori JSON di tipo stringa
+(`grezzo if isinstance(grezzo, str) else None`) — un numero JSON nativo
+(comportamento normale, valido, non un errore del modello) veniva scartato
+a `None` prima ancora di arrivare a `ripara()`. Nessun test esistente
+copriva questo caso (solo "campo assente" e un campo `string`).
+
+**Fix**: `_a_stringa()` accetta `int`/`float` per campi `decimal`, `int`
+(o `float` intero, es. `30.0`) per campi `integer` — mai per `string`/
+`date`, `bool` escluso esplicitamente (sottoclasse di `int` in Python).
+
+**Impatto misurato** (`scripts/bakeoff_reale.py`, stesso corpus, stesso
+prompt di ADR-043, $2.08 spesi):
+
+| Modello | ADR-043 (bug presente) | Dopo il fix | Fattore |
+|---|---|---|---|
+| claude-haiku-4-5 | 9.0% | **43.6%** | 4.8x |
+| claude-opus-5 | 14.3% | **51.9%** | 3.6x |
+
+**Lezione di metodo, non solo di codice**: due cicli di misura-ipotesi-fix
+falliti (ADR-042→043) prima di questo, entrambi basati su ipotesi mai
+verificate contro un dato grezzo concreto. Il terzo ciclo, quello che ha
+funzionato, è iniziato leggendo una risposta vera invece di ipotizzarne il
+contenuto — "misura prima" vale anche per la diagnosi, non solo per
+l'accuratezza finale.
+
+**Non ancora risolto**: 0.0% documenti completamente corretti resta
+(nessun documento ha TUTTI i campi giusti). Il dump diagnostico ha trovato
+altri due pattern reali, non ancora affrontati: `giorni` risposto `null`
+anche quando calcolabile dalle date presenti (mancanza di un'istruzione di
+fallback nel prompt); `importo_totale` che in 2/4 casi prende un subtotale
+invece del totale finale, per una differenza costante di €18.00 in due
+bollette di fornitori diversi (probabile riga di onere fisso saltata).

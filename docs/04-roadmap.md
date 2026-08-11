@@ -230,15 +230,18 @@ grafici che portano dati (barre/torta, generatore è solo testo).
   (`eval/run_reale.py`), contro 45.3% sul sintetico — il tier 0 non
   generalizza alle etichette reali, gap grande e ora misurato.
 
-  **Bake-off tier 1 sul reale** (ADR-043, `scripts/bakeoff_reale.py`,
-  $2.05 spesi): anche l'AI fatica — 9.0%/14.3% acc. campo (haiku/opus),
-  **0.0% documenti corretti su entrambi**, `inventati` alto (14/14, 7/14)
-  — il modello non si astiene, sbaglia con sicurezza. Non un problema di
-  tier0-vs-AI: il prompt è generico, non tarato sulla diversità reale
-  (ADR-040). Prossimo passo vero: riprogettare il prompt per la diversità
-  reale, non ancora iniziato. Benchmark CLI locale (`sacor benchmark
-  my-bills/`) e community corpus restano non pianificati, il secondo
-  prematuro.
+  **Bake-off tier 1 sul reale** (ADR-043→044): primo giro 9.0%/14.3%
+  acc. campo (haiku/opus). **Causa reale trovata (ADR-044, non il
+  prompt)**: `sacor.providers.parsing.normalizza_risposta()` scartava
+  ogni numero JSON nativo del modello (comportamento normale, non un
+  errore suo) prima di passarlo a `ripara()` — bug di parsing, mai un
+  problema di prompt. Fix + rimisura: **43.6%/51.9%** acc. campo (4.8x/
+  3.6x). 0.0% documenti completamente corretti resta — due pattern
+  concreti non ancora affrontati: `giorni` mai calcolato quando
+  calcolabile dalle date; `importo_totale` che a volte prende un
+  subtotale invece del totale finale (differenza costante €18.00 in
+  2 bollette di fornitori diversi, probabile onere fisso saltato).
+  Benchmark CLI locale e community corpus restano non pianificati.
 - **Ri-segmentazione su testo OCR** per scansioni multi-fattura (S011):
   la segmentazione oggi legge solo il text layer nativo — su una pagina
   scansionata non può leggere "Fattura n. X", limite noto (ADR-024).
