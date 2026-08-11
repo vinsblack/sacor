@@ -188,6 +188,28 @@ estrattore confinato all'istanza (non al file intero, ADR-033).
 **Fine Blocco 3:** `TierZeroExtractor` misurato sul corpus sintetico,
 numero pubblicato (non 0%, non 100% per costruzione).
 
+**T4.17** (diagnosi zero-costo sul corpus reale, 11-08, `scripts/
+diagnosi_tier0_reale.py` — solo regex, gira sempre, nessuna chiamata
+API): fix di pagine miste digitale+scansione nella stessa istanza e di
+match ambigui (`extractor.py`), regex allargate alle etichette reali
+osservate. Risultato: giusti 6→23/140 campi (4.3%→16.4%), sbagliati
+stabili a 1.
+
+**`fornitore`/`kwh_f1-3`/`giorni` restano deliberatamente tier1, non un
+gap da chiudere qui** (indagato T4.17, non affrontato per scelta):
+- `fornitore`: 14 documenti reali = 11 fornitori diversi, nome mai in
+  un'etichetta fissa (dominio email, brand, intestazione — un modo
+  diverso a testa). Un regex sarebbe overfit sui 14 doc visti, zero
+  valore sul prossimo fornitore mai incontrato.
+- `kwh_f1/f2/f3`: i valori vivono in TABELLE (header colonne + riga
+  numeri), mai `Energia F1: X kWh`. Layout diverso per fornitore (alcuni
+  aggregano F2+F3 in una colonna sola). Regex-per-campo non parsa una
+  tabella — servirebbe un parser posizionale, fuori scope per tier0.
+- `giorni`: mai stampato come "(N giorni)" sul reale. Andrebbe calcolato
+  da periodo_da/periodo_a, che richiede un nuovo tipo di estrazione
+  "calcolato" in `sacor.extractor` — e comunque periodo_da/periodo_a
+  stessi sono giusti solo 2-3/14, guadagno limitato a quei pochi doc.
+
 ---
 
 ## Blocco 4 — Tier 1, provider e corpus realistico ✅ (essenzialmente chiuso)
