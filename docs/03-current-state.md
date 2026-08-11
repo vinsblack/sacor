@@ -4,20 +4,20 @@
 
 | | |
 |---|---|
-| Commit | 5f7169d |
-| Test | 107 passed in 11.00s |
+| Commit | 877dc84 |
+| Test | 125 passed in 68.91s (0:01:08) |
 | Accuratezza (per campo) | 43.6% |
 | Accuratezza (per documento) | 28.6% |
 | Triage — numero istanze | 91.7% |
 | Triage — intervalli pagine | 91.7% |
 | Triage — tipo pagina | 100.0% |
-| Triage — rotazione (copertura) | 52.5% |
-| Triage — rotazione (motivo copertura bassa) | Tesseract non installato |
+| Triage — rotazione (copertura) | 97.5% |
+| Triage — rotazione (motivo copertura bassa) | motivo non determinato |
 | Triage — rotazione (accuratezza) | 100.0% |
 | Triage — attributo peggiore (per accuratezza) | numero istanze, 91.7% |
 | Degrado scansione (produzione, ADR-036) | medio (blur 0.6, downscale 1.5, jpeg 70) |
 | Tasso di escalation | n/d |
-| Generato il | 2026-08-10 21:14 UTC |
+| Generato il | 2026-08-11 09:32 UTC |
 
 ## Blocco corrente
 

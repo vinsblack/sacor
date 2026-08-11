@@ -263,6 +263,16 @@ def _genera_dati_fattura(
     )
 
 
+def _fmt_it(valore: Decimal) -> str:
+    """Formato italiano (virgola decimale, punto per le migliaia) — mai
+    quello di str(Decimal) (punto decimale), formato osservato in ZERO delle
+    22 bollette reali ispezionate (ADR-040, T4.14). Solo per il testo
+    renderizzato nel PDF: l'oracle (_a_oracle) resta nella forma canonica
+    di str(Decimal), invariata (ADR-010)."""
+    testo_us = f"{valore:,.2f}"  # es. "1,234.56"
+    return testo_us.translate(str.maketrans(",.", ".,"))
+
+
 def _a_oracle(dati: DatiFattura) -> dict[str, str | None]:
     return {
         "pod": dati.pod,
@@ -307,11 +317,11 @@ def _righe_pagina1(dati: DatiFattura, flags: Flags) -> list[str]:
         f"Fattura n. {dati.numero_fattura}",
         f"Fornitore: {dati.fornitore_stampato}",
         "TOTALE DA PAGARE",
-        f"Importo totale: EUR {dati.importo_totale}",
+        f"Importo totale: EUR {_fmt_it(dati.importo_totale)}",
         f"Scadenza: {dati.scadenza.strftime('%d/%m/%Y')}",
         _testo_periodo(dati, flags.periodo_mensile),
-        f"Consumo del periodo: {dati.kwh_totale} kWh",
-        f"Consumo annuo (ultimi 12 mesi): {dati.consumo_annuo_kwh} kWh",
+        f"Consumo del periodo: {_fmt_it(dati.kwh_totale)} kWh",
+        f"Consumo annuo (ultimi 12 mesi): {_fmt_it(dati.consumo_annuo_kwh)} kWh",
     ]
     if flags.consumo_stimato:
         righe.append(
@@ -323,18 +333,19 @@ def _righe_pagina1(dati: DatiFattura, flags: Flags) -> list[str]:
 def _righe_pagina2(dati: DatiFattura, flags: Flags) -> list[str]:
     return [
         f"POD: {dati.pod}",
-        f"Potenza impegnata: {dati.potenza_impegnata_kw} kW",
-        f"Potenza disponibile: {dati.potenza_disponibile_kw} kW",
+        f"Potenza impegnata: {_fmt_it(dati.potenza_impegnata_kw)} kW",
+        f"Potenza disponibile: {_fmt_it(dati.potenza_disponibile_kw)} kW",
         "SCONTRINO DELL'ENERGIA",
         "Voce                 Quantita'        Prezzo medio        Importo",
-        f"Energia F1: {dati.kwh_f1} kWh    x {dati.prezzo_kwh} EUR/kWh",
-        f"Energia F2: {dati.kwh_f2} kWh    x {dati.prezzo_kwh} EUR/kWh",
-        f"Energia F3: {dati.kwh_f3} kWh    x {dati.prezzo_kwh} EUR/kWh",
-        f"Energia totale: {dati.kwh_totale} kWh    Importo: EUR {dati.quota_energia}",
-        f"Quota fissa: EUR {dati.quota_fissa}",
-        f"Quota potenza: EUR {dati.quota_potenza}",
-        f"Accise e IVA: EUR {dati.accisa + dati.iva}",
-        f"Totale scontrino: EUR {dati.importo_totale}",
+        f"Energia F1: {_fmt_it(dati.kwh_f1)} kWh    x {_fmt_it(dati.prezzo_kwh)} EUR/kWh",
+        f"Energia F2: {_fmt_it(dati.kwh_f2)} kWh    x {_fmt_it(dati.prezzo_kwh)} EUR/kWh",
+        f"Energia F3: {_fmt_it(dati.kwh_f3)} kWh    x {_fmt_it(dati.prezzo_kwh)} EUR/kWh",
+        f"Energia totale: {_fmt_it(dati.kwh_totale)} kWh    "
+        f"Importo: EUR {_fmt_it(dati.quota_energia)}",
+        f"Quota fissa: EUR {_fmt_it(dati.quota_fissa)}",
+        f"Quota potenza: EUR {_fmt_it(dati.quota_potenza)}",
+        f"Accise e IVA: EUR {_fmt_it(dati.accisa + dati.iva)}",
+        f"Totale scontrino: EUR {_fmt_it(dati.importo_totale)}",
         "",
         "BOX DELL'OFFERTA",
         f"Nome offerta: {dati.nome_offerta}",
@@ -342,23 +353,26 @@ def _righe_pagina2(dati: DatiFattura, flags: Flags) -> list[str]:
         f"Tipologia prezzo: {'monoraria' if flags.monoraria else 'fasce'}",
         f"Codice offerta: {dati.codice_offerta}",
         "Formula: prezzo indicizzato all'indice PUN",
-        f"Indice PUN: {dati.indice_pun} EUR/kWh",
+        f"Indice PUN: {_fmt_it(dati.indice_pun)} EUR/kWh",
     ]
 
 
 def _righe_pagina3(dati: DatiFattura, flags: Flags) -> list[str]:
     return [
         "LETTURE E CONSUMI",
-        f"F1  precedente {dati.lettura_precedente_f1} kWh  ->  attuale "
-        f"{dati.lettura_attuale_f1} kWh  ->  consumo fatturato {dati.kwh_f1} kWh",
-        f"F2  precedente {dati.lettura_precedente_f2} kWh  ->  attuale "
-        f"{dati.lettura_attuale_f2} kWh  ->  consumo fatturato {dati.kwh_f2} kWh",
-        f"F3  precedente {dati.lettura_precedente_f3} kWh  ->  attuale "
-        f"{dati.lettura_attuale_f3} kWh  ->  consumo fatturato {dati.kwh_f3} kWh",
+        f"F1  precedente {_fmt_it(dati.lettura_precedente_f1)} kWh  ->  attuale "
+        f"{_fmt_it(dati.lettura_attuale_f1)} kWh  ->  "
+        f"consumo fatturato {_fmt_it(dati.kwh_f1)} kWh",
+        f"F2  precedente {_fmt_it(dati.lettura_precedente_f2)} kWh  ->  attuale "
+        f"{_fmt_it(dati.lettura_attuale_f2)} kWh  ->  "
+        f"consumo fatturato {_fmt_it(dati.kwh_f2)} kWh",
+        f"F3  precedente {_fmt_it(dati.lettura_precedente_f3)} kWh  ->  attuale "
+        f"{_fmt_it(dati.lettura_attuale_f3)} kWh  ->  "
+        f"consumo fatturato {_fmt_it(dati.kwh_f3)} kWh",
         "",
         "IMPOSTE",
-        f"Accisa sui consumi: EUR {dati.accisa}",
-        f"IVA (10% su imponibile): EUR {dati.iva}",
+        f"Accisa sui consumi: EUR {_fmt_it(dati.accisa)}",
+        f"IVA (10% su imponibile): EUR {_fmt_it(dati.iva)}",
     ]
 
 

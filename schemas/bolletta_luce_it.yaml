@@ -37,31 +37,31 @@ campi:
     obbligatorio: false
     estrazione:
       tipo: regex
-      pattern: 'Energia totale:\s*([\d.]+)\s*kWh'
+      pattern: 'Energia totale:\s*([\d.,]+)\s*kWh'
   - nome: kwh_f1
     tipo: decimal
     obbligatorio: false
     estrazione:
       tipo: regex
-      pattern: 'Energia F1:\s*([\d.]+)\s*kWh'
+      pattern: 'Energia F1:\s*([\d.,]+)\s*kWh'
   - nome: kwh_f2
     tipo: decimal
     obbligatorio: false
     estrazione:
       tipo: regex
-      pattern: 'Energia F2:\s*([\d.]+)\s*kWh'
+      pattern: 'Energia F2:\s*([\d.,]+)\s*kWh'
   - nome: kwh_f3
     tipo: decimal
     obbligatorio: false
     estrazione:
       tipo: regex
-      pattern: 'Energia F3:\s*([\d.]+)\s*kWh'
+      pattern: 'Energia F3:\s*([\d.,]+)\s*kWh'
   - nome: importo_totale
     tipo: decimal
     obbligatorio: false
     estrazione:
       tipo: regex
-      pattern: 'Importo totale:\s*EUR\s*([\d.]+)'
+      pattern: 'Importo totale:\s*EUR\s*([\d.,]+)'
 
 invarianti:
   - id: somma_fasce

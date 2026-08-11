@@ -1,6 +1,7 @@
 import io
 import json
 import random
+import re
 from pathlib import Path
 
 import pdfplumber
@@ -90,6 +91,21 @@ def test_scansione_non_ha_text_layer() -> None:
         testo = doc.pages[0].extract_text()
     assert not testo
     assert metadata_entries["S008"]["qualita"] == "scansione_degradata"
+
+
+def test_importo_renderizzato_usa_la_virgola_decimale_italiana() -> None:
+    """ADR-040 (T4.14, trovato ispezionando 22 bollette reali): tutte usano
+    la virgola come separatore decimale, mai il punto — il generatore
+    renderizzava con str(Decimal(...)) (punto), un formato mai osservato in
+    nessuna bolletta reale. La regex del tier 0 ([\\d.]+) non lo avrebbe mai
+    trovato su un vero numero italiano: un buco di copertura che nascondeva
+    un probabile buco reale nell'estrazione."""
+    pdf, oracle_entries, _ = genera_documento(random.Random(10), "S001", "Alfa Energia", Flags())
+    with pdfplumber.open(io.BytesIO(pdf)) as doc:
+        testo = "\n".join(p.extract_text() or "" for p in doc.pages)
+
+    assert re.search(r"Importo totale: EUR \d[\d.]*,\d{2}\b", testo)
+    assert f"EUR {oracle_entries['S001']['importo_totale']}" not in testo  # mai piu' col punto
 
 
 def test_genera_corpus_scrive_una_voce_metadata_per_documento(tmp_path: Path) -> None:

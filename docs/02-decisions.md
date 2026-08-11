@@ -761,3 +761,44 @@ pubblicato e un utente esterno.
 - Periodo espresso come nome del mese anche sul gas
 - Consumo annuo dichiarato su finestra mobile di 12 mesi, distinto dal periodo
   fatturato — fonte del caso "trimestrale dichiarato annuale" (ADR-013)
+
+## ADR-040 — Bollette reali di terzi: solo struttura, mai dato personale
+**2026-08-11.** Estensione di ADR-012/ADR-039 a un corpus di 22 bollette
+reali di terzi (16 fornitori, luce e gas) ricevuto in un archivio fuori dal
+repo. ADR-012 aveva già rifiutato 3 bollette reali non consenzienti; questo
+archivio ne conteneva di più, con nominativi nei nomi file — stesso problema
+a scala maggiore, non un'eccezione.
+
+**Regola applicata, vincolante per ogni ispezione futura di documenti reali
+di terzi:** l'ispezione avviene per estrarre *solo* forma — layout, posizione
+campi, formati data/numero, elementi grafici, struttura del documento — mai
+un valore reale (nome, indirizzo, POD/PDR, codice fiscale, IBAN, importo o
+consumo esatto, numero cliente/contratto). Il report di chi ispeziona deve
+essere verificabile come privo di PII prima di essere letto o salvato in
+qualunque file del progetto (memoria inclusa). L'archivio originale resta
+fuori dal repo, mai copiato dentro; l'estrazione avviene in una scratchpad
+temporanea fuori da git, cancellata a fine sessione.
+
+### Esito dell'ispezione (22 file, 16 fornitori)
+
+Qualità del lotto grezzo: 4 file fuori perimetro (2 bollette gas archiviate
+nella cartella luce, 1 fattura fibra non energia, 1 file con pagine di un
+documento d'identità scansionato allegate) — segnalazione sulla cura del
+lotto, non un dato su cui decidere.
+
+**Gap più rilevante, priorità ALTA:** il generatore sintetico
+(`scripts/genera_corpus.py`) rende ogni importo con `str(Decimal(...))`,
+quindi sempre punto decimale (`123.45`). Le 22 bollette reali usano **sempre**
+la virgola decimale italiana (`123,45`), mai il punto. La regex del tier 0
+per i campi decimali (`schemas/bolletta_luce_it.yaml`) cerca `[\d.]+` — non
+contiene la virgola nella classe di caratteri, quindi su un vero numero
+italiano non troverebbe nulla, non un valore sbagliato: un buco di copertura
+del corpus che nasconde un probabile buco reale nell'estrazione. `repair.py`
+gestisce già correttamente la virgola (mai esercitato dal corpus finora).
+
+Altri gap osservati, non affrontati in questa sessione (vedi
+`docs/04-roadmap.md`): formati data più vari, IVA su aliquote miste nello
+stesso documento, canone RAI/sconti come righe extra, documenti 4-16 pagine
+con allegati (moduli SEPA/pagoPA) contro le 3 fisse del generatore, un
+generatore gas (bloccato da G2), grafici che portano dati (barre/torta,
+mai renderizzati dal generatore).
