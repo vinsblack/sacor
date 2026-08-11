@@ -169,6 +169,18 @@
       "kwh_f2": "109.067",
       "kwh_f3": "0.00",
       "importo_totale": "64.90"
+    },
+    "R016": {
+      "pod": "IT001E15760169",
+      "fornitore": "Alperia",
+      "periodo_da": "2026-04-01",
+      "periodo_a": "2026-04-30",
+      "giorni": "30",
+      "kwh_totale": "76.37",
+      "kwh_f1": null,
+      "kwh_f2": null,
+      "kwh_f3": null,
+      "importo_totale": "36.07"
     }
   }
 }

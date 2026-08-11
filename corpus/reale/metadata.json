@@ -82,5 +82,11 @@
     "fasce": false,
     "consumo_stimato": false,
     "nota": "Documento MULTISERVIZIO luce+gas nello stesso PDF — estratta solo la sezione Energia Elettrica, sezione gas ignorata (fuori schema). Bioraria di fatto (F1/F23, non 3 fasce distinte): F23 mappato su kwh_f2, kwh_f3 lasciato '0.00'. Il box offerta dichiara 'Tipologia di prezzo: Monoraria' nonostante la formula distingua F1/F23 — probabile refuso/etichettatura interna del fornitore."
+  },
+  "R016": {
+    "file": "R016.pdf",
+    "fasce": false,
+    "consumo_stimato": false,
+    "nota": "Tariffa monoraria (F0, indicizzata PUN_HH) — nessuna scomposizione F1/F2/F3, kwh_f1/f2/f3 legittimamente null. Consumo totale fatturato 76,37 kWh (pagina 1); lo Scontrino a pagina 2 mostra '76 kWh' arrotondato nella riga di prezzo — usato il valore preciso."
   }
 }
