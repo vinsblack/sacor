@@ -953,3 +953,12 @@ anche quando calcolabile dalle date presenti (mancanza di un'istruzione di
 fallback nel prompt); `importo_totale` che in 2/4 casi prende un subtotale
 invece del totale finale, per una differenza costante di €18.00 in due
 bollette di fornitori diversi (probabile riga di onere fisso saltata).
+
+**Addendum — fix `giorni` misurato**: descrizione aggiunta al campo
+(calcolo da `periodo_da`/`periodo_a` quando non scritto esplicitamente).
+Impatto: claude-haiku-4-5 invariato (43.6%), claude-opus-5 **51.9% →
+54.9%**. Effetto reale ma piccolo — non risolve da solo lo 0.0% documenti.
+`importo_totale`/subtotale resta non affrontato: R010 e R013 sono
+scansioni pure (0 caratteri testo, confermato via pdfplumber), non
+verificabili senza `pdftoppm` (mancante, richiede sudo non disponibile in
+questa sessione) — non ipotizzato oltre, lasciato aperto onestamente.
