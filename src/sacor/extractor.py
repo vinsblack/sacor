@@ -45,6 +45,17 @@ class DiagnosticaCampo:
     valore: str | None  # non None solo se esito e' NORMALIZZATO
 
 
+def _valore_grezzo(pattern: str, testo: str) -> str | None:
+    """re.search prende sempre il PRIMO match — sbagliato quando lo stesso
+    pattern trova valori DIVERSI in punti diversi della stessa istanza (es.
+    un 'Totale da pagare' di un mese precedente allegato prima di quello
+    vero, T4.17/R015 sul corpus reale). Se i match non concordano tutti,
+    il valore e' ambiguo: None (T3.2, mai indovinare) batte un valore
+    preso a caso tra i due."""
+    valori = {m.group(1) if m.groups() else m.group(0) for m in re.finditer(pattern, testo)}
+    return valori.pop() if len(valori) == 1 else None
+
+
 class TierZeroExtractor:
     """Tier 0 (ADR-032): nessuna AI. Applica le regex dichiarate nello
     schema (`campo.estrazione`) al testo normalizzato (ADR-030) delle
@@ -72,20 +83,28 @@ class TierZeroExtractor:
 
         triage = analizza(istanza.file)
         pagine_istanza = triage.pagine[indice_da:indice_a]
-        if any(p.tipo is not TipoPagina.DIGITALE for p in pagine_istanza):
-            return diagnostica
 
+        # T4.17 (diagnosi corpus reale, zero costo): T3.2 resta valido per
+        # PAGINA (mai un valore letto da una pagina non digitale), ma prima
+        # una sola pagina non digitale nell'istanza buttava via anche le
+        # pagine digitali sorelle — 10/14 istanze reali sono miste, tutte
+        # azzerate senza motivo. Se non resta nessuna pagina digitale,
+        # 'testo' e' vuoto e ogni regex fallisce comunque: stesso esito di
+        # prima (tutti None), nessun caso speciale da mantenere.
         with pdfplumber.open(istanza.file) as documento:
             pagine_pdf = documento.pages[indice_da:indice_a]
-            testo = "\n".join(normalizza_testo(p) for p in pagine_pdf)
+            testo = "\n".join(
+                normalizza_testo(pagina_pdf)
+                for pagina_pdf, pagina_triage in zip(pagine_pdf, pagine_istanza, strict=True)
+                if pagina_triage.tipo is TipoPagina.DIGITALE
+            )
 
         for campo in schema.campi:
             if campo.estrazione is None or campo.estrazione.tipo != "regex":
                 continue
-            m = re.search(campo.estrazione.pattern, testo)
-            if m is None:
+            grezzo = _valore_grezzo(campo.estrazione.pattern, testo)
+            if grezzo is None:
                 continue
-            grezzo = m.group(1) if m.groups() else m.group(0)
             normalizzato = ripara(grezzo, campo.tipo)
             if normalizzato is None:
                 diagnostica[campo.nome] = DiagnosticaCampo(EsitoCampo.NON_NORMALIZZABILE, None)

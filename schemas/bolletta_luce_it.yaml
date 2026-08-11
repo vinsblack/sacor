@@ -19,13 +19,16 @@ campi:
     obbligatorio: true
     estrazione:
       tipo: regex
-      pattern: 'Dal\s+(\d{2}[/.]\d{2}[/.]\d{4})'
+      # T4.17 (diagnosi corpus reale, zero costo): 'Dal X' e' il formato
+      # sintetico; 'Periodo oggetto di fatturazione: da X a Y' e' quello
+      # osservato su bollette reali (NWG Energia).
+      pattern: '(?:Dal\s+|Periodo oggetto di fatturazione:\s*da\s+)(\d{2}[/.]\d{2}[/.]\d{4})'
   - nome: periodo_a
     tipo: date
     obbligatorio: true
     estrazione:
       tipo: regex
-      pattern: '\bal\s+(\d{2}[/.]\d{2}[/.]\d{4})'
+      pattern: '(?:\bal\s+|Periodo oggetto di fatturazione:\s*da\s+\d{2}[/.]\d{2}[/.]\d{4}\s+a\s+)(\d{2}[/.]\d{2}[/.]\d{4})'
   - nome: giorni
     tipo: integer
     obbligatorio: false
@@ -47,7 +50,10 @@ campi:
       riportano come numero separato.
     estrazione:
       tipo: regex
-      pattern: 'Energia totale:\s*([\d.,]+)\s*kWh'
+      # T4.17: reale osservato in due varianti diverse a seconda del
+      # fornitore ('Consumo totale fatturato:' / 'Consumo totale del
+      # periodo fatturato', senza i due punti in quest'ultimo).
+      pattern: '(?:Energia totale|Consumo totale(?: del periodo)? fatturato):?\s*([\d.,]+)\s*kWh'
   - nome: kwh_f1
     tipo: decimal
     obbligatorio: false
@@ -88,7 +94,10 @@ campi:
       realmente dovuto, non un subtotale intermedio.
     estrazione:
       tipo: regex
-      pattern: 'Importo totale:\s*EUR\s*([\d.,]+)'
+      # T4.17: 'Importo totale: EUR X' e' il formato sintetico; sul reale
+      # l'etichetta osservata e' sempre una variante di "Totale da pagare"
+      # (maiuscole/minuscole/spazi diversi per fornitore), valore in € non EUR.
+      pattern: '(?:Importo totale:\s*EUR|(?i:Totale\s+da\s+pagare))\s*[:=]?\s*€?\s*([\d.,]+)'
 
 invarianti:
   - id: somma_fasce

@@ -1,7 +1,10 @@
+import io
 import random
 from pathlib import Path
 
-from sacor.extractor import EsitoCampo, TierZeroExtractor
+from pypdf import PdfReader, PdfWriter
+
+from sacor.extractor import EsitoCampo, TierZeroExtractor, _valore_grezzo
 from sacor.schema import load
 from sacor.segmentation import Istanza
 from scripts.genera_corpus import Flags, genera_documento
@@ -160,3 +163,62 @@ def test_estrattore_confinato_non_legge_oltre_la_propria_istanza(tmp_path: Path)
     assert estratti_2 == oracle_entries[chiave_b]
     assert estratti_2["pod"] != estratti_1["pod"]
     assert estratti_2 != estratti_1
+
+
+def test_istanza_con_pagina_scansione_estrae_comunque_dalle_pagine_digitali(
+    tmp_path: Path,
+) -> None:
+    """T4.17 (diagnosi zero-costo corpus reale, 11-08): 10 istanze reali su
+    14 mescolano pagine digitali e scansionate nella STESSA istanza (es.
+    lettera di riepilogo digitale + scontrino scansionato in allegato). La
+    regola precedente ('un'istanza con ANCHE UNA SOLA pagina non digitale
+    -> tutti i campi None') buttava via pagine digitali perfettamente
+    leggibili solo perche' una pagina sorella era una scansione. Tier 0
+    resta fedele a T3.2 (mai un valore da una pagina non digitale) ma ora
+    lo applica per pagina, non per istanza."""
+    schema = load(SCHEMA_PATH)
+    pdf_digitale, oracle_entries, _ = genera_documento(
+        random.Random(40), "S020", "Alfa Energia", Flags()
+    )
+    pdf_scansione, _, _ = genera_documento(random.Random(41), "S021", "Beta Luce", Flags(scansione=True))
+
+    writer = PdfWriter()
+    for pagina in PdfReader(io.BytesIO(pdf_digitale)).pages:
+        writer.add_page(pagina)
+    for pagina in PdfReader(io.BytesIO(pdf_scansione)).pages:
+        writer.add_page(pagina)
+    buf = io.BytesIO()
+    writer.write(buf)
+    path = tmp_path / "misto.pdf"
+    path.write_bytes(buf.getvalue())
+
+    # ADR-039: 3 pagine digitali (S020) + 3 pagine scansione (S021) nella
+    # STESSA istanza — non due istanze separate, il caso reale e' proprio
+    # questo mix dentro un'unica istanza documentale.
+    istanza_mista = Istanza(id="misto", file=path, pagina_da=1, pagina_a=6)
+
+    estratti = TierZeroExtractor().extract(istanza_mista, schema)
+
+    assert estratti == oracle_entries["S020"]
+
+
+def test_valore_grezzo_nessun_match_none() -> None:
+    assert _valore_grezzo(r"Totale:\s*(\d+)", "nulla qui") is None
+
+
+def test_valore_grezzo_un_match_lo_restituisce() -> None:
+    assert _valore_grezzo(r"Totale:\s*(\d+)", "Totale: 42") == "42"
+
+
+def test_valore_grezzo_match_ripetuti_identici_restituisce_il_valore() -> None:
+    # stessa cifra su piu' pagine (es. riepilogo + dettaglio) e' coerenza,
+    # non ambiguita'.
+    assert _valore_grezzo(r"Totale:\s*(\d+)", "Totale: 42\nTotale: 42") == "42"
+
+
+def test_valore_grezzo_match_diversi_e_ambiguo_restituisce_none() -> None:
+    # T4.17 (R015, corpus reale): due 'Totale da pagare' con importi DIVERSI
+    # nella stessa istanza (mese precedente allegato + quello vero) — il
+    # primo match trovato da re.search non e' affidabile. Meglio None
+    # (T3.2, mai indovinare) che il valore sbagliato preso a caso.
+    assert _valore_grezzo(r"Totale:\s*(\d+)", "Totale: 125\nTotale: 64") is None
