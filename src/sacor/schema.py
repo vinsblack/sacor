@@ -34,6 +34,11 @@ class Campo:
     tipo: TipoCampo
     obbligatorio: bool
     estrazione: EstrazioneConfig | None
+    # T4.15 (ADR-043): guida di disambiguazione per il tier 1 — facoltativa,
+    # mai richiesta dal loader. Il prompt builder resta generico (ADR-017),
+    # la conoscenza di dominio (es. "quale dei due totali sulla pagina")
+    # vive qui, dichiarata, non nel codice.
+    descrizione: str | None = None
 
 
 @dataclass(frozen=True)
@@ -132,12 +137,17 @@ def _leggi_campi(dati: dict[str, Any]) -> tuple[Campo, ...]:
 
         estrazione = _leggi_estrazione(grezzo, nome)
 
+        descrizione = grezzo.get("descrizione")
+        if descrizione is not None and not isinstance(descrizione, str):
+            raise SchemaError(f"campo '{nome}': 'descrizione' deve essere una stringa")
+
         campi.append(
             Campo(
                 nome=nome,
                 tipo=cast(TipoCampo, tipo),
                 obbligatorio=obbligatorio,
                 estrazione=estrazione,
+                descrizione=descrizione,
             )
         )
 

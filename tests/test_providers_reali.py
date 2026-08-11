@@ -62,6 +62,27 @@ def test_prompt_senza_campi_data_non_menziona_la_regola_data() -> None:
     assert "primo o l'ultimo giorno del mese" not in prompt
 
 
+def test_prompt_include_la_descrizione_del_campo_se_presente() -> None:
+    """T4.15 (ADR-043): un campo con guida di disambiguazione nello schema
+    la porta nel prompt — il builder resta generico (ADR-017), la
+    conoscenza di dominio vive nello schema, non nel codice."""
+    campo = Campo(
+        nome="importo_totale",
+        tipo="decimal",
+        obbligatorio=True,
+        estrazione=None,
+        descrizione="usa il totale energia, non un eventuale totale con extra",
+    )
+    prompt = costruisci_prompt([campo])
+    assert "usa il totale energia, non un eventuale totale con extra" in prompt
+
+
+def test_prompt_senza_descrizione_resta_solo_tipo() -> None:
+    campi = _campi(("pod", "string"))
+    prompt = costruisci_prompt(campi)
+    assert "pod: testo libero" in prompt
+
+
 def test_prompt_generato_dallo_schema_reale_senza_hardcode() -> None:
     schema = load(SCHEMA_PATH)
     prompt = costruisci_prompt(schema.campi)

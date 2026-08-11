@@ -35,6 +35,10 @@ campi:
   - nome: kwh_totale
     tipo: decimal
     obbligatorio: false
+    descrizione: >-
+      Il consumo fatturato nel periodo (somma delle fasce orarie), non il
+      consumo annuo su finestra mobile di 12 mesi che alcune bollette
+      riportano come numero separato.
     estrazione:
       tipo: regex
       pattern: 'Energia totale:\s*([\d.,]+)\s*kWh'
@@ -47,18 +51,33 @@ campi:
   - nome: kwh_f2
     tipo: decimal
     obbligatorio: false
+    descrizione: >-
+      Consumo in fascia F2. Se la bolletta usa solo due fasce (es. "F23" o
+      "ore vuote" invece di F2/F3 distinte), usa qui il valore aggregato
+      F2+F3.
     estrazione:
       tipo: regex
       pattern: 'Energia F2:\s*([\d.,]+)\s*kWh'
   - nome: kwh_f3
     tipo: decimal
     obbligatorio: false
+    descrizione: >-
+      Consumo in fascia F3, distinta da F2. Se la bolletta e' bioraria (solo
+      F1 e una fascia aggregata F23/ore-vuote, nessuna terza fascia
+      distinta), il valore e' null — non un valore inventato o uno zero non
+      dichiarato esplicitamente dal documento.
     estrazione:
       tipo: regex
       pattern: 'Energia F3:\s*([\d.,]+)\s*kWh'
   - nome: importo_totale
     tipo: decimal
     obbligatorio: false
+    descrizione: >-
+      Il totale della sola componente energia (spesso etichettato "Totale
+      scontrino" o "Totale bolletta"). MAI un importo finale diverso che
+      somma canone RAI, bolli, o rate aggiuntive sopra il totale energia —
+      se sulla pagina compaiono piu' totali, scegli quello dello scontrino
+      energia, non l'ultimo/il piu' grande.
     estrazione:
       tipo: regex
       pattern: 'Importo totale:\s*EUR\s*([\d.,]+)'

@@ -248,6 +248,51 @@ invarianti: []
     assert campo.estrazione is None
 
 
+def test_campo_senza_descrizione_ha_descrizione_none(tmp_path: Path) -> None:
+    p = tmp_path / "schema.yaml"
+    p.write_text(
+        """
+schema_version: 1
+documento: test
+campi:
+  - nome: pod
+    tipo: string
+    obbligatorio: true
+invarianti: []
+"""
+    )
+    schema = load(p)
+    campo = schema.campo("pod")
+    assert campo is not None
+    assert campo.descrizione is None
+
+
+def test_campo_con_descrizione_la_carica(tmp_path: Path) -> None:
+    """T4.15: guida di disambiguazione per il tier 1 (ADR-043) — un campo
+    puo' dichiarare nello schema come distinguerlo da valori simili sulla
+    pagina, senza che il prompt builder debba sapere nulla del dominio
+    (resta generico, ADR-017)."""
+    p = tmp_path / "schema.yaml"
+    p.write_text(
+        """
+schema_version: 1
+documento: test
+campi:
+  - nome: importo_totale
+    tipo: decimal
+    obbligatorio: true
+    descrizione: "il totale della sola componente energia, non un eventuale importo con extra"
+invarianti: []
+"""
+    )
+    schema = load(p)
+    campo = schema.campo("importo_totale")
+    assert campo is not None
+    assert campo.descrizione == (
+        "il totale della sola componente energia, non un eventuale importo con extra"
+    )
+
+
 def test_estrazione_tipo_sconosciuto_alza_schema_error(tmp_path: Path) -> None:
     p = tmp_path / "schema.yaml"
     p.write_text(

@@ -18,8 +18,17 @@ _DESCRIZIONE_TIPO: dict[TipoCampo, str] = {
 }
 
 
+def _riga_campo(c: Campo) -> str:
+    # T4.15 (ADR-043): la descrizione di dominio, quando dichiarata nello
+    # schema, si aggiunge al tipo — non lo sostituisce. Il builder non sa
+    # cosa significhi, la riporta soltanto (ADR-017).
+    if c.descrizione:
+        return f"- {c.nome}: {_DESCRIZIONE_TIPO[c.tipo]}. {c.descrizione}"
+    return f"- {c.nome}: {_DESCRIZIONE_TIPO[c.tipo]}"
+
+
 def costruisci_prompt(campi: Sequence[Campo]) -> str:
-    elenco_campi = "\n".join(f"- {c.nome}: {_DESCRIZIONE_TIPO[c.tipo]}" for c in campi)
+    elenco_campi = "\n".join(_riga_campo(c) for c in campi)
     chiavi_attese = ", ".join(f'"{c.nome}"' for c in campi)
 
     regole = [
