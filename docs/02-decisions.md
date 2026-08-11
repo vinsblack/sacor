@@ -1135,3 +1135,44 @@ questa visione ne conferma l'urgenza, non la cambia. Cambia però la
 cornice con cui leggere le prossime decisioni tecniche: ogni scelta di
 API/schema/plugin va giudicata anche su "aiuta l'ecosistema (Fase 2) a
 integrarsi facilmente", non solo su accuratezza pura.
+
+## ADR-048 — Revoca il gate G1 di ADR-046/047: si pubblica ora, il corpus è conseguenza dell'adozione
+
+**2026-08-11, stessa sessione.** Decisione dell'utente, che revoca
+esplicitamente la parte di ADR-046 e ADR-047 che subordinava G1 ad
+"accuratezza per campo alta su tutto lo schema" (riconfermata due volte
+in poche ore, prima di questa revoca — stesso pattern di ADR-031 che
+revoca ADR-029: non si riscrive la storia, si registra il cambio idea).
+
+**Argomento**: i 15 documenti reali hanno già assolto il loro scopo —
+misurare il gap sintetico/reale, invalidare l'ipotesi "tier0 assorbe
+l'80-90%" (ADR-046: escalation reale 100%), dimostrare che il motore di
+misura funziona. Continuare a ottimizzare sugli stessi 15 documenti
+produce rendimenti decrescenti (già osservato, T4.17) e rischio di
+overfitting, non più segnale nuovo. **Il collo di bottiglia non è più
+l'algoritmo — è la distribuzione.** Aspettare più dati prima di
+pubblicare rischia di non pubblicare mai; il corpus deve crescere come
+conseguenza dell'adozione, non come suo prerequisito.
+
+**Riformulazione esplicita**: dove ADR-046/047 dicevano "non si pubblica
+un benchmark con numeri deboli solo perché onesto", questa decisione
+dice l'opposto — si pubblica un motore onesto, con i suoi limiti
+dichiarati chiaramente (accuratezza reale attuale inclusa, non
+nascosta), e si lascia che i primi utilizzatori esterni segnalino dove
+migliorarlo. Non è "abbassare lo standard di onestà" (quello resta
+intatto, anzi è il prodotto) — è cambiare COSA sblocca G1.
+
+**Nuove priorità, in ordine** (sostituiscono "più corpus reale" come
+prossimo passo):
+1. Pacchetto PyPI installabile
+2. CLI (`sacor extract file.pdf`)
+3. Documentazione di integrazione (quickstart, esempi)
+4. Nodo n8n
+5. API stabile
+6. Primo utilizzatore esterno
+
+**Cosa NON cambia**: la disciplina di misura resta identica — si
+pubblica CON i numeri reali attuali (50-61%/campo, 0% documento,
+escalation 100%), dichiarati, non nascosti né minimizzati. Cambia solo
+il criterio di stop per G1: non più "aspetta che i numeri siano alti",
+ma "pubblica onesto, migliora in pubblico".

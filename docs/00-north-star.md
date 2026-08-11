@@ -84,9 +84,12 @@ Il canale esiste prima del codice. Non è la SEO.
 Se a 6 mesi nessuno l'ha usato: il risultato è comunque il progetto tecnico più
 credibile del profilo GitHub. Non è un fallimento, è un esito diverso.
 
-**Riconfermato esplicitamente (ADR-047, 11-08)**: anche con la visione a 3
-fasi sopra, G1 resta subordinato ad accuratezza per campo alta su tutto lo
-schema — non si pubblica un benchmark pubblico con i numeri di oggi
-(50-61%/campo, 0% documento, ADR-046) solo perché "trasparente è meglio di
-niente". La credibilità tecnica della Fase 1 open source si costruisce con
-numeri buoni resi pubblici, non con numeri onesti ma deboli.
+**Rivisto (ADR-048, 11-08, stessa sessione di ADR-047 — revoca la nota
+precedente qui, stesso schema di ADR-031 che revoca ADR-029)**: G1 NON
+aspetta più accuratezza alta. I 15 documenti reali hanno già assolto il
+loro scopo (misurare il gap, invalidare l'ipotesi tier0, ADR-046) —
+continuare a ottimizzare sugli stessi produce overfitting, non segnale
+nuovo. Il collo di bottiglia è la distribuzione, non l'algoritmo: si
+pubblica un motore onesto (numeri reali attuali dichiarati, non
+nascosti) e si lascia che l'adozione porti nuovi casi reali. Il corpus
+è conseguenza della Fase 2, non prerequisito della Fase 1.
