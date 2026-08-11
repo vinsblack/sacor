@@ -29,6 +29,12 @@ campi:
   - nome: giorni
     tipo: integer
     obbligatorio: false
+    descrizione: >-
+      Numero di giorni del periodo fatturato. Se non e' scritto esplicitamente
+      sul documento ma periodo_da e periodo_a sono entrambi date esatte
+      leggibili, calcolalo come la differenza in giorni tra le due date PIU'
+      UNO (es. dal 1 al 5 del mese = 5 giorni, non 4) — non lasciarlo null
+      solo perche' non c'e' scritto un numero, se e' calcolabile dalle date.
     estrazione:
       tipo: regex
       pattern: '\((\d+)\s*giorni\)'
