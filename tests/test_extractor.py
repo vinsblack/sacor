@@ -47,6 +47,23 @@ def test_pagina_scansione_restituisce_tutti_none(tmp_path: Path) -> None:
     assert all(valore is None for valore in estratti.values())
 
 
+def test_importo_totale_corretto_nonostante_canone_extra(tmp_path: Path) -> None:
+    """T4.14 (ADR-040): bollette reali (Rossi Eleonora e altre) aggiungono un
+    canone RAI sopra il totale energia, con un secondo 'Totale da pagare'
+    diverso da 'Totale scontrino' — pattern a due totali, mai modellato
+    prima. Il campo tracciato (regex ancorata a 'Importo totale:') deve
+    restare quello giusto anche con questo rumore vicino."""
+    schema = load(SCHEMA_PATH)
+    pdf_bytes, oracle_entries, _ = genera_documento(
+        random.Random(31), "S003", "Gamma Power", Flags()
+    )
+    path = _scrivi(tmp_path, "S003.pdf", pdf_bytes)
+
+    estratti = TierZeroExtractor().extract(_istanza_intero_file(path), schema)
+
+    assert estratti["importo_totale"] == oracle_entries["S003"]["importo_totale"]
+
+
 def test_diagnostica_distingue_non_estratto_da_normalizzato(tmp_path: Path) -> None:
     schema = load(SCHEMA_PATH)
     pdf_bytes, _, _ = genera_documento(random.Random(22), "S003", "Gamma Power", Flags())

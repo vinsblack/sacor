@@ -50,7 +50,8 @@
       "qualita": "digitale",
       "flag_attivi": [
         "periodo_mensile",
-        "consumo_stimato"
+        "consumo_stimato",
+        "canone_extra"
       ]
     },
     "S004": {
@@ -96,7 +97,8 @@
       "flag_attivi": [
         "periodo_mensile",
         "consumo_stimato",
-        "scansione"
+        "scansione",
+        "canone_extra"
       ]
     },
     "S007": {
@@ -143,7 +145,8 @@
       "flag_attivi": [
         "periodo_mensile",
         "consumo_stimato",
-        "pagina_ibrida"
+        "pagina_ibrida",
+        "canone_extra"
       ]
     },
     "S010a": {
@@ -223,7 +226,8 @@
       "flag_attivi": [
         "periodo_mensile",
         "consumo_stimato",
-        "ruotata"
+        "ruotata",
+        "canone_extra"
       ]
     }
   }

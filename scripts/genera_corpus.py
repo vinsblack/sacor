@@ -65,6 +65,7 @@ FLAG_NOMI: tuple[str, ...] = (
     "scansione_illeggibile",
     "pagina_ibrida",
     "data_con_punti",
+    "canone_extra",
 )
 
 
@@ -82,6 +83,9 @@ class Flags:
     # data osservato su bollette reali (Hera/EstEnergy), oltre a slash e
     # mese-esteso. Solo sul periodo "Dal...al...": periodo_mensile non lo usa.
     data_con_punti: bool = False
+    # T4.14 (ADR-040): canone RAI + "Totale da pagare" diverso dal "Totale
+    # scontrino" — rumore puro, mai un campo tracciato (vedi _CANONE_RAI_*).
+    canone_extra: bool = False
     # T4.10, C1: casi dichiarati distinti dal degrado di produzione (MEDIO).
     # scansione_aggressiva -> caso difficile ma leggibile (97% misurato).
     # scansione_illeggibile -> atteso reject, non "estrarre bene" (ADR-036).
@@ -101,7 +105,7 @@ class Flags:
 _STILE_LAYOUT: dict[str, Flags] = {
     "Alfa Energia": Flags(monoraria=True, data_con_punti=True),
     "Beta Luce": Flags(periodo_mensile=True),
-    "Gamma Power": Flags(periodo_mensile=True, consumo_stimato=True),
+    "Gamma Power": Flags(periodo_mensile=True, consumo_stimato=True, canone_extra=True),
 }
 
 
@@ -184,6 +188,14 @@ def _due_decimali(valore: Decimal) -> Decimal:
 _PREZZO_KWH = Decimal("0.28")
 _ALIQUOTA_ACCISA = Decimal("0.05")
 _ALIQUOTA_IVA = Decimal("0.10")
+
+# T4.14 (ADR-040): canone RAI + secondo "Totale da pagare" diverso dal
+# "Totale scontrino" — pattern osservato su piu' bollette reali, mai
+# tracciato dallo schema (rumore puro, non un campo). Aliquota IVA 22% sul
+# canone: coerente col fatto che i reali mostrano aliquote miste nello
+# stesso documento (canone tassato diversamente dall'energia, IVA 10%).
+_CANONE_RAI_MENSILE = Decimal("9.00")
+_ALIQUOTA_IVA_CANONE = Decimal("0.22")
 
 
 def _genera_dati_fattura(
@@ -318,6 +330,16 @@ def _testo_periodo(dati: DatiFattura, periodo_mensile: bool, data_con_punti: boo
 PagineFattura = tuple[list[str], list[str], list[str]]
 
 
+def _canone_extra(dati: DatiFattura) -> tuple[Decimal, Decimal, Decimal]:
+    """canone_rai, iva_canone, totale_da_pagare (T4.14) — proporzionale ai
+    giorni fatturati, mai un campo tracciato: solo rumore vicino al campo
+    che lo e' davvero (importo_totale, "Totale scontrino")."""
+    canone_rai = _due_decimali(_CANONE_RAI_MENSILE * Decimal(dati.giorni) / Decimal(30))
+    iva_canone = _due_decimali(canone_rai * _ALIQUOTA_IVA_CANONE)
+    totale_da_pagare = _due_decimali(dati.importo_totale + canone_rai + iva_canone)
+    return canone_rai, iva_canone, totale_da_pagare
+
+
 def _righe_pagina1(dati: DatiFattura, flags: Flags) -> list[str]:
     righe = [
         f"Fattura n. {dati.numero_fattura}",
@@ -352,6 +374,14 @@ def _righe_pagina2(dati: DatiFattura, flags: Flags) -> list[str]:
         f"Quota potenza: EUR {_fmt_it(dati.quota_potenza)}",
         f"Accise e IVA: EUR {_fmt_it(dati.accisa + dati.iva)}",
         f"Totale scontrino: EUR {_fmt_it(dati.importo_totale)}",
+        *(
+            [
+                f"Canone RAI: EUR {_fmt_it(_canone_extra(dati)[0])}",
+                f"Totale da pagare: EUR {_fmt_it(_canone_extra(dati)[2])}",
+            ]
+            if flags.canone_extra
+            else []
+        ),
         "",
         "BOX DELL'OFFERTA",
         f"Nome offerta: {dati.nome_offerta}",
@@ -379,6 +409,11 @@ def _righe_pagina3(dati: DatiFattura, flags: Flags) -> list[str]:
         "IMPOSTE",
         f"Accisa sui consumi: EUR {_fmt_it(dati.accisa)}",
         f"IVA (10% su imponibile): EUR {_fmt_it(dati.iva)}",
+        *(
+            [f"IVA (22% su canone RAI): EUR {_fmt_it(_canone_extra(dati)[1])}"]
+            if flags.canone_extra
+            else []
+        ),
     ]
 
 
