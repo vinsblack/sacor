@@ -17,8 +17,10 @@ from eval.run import MODELLI_BAKEOFF, SCHEMA_PATH, istanze_da_completare  # noqa
 from scripts.bakeoff import (  # noqa: E402
     LIMITE_SPESA_USD,
     TracciatoreSpesa,
+    _valuta_arbitrato,
     _valuta_modello,
     formatta_tabella,
+    formatta_tabella_arbitrato,
 )
 
 ORACLE_PATH = REPO_ROOT / "corpus" / "reale" / "attesi.json"
@@ -26,7 +28,22 @@ CORPUS_RAW = REPO_ROOT / "corpus" / "reale" / "raw"
 METADATA_PATH = REPO_ROOT / "corpus" / "reale" / "metadata.json"
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--arbitrato",
+        nargs=2,
+        metavar=("MODELLO_A", "MODELLO_B"),
+        help=(
+            "ADR-045 Fase 2: dopo il bake-off normale, chiama ANCHE questi due "
+            "modelli in arbitrato sullo stesso corpus reale (RADDOPPIA il costo "
+            "delle chiamate di questo confronto — opt-in esplicito)."
+        ),
+    )
+    args = parser.parse_args(argv)
+
     if not CORPUS_RAW.is_dir():
         print(
             "PDF reali non presenti in locale (corpus/reale/raw/, mai nel repo, "
@@ -54,6 +71,16 @@ def main() -> int:
 
     print(formatta_tabella(righe))
     print(f"\nSpeso reale totale: ${tracciatore.speso:.4f}")
+
+    if args.arbitrato:
+        modello_a, modello_b = args.arbitrato
+        tracciatore_arbitrato = TracciatoreSpesa(LIMITE_SPESA_USD)
+        riga_arbitrato = _valuta_arbitrato(
+            modello_a, modello_b, chiamate, oracle.documenti, tracciatore_arbitrato, schema
+        )
+        print(formatta_tabella_arbitrato(riga_arbitrato))
+        print(f"Speso reale arbitrato: ${tracciatore_arbitrato.speso:.4f}")
+
     if tracciatore.fermato:
         print(
             f"TETTO DI SPESA (${LIMITE_SPESA_USD:.2f}) RAGGIUNTO — giro interrotto in anticipo.",

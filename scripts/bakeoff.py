@@ -32,6 +32,7 @@ from eval.run import (  # noqa: E402
     renderizza_pagine_istanza,
     stima_costo_chiamate,
 )
+from sacor.arbitrate import estrai_con_arbitrato  # noqa: E402
 from sacor.compare import uguali  # noqa: E402
 from sacor.invariants import valuta_tutte  # noqa: E402
 from sacor.oracle import OracleError  # noqa: E402
@@ -178,6 +179,118 @@ def _valuta_modello(
 
 
 @dataclass(frozen=True)
+class RigaArbitrato:
+    """ADR-045 Fase 2 (step 7): frequenza di disaccordo tra due provider
+    sullo stesso corpus, e quando disaccordano chi ha ragione piu' spesso
+    (richiede l'oracle, per questo e' misurabile solo qui e non in
+    produzione — a differenza delle invarianti di Fase 1)."""
+
+    coppia: tuple[str, str]
+    campi_confrontati: int
+    disaccordi: int
+    tasso_disaccordo: float
+    disaccordo_vince_a: int
+    disaccordo_vince_b: int
+    disaccordo_nessuno_giusto: int
+    accuratezza_su_concordi: float
+    costo_totale: float
+    chiamate_fallite: int
+
+
+def _valuta_arbitrato(
+    modello_a: str,
+    modello_b: str,
+    chiamate: list[ChiamataDaCompletare],
+    oracle_documenti: Mapping[str, Mapping[str, str | None]],
+    tracciatore: TracciatoreSpesa,
+    schema: Schema,
+) -> RigaArbitrato:
+    try:
+        provider_a = _provider_per_modello(modello_a)
+        provider_b = _provider_per_modello(modello_b)
+    except ErroreProvider as exc:
+        print(f"  [arbitrato {modello_a}/{modello_b}] provider non disponibile: {exc}", file=sys.stderr)
+        return RigaArbitrato((modello_a, modello_b), 0, 0, 0.0, 0, 0, 0, 0.0, 0.0, len(chiamate))
+
+    campi_confrontati = disaccordi = 0
+    vince_a = vince_b = nessuno_giusto = 0
+    concordi_totali = concordi_corretti = 0
+    chiamate_fallite = 0
+    costo_totale = 0.0
+
+    for chiamata in chiamate:
+        if not tracciatore.puo_procedere():
+            continue
+
+        prompt = costruisci_prompt(chiamata.campi_mancanti)
+        pagine = _pagine_immagine(chiamata.istanza)
+        try:
+            esito = estrai_con_arbitrato(pagine, prompt, chiamata.campi_mancanti, provider_a, provider_b)
+        except ErroreProvider as exc:
+            chiamate_fallite += 1
+            print(f"  [arbitrato] chiamata fallita: {exc}", file=sys.stderr)
+            continue
+
+        costo_totale += esito.costo_totale
+        tracciatore.registra(esito.costo_totale)
+        if tracciatore.fermato:
+            print(
+                f"  [arbitrato] TETTO DI SPESA (${tracciatore.limite:.2f}) RAGGIUNTO "
+                f"— speso ${tracciatore.speso:.4f}, nessuna altra chiamata partira'.",
+                file=sys.stderr,
+            )
+
+        attesi = oracle_documenti[chiamata.chiave_oracle]
+        for campo in chiamata.campi_mancanti:
+            campi_confrontati += 1
+            if campo.nome in esito.disaccordi:
+                disaccordi += 1
+                a_giusto = uguali(attesi.get(campo.nome), esito.risposta_a.valori.get(campo.nome), campo.tipo)
+                b_giusto = uguali(attesi.get(campo.nome), esito.risposta_b.valori.get(campo.nome), campo.tipo)
+                if a_giusto and not b_giusto:
+                    vince_a += 1
+                elif b_giusto and not a_giusto:
+                    vince_b += 1
+                else:
+                    nessuno_giusto += 1
+            else:
+                concordi_totali += 1
+                if uguali(attesi.get(campo.nome), esito.valori.get(campo.nome), campo.tipo):
+                    concordi_corretti += 1
+
+    return RigaArbitrato(
+        coppia=(modello_a, modello_b),
+        campi_confrontati=campi_confrontati,
+        disaccordi=disaccordi,
+        tasso_disaccordo=disaccordi / campi_confrontati if campi_confrontati else 0.0,
+        disaccordo_vince_a=vince_a,
+        disaccordo_vince_b=vince_b,
+        disaccordo_nessuno_giusto=nessuno_giusto,
+        accuratezza_su_concordi=concordi_corretti / concordi_totali if concordi_totali else 0.0,
+        costo_totale=costo_totale,
+        chiamate_fallite=chiamate_fallite,
+    )
+
+
+def formatta_tabella_arbitrato(riga: RigaArbitrato) -> str:
+    a, b = riga.coppia
+    return "\n".join(
+        [
+            "",
+            f"Arbitrato {a} vs {b} (ADR-045 Fase 2):",
+            f"  campi confrontati: {riga.campi_confrontati}",
+            f"  disaccordi: {riga.disaccordi} ({riga.tasso_disaccordo * 100:.1f}%)",
+            f"  quando disaccordano — {a} ha ragione: {riga.disaccordo_vince_a}, "
+            f"{b} ha ragione: {riga.disaccordo_vince_b}, "
+            f"nessuno dei due: {riga.disaccordo_nessuno_giusto}",
+            f"  accuratezza quando concordano: {riga.accuratezza_su_concordi * 100:.1f}%",
+            f"  costo arbitrato: ${riga.costo_totale:.4f}"
+            + (f"  ({riga.chiamate_fallite} chiamate fallite)" if riga.chiamate_fallite else ""),
+        ]
+    )
+
+
+@dataclass(frozen=True)
 class RisultatoBakeoff:
     righe: list[RigaBakeoff]
     speso_totale: float
@@ -239,7 +352,22 @@ def formatta_confronto_costo(righe: list[RigaBakeoff], stima: dict[str, StimaCos
     return "\n".join(linee)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--arbitrato",
+        nargs=2,
+        metavar=("MODELLO_A", "MODELLO_B"),
+        help=(
+            "ADR-045 Fase 2: dopo il bake-off normale, chiama ANCHE questi due "
+            "modelli in arbitrato sullo stesso corpus (RADDOPPIA il costo delle "
+            "chiamate di questo confronto — opt-in esplicito, mai automatico)."
+        ),
+    )
+    args = parser.parse_args(argv)
+
     print(
         "sacor bake-off (T4.4/T4.5) — cache disattivata, chiamate reali.\n"
         "Accuratezza calcolata SOLO sui campi chiesti al tier 1 (quelli "
@@ -261,6 +389,17 @@ def main() -> int:
     print(formatta_tabella(risultato.righe))
     print(formatta_confronto_costo(risultato.righe, risultato.stima_per_modello))
     print(f"\nSpeso reale totale: ${risultato.speso_totale:.4f}")
+
+    if args.arbitrato:
+        modello_a, modello_b = args.arbitrato
+        esito = istanze_da_completare()
+        assert esito is not None  # esegui_bakeoff() sopra e' gia' passato di qui
+        schema, oracle, chiamate, _ = esito
+        tracciatore = TracciatoreSpesa(LIMITE_SPESA_USD)
+        riga_arbitrato = _valuta_arbitrato(modello_a, modello_b, chiamate, oracle.documenti, tracciatore, schema)
+        print(formatta_tabella_arbitrato(riga_arbitrato))
+        print(f"Speso reale arbitrato: ${tracciatore.speso:.4f}")
+
     if risultato.tetto_raggiunto:
         print(
             f"TETTO DI SPESA (${LIMITE_SPESA_USD:.2f}) RAGGIUNTO — giro interrotto in anticipo. "
