@@ -224,11 +224,14 @@ grafici che portano dati (barre/torta, generatore è solo testo).
 
 ## Blocco 5+ — non ancora pianificato
 
-- **Corpus reale**: bollette proprie o di terzi consenzienti (ADR-012),
-  non le 22 ispezionate per ADR-040 (quelle: solo struttura, mai un
-  corpus di livello 2 — nessun consenso raccolto). Consiglio dato:
-  prima privato/consenziente, poi eventuale benchmark CLI locale, community
-  corpus solo dopo (prematuro, serve infra/policy prima).
+- **Corpus reale**: ✅ fatto (ADR-042) — 14 bollette luce reali, consenso
+  ottenuto, oracle (`corpus/reale/attesi.json`) nel repo, PDF originali
+  solo in locale (`.gitignore`). Primo numero reale: **5.7%/campo**
+  (`eval/run_reale.py`), contro 45.3% sul sintetico — il tier 0 non
+  generalizza alle etichette reali, gap grande e ora misurato. Resta da
+  fare: rendere tier 0/1 capaci di leggere bollette vere (lavoro grosso,
+  non iniziato); benchmark CLI locale (`sacor benchmark my-bills/`) e
+  community corpus restano non pianificati, il secondo prematuro.
 - **Ri-segmentazione su testo OCR** per scansioni multi-fattura (S011):
   la segmentazione oggi legge solo il text layer nativo — su una pagina
   scansionata non può leggere "Fattura n. X", limite noto (ADR-024).

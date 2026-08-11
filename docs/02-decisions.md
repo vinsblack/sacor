@@ -829,3 +829,48 @@ misurare l'assenza del marcatore.
 resta corretta nonostante l'istanza si estenda anche sulla pagina allegata
 — le regex cercano etichette specifiche, non l'intero contenuto della
 pagina, e la pagina allegata non ne contiene nessuna.
+
+## ADR-042 — Corpus reale: oracle con consenso, PDF mai nel repo
+
+**2026-08-11.** Prima misura di sacor contro bollette **vere**, non
+generate dal progetto. Consenso esplicito ottenuto da Vincenzo Gallo dalle
+persone che hanno fornito i 22 PDF dell'archivio ADR-040, per l'uso dei
+dati tecnici delle loro bollette a fini di misura (non per la
+pubblicazione dei PDF stessi — due consensi distinti, vedi sotto).
+
+### Cosa entra nel repo, cosa no
+
+- `corpus/reale/attesi.json` + `metadata.json`: SOLO i 10 campi schema +
+  note tecniche (fasce, consumo stimato, anomalie). Mai nome, indirizzo,
+  codice fiscale/P.IVA, IBAN, numero cliente/contratto, telefono, email.
+- `corpus/reale/raw/` (i PDF): **mai nel repo**, `.gitignore`. Un PDF con
+  POD/importi/date esatte resta un dato collegabile a una persona anche
+  senza un nome scritto sopra — e il repo diventerà pubblico. Consenso
+  all'uso per misurare ≠ consenso a pubblicare, due cose distinte, il
+  secondo non è stato chiesto né dato.
+
+### Scope: 14 documenti su 22, non tutti utilizzabili
+
+Solo bollette **luce** valgono per questo schema (POD/kWh, non PDR/Smc).
+Un file (assegnato R008 in estrazione) si è rivelato una fattura
+FIBRA/telecom archiviata per errore tra le bollette — escluso durante
+l'estrazione stessa, non prima: la verità del contenuto ha prevalso su
+un'ipotesi di scope fatta a monte.
+
+### Primo numero reale: 5.7%, non 45.3%
+
+`eval/run_reale.py` (nuovo, senza triage/segmentazione — ogni PDF reale è
+un'unica istanza nota) misura **8/140 campi corretti = 5.7%** contro il
+corpus reale, contro il 43.6-45.3% misurato finora sul solo corpus
+sintetico. Non è un fallimento del lavoro fatto finora — è la conferma
+diretta che **il numero sintetico non è mai stato predittivo**: le regex
+tier 0 sono ancorate alle etichette esatte del generatore ("Importo
+totale: EUR", "Energia F1: ... kWh"), i fornitori reali usano struttura e
+lessico del tutto diversi (ADR-040). Un corpus autoconsistente misura se
+il generatore e lo schema si parlano tra loro, non se il sistema legge
+bollette vere — le due cose sono sempre state domande diverse, ora c'è un
+numero che le distingue.
+
+**Non affrontato qui**: rendere il tier 0 (o il tier 1) capace di leggere
+le etichette reali è lavoro a parte, grande, non fatto in questa sessione.
+Questo ADR fissa solo il metodo di misura e il primo numero onesto.

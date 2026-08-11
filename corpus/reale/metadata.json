@@ -1,0 +1,86 @@
+{
+  "R001": {
+    "file": "R001.pdf",
+    "fasce": true,
+    "consumo_stimato": false,
+    "nota": "Periodo espresso in bolletta solo come 'Settembre 2025' (nessun 'Dal...al' esplicito); date dedotte dalle letture contatore. File era archiviato per errore nella cartella gas, ma è una bolletta luce."
+  },
+  "R002": {
+    "file": "R002.pdf",
+    "fasce": false,
+    "consumo_stimato": false,
+    "nota": "Metering multiorario ma tariffa 'offerta monoraria' (prezzo unico). Cliente 'altri usi bassa tensione' (business, non domestico) — IVA 22% invece del 10% domestico."
+  },
+  "R003": {
+    "file": "R003.pdf",
+    "fasce": false,
+    "consumo_stimato": false,
+    "nota": "Offerta a rata fissa con meccanismo 'cuscino rata' — importo non legato 1:1 al consumo del mese. importo_totale qui = 'Totale da pagare' (56.34, incl. canone RAI 9.00); il 'Totale bolletta' solo energia sarebbe 47.34 — ambiguità aperta, scelto il primo per coerenza con l'etichetta 'Importo totale' del tier 0. Periodo dedotto da letture (dichiarato solo 'Maggio 2026')."
+  },
+  "R004": {
+    "file": "R004.pdf",
+    "fasce": false,
+    "consumo_stimato": false,
+    "nota": "Incongruenza interna nel documento sorgente: tabella 'RIEPILOGO CONSUMI' riporta F1=18/F2=20/F3=22 (tot 60 kWh), in contrasto con il consumo totale fatturato dichiarato (188.607 kWh) e con la differenza calcolata dalle letture (57/61/70, somma 188). Usati i valori da lettura, coerenti col totale fatturato e con l'invariante somma_fasce. Bolletta include anche spese sollecito/insoluto (10 EUR) non pertinenti allo schema."
+  },
+  "R005": {
+    "file": "R005.pdf",
+    "fasce": true,
+    "consumo_stimato": false,
+    "nota": "Consumo mensile estremo (0.53 kWh in 31 giorni) — possibile immobile vuoto/pertinenza, non un'utenza domestica tipica. importo_totale include canone RAI (9.00 EUR) sommato al totale energia (16.56 EUR)."
+  },
+  "R006": {
+    "file": "R006.pdf",
+    "fasce": true,
+    "consumo_stimato": false,
+    "nota": "Caso pulito, nessuna anomalia. importo_totale include canone RAI (18.00 EUR, 2 mensilità) sommato al totale bolletta energia (559.86 EUR)."
+  },
+  "R007": {
+    "file": "R007.pdf",
+    "fasce": true,
+    "consumo_stimato": false,
+    "nota": "Le prime 2 pagine del PDF originale erano una comunicazione di fusione societaria (Acea Energia/Eni Plenitude), non parte della bolletta — escluse dall'estrazione. importo_totale include canone RAI (18.00 EUR) sommato al totale energia (114.48 EUR)."
+  },
+  "R009": {
+    "file": "R009.pdf",
+    "fasce": false,
+    "consumo_stimato": false,
+    "nota": "Box offerta dichiara 'Tipologia di prezzo: Monoraria' (prezzo unico F1/F23), ma il misuratore riporta letture separate F1 vs F2+F3 non scorporabili singolarmente — kwh_f2/kwh_f3 lasciati null (mai indovinato uno zero) invece di forzare la regola 'monoraria -> F2=F3=0'."
+  },
+  "R010": {
+    "file": "R010.pdf",
+    "fasce": true,
+    "consumo_stimato": false,
+    "nota": "Caso pulito, nessuna anomalia."
+  },
+  "R011": {
+    "file": "R011.pdf",
+    "fasce": true,
+    "consumo_stimato": true,
+    "nota": "Bolletta esplicitamente 'in Acconto' — consumi dichiarati stimati, non effettivi (nota di successivo ricalcolo nel documento)."
+  },
+  "R012": {
+    "file": "R012.pdf",
+    "fasce": true,
+    "consumo_stimato": false,
+    "nota": "Aspetto da scansione/foto reale (lieve inclinazione, sfondo non uniforme). Il documento dichiara 'tipologia consumi: MONORARIO' ma i dati di lettura mostrano chiaramente 3 fasce con valori diversi — etichetta del fornitore trattata come refuso/fuorviante, ignorata a favore dei dati di lettura reali."
+  },
+  "R013": {
+    "file": "R013.pdf",
+    "fasce": true,
+    "consumo_stimato": false,
+    "nota": "Il PDF originale conteneva pagine estranee (documento sanitario scansionato) — escluse. L'offerta commerciale fattura raggruppando F2+F3 in un'unica 'fascia blu', ma qui è riportata la ripartizione trioraria reale da lettura, non quella aggregata per fatturazione."
+  },
+  "R014": {
+    "file": "R014.pdf",
+    "fasce": true,
+    "consumo_stimato": false,
+    "nota": "Fatturazione mensile (non bimestrale) — atipico per residenziale, nota informativa."
+  },
+  "R015": {
+    "file": "R015.pdf",
+    "fasce": false,
+    "consumo_stimato": false,
+    "nota": "Documento MULTISERVIZIO luce+gas nello stesso PDF — estratta solo la sezione Energia Elettrica, sezione gas ignorata (fuori schema). Bioraria di fatto (F1/F23, non 3 fasce distinte): F23 mappato su kwh_f2, kwh_f3 lasciato '0.00'. Il box offerta dichiara 'Tipologia di prezzo: Monoraria' nonostante la formula distingua F1/F23 — probabile refuso/etichettatura interna del fornitore."
+  }
+}

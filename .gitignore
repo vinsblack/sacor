@@ -13,3 +13,8 @@ venv/
 .cache/
 .coverage
 htmlcov/
+
+# T4.14 (ADR-042): PDF reali con dati tecnici collegabili a persone
+# (POD, importi, date esatte) — mai nel repo, anche con consenso all'uso
+# per misurare. Pubblicarli e' un consenso separato, mai dato.
+corpus/reale/raw/
