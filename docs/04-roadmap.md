@@ -176,3 +176,64 @@ e la segmentazione ricostruisce correttamente i multi-fattura.
 
 Blocco 3 (primo extractor reale, tier 1) si progetta dopo — è il primo blocco
 che costa inferenza.
+
+---
+
+## Blocco 3 — Tier 0: estrattore deterministico ✅
+
+Base di confronto senza AI, mai indovina: regex dichiarate nello schema
+(ADR-032), strato Repair per normalizzazione IT (date, decimali, interi),
+estrattore confinato all'istanza (non al file intero, ADR-033).
+
+**Fine Blocco 3:** `TierZeroExtractor` misurato sul corpus sintetico,
+numero pubblicato (non 0%, non 100% per costruzione).
+
+---
+
+## Blocco 4 — Tier 1, provider e corpus realistico ✅ (essenzialmente chiuso)
+
+Astrazione `ModelProvider` (Anthropic + OpenAI, due provider sempre per
+continuità), cache SHA-256 (ADR-034), dry-run costi, bake-off multi-modello
+(`scripts/bakeoff.py`, tetto $5 monitorato), corpus rigenerato per
+rasterizzazione reale (ADR-038), layout a 3 pagine su struttura osservata
+(ADR-039), degrado calibrato per misura (ADR-036).
+
+**T4.13** (code review a 3 agenti, 13 problemi, tutti sistemati): controllo
+`stop_reason`/`finish_reason` sui provider, `compare.uguali()` distingue
+oracle malformato da estrattore sbagliato, mypy strict esteso a
+`eval/`+`scripts/`, overflow lettere istanza, hash cache senza delimitatore,
+triage rifatto 2x per file nel bake-off.
+
+**T4.14 — ADR-040/041** (22 bollette reali di terzi ispezionate solo per
+struttura, mai PII, mai copiate nel repo): virgola decimale italiana (mai
+il punto), secondo formato data con punti, canone RAI + doppio totale +
+IVA mista come rumore realistico, pagina allegata (modulo di pagamento)
+assorbita nella segmentazione — gap misurato onestamente, non nascosto
+(`intervalli_pagine` 84.6%, atteso, stesso principio di S011).
+
+Numeri correnti (13 documenti/15 istanze): accuratezza 45.3%/campo,
+26.7%/documento — vedi `docs/03-current-state.md`, mai scritto a mano.
+
+**Gap MEDIA/BASSA rimasti, non affrontati** (dalle 22 bollette reali):
+fatturazione a rata fissa/conguaglio (modello alternativo al consumo
+diretto, tocca la semantica di `importo_totale`); scala utenza
+business/IVA 22%; bollette multiservizio luce+gas nello stesso PDF;
+grafici che portano dati (barre/torta, generatore è solo testo).
+
+---
+
+## Blocco 5+ — non ancora pianificato
+
+- **Corpus reale**: bollette proprie o di terzi consenzienti (ADR-012),
+  non le 22 ispezionate per ADR-040 (quelle: solo struttura, mai un
+  corpus di livello 2 — nessun consenso raccolto). Consiglio dato:
+  prima privato/consenziente, poi eventuale benchmark CLI locale, community
+  corpus solo dopo (prematuro, serve infra/policy prima).
+- **Ri-segmentazione su testo OCR** per scansioni multi-fattura (S011):
+  la segmentazione oggi legge solo il text layer nativo — su una pagina
+  scansionata non può leggere "Fattura n. X", limite noto (ADR-024).
+- **Tier 2** (escalation oltre il tier 1): non ancora misurato nessun
+  tasso di escalation reale (`n/d` in ogni report).
+- **Schema gas**: bloccato da **G2** — nessun secondo tipo di documento
+  prima di un numero pubblicato + 1 utente esterno (G1 non ancora
+  raggiunto). Struttura già osservata (ADR-039), non un ostacolo tecnico.
