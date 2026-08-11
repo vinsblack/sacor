@@ -22,6 +22,7 @@ from sacor.extractor import (
     Extractor,
     TierZeroExtractor,
 )
+from sacor.invariants import valuta_tutte
 from sacor.oracle import Oracle, OracleError, load_oracle
 from sacor.providers.pricing import PrezziError
 from sacor.providers.pricing import carica as carica_prezzi
@@ -80,6 +81,7 @@ class Report:
     gate_reject: int
     valori_errati: int = 0  # T3.3: non-None ma sbagliato — l'estrattore "inventa"
     segmentazione_disallineata: int = 0  # T3.4: n. istanze rilevate != n. istanze oracle
+    violazioni_invarianti: int = 0  # ADR-045: lo strato Arbitrate, ora eseguito davvero
 
     @property
     def accuratezza_documento(self) -> float:
@@ -225,8 +227,10 @@ def esegui_eval(
     corretti = {c.nome: 0 for c in schema.campi}
     documenti_corretti = 0
     gate_reject = 0
+    gate_warning = 0
     valori_errati = 0
     segmentazione_disallineata = 0
+    violazioni_invarianti = 0
 
     for nome_file, chiavi_oracle in per_file.items():
         pdf = corpus_raw / nome_file
@@ -278,11 +282,22 @@ def esegui_eval(
             if tutti_corretti:
                 documenti_corretti += 1
 
-            # ponytail: gate minimo, solo su campo obbligatorio mancante. Il
-            # livello "warning" richiede l'esecuzione delle invarianti, non
-            # ancora costruita: qui il gate puo' solo confermare pass o reject.
-            if any(c.obbligatorio and estratti.get(c.nome) is None for c in schema.campi):
+            # ADR-045: lo strato Arbitrate, ora eseguito davvero — non solo
+            # dichiarato. Una violazione 'reject' rigetta il documento anche
+            # se tutti i campi obbligatori sono presenti; una 'warning' lo
+            # sposta da pass a warning, mai a reject da sola.
+            violazioni = valuta_tutte(schema, estratti)
+            violazioni_invarianti += len(violazioni)
+            ha_violazione_reject = any(v.severita == "reject" for v in violazioni)
+            ha_violazione_warning = any(v.severita == "warning" for v in violazioni)
+
+            campo_obbligatorio_mancante = any(
+                c.obbligatorio and estratti.get(c.nome) is None for c in schema.campi
+            )
+            if campo_obbligatorio_mancante or ha_violazione_reject:
                 gate_reject += 1
+            elif ha_violazione_warning:
+                gate_warning += 1
 
     n_documenti = len(oracle.documenti)
     campi_report = tuple(
@@ -302,11 +317,12 @@ def esegui_eval(
         n_documenti=n_documenti,
         documenti_corretti=documenti_corretti,
         campi=campi_report,
-        gate_pass=n_documenti - gate_reject,
-        gate_warning=0,
+        gate_pass=n_documenti - gate_reject - gate_warning,
+        gate_warning=gate_warning,
         gate_reject=gate_reject,
         valori_errati=valori_errati,
         segmentazione_disallineata=segmentazione_disallineata,
+        violazioni_invarianti=violazioni_invarianti,
     )
 
 
@@ -374,6 +390,7 @@ def formatta_report(report: Report) -> str:
     righe.append(
         f"File con segmentazione disallineata dall'oracle: {report.segmentazione_disallineata}"
     )
+    righe.append(f"Violazioni invarianti (ADR-045, Arbitrate): {report.violazioni_invarianti}")
     return "\n".join(righe)
 
 
