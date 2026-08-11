@@ -973,3 +973,21 @@ scritti in momenti diversi senza incrociarli — non un limite del modello.
 
 Fix: descrizione invertita — "Totale FINALE da pagare... SEMPRE quello
 finale/più alto", allineata alla convenzione che l'oracle già usava.
+
+**Impatto misurato**: claude-haiku-4-5 **43.6% → 47.4%**, claude-opus-5
+**54.9% → 60.9%**. `inventati` sceso in entrambi (haiku 34→26, opus
+22→15) — coerente: un campo letto giusto ma scartato dalla vecchia
+descrizione ora è corretto invece di sbagliato.
+
+**Riepilogo dell'intero ciclo ADR-042→044** (stesso corpus, stesso
+oracle, 4 giri di bake-off, ~$8.30 spesi in totale):
+
+| | claude-haiku-4-5 | claude-opus-5 |
+|---|---|---|
+| Bug parsing presente (ADR-043) | 9.0% | 14.3% |
+| Fix parsing (ADR-044) | 43.6% | 51.9% |
+| + fix `giorni` | 43.6% | 54.9% |
+| + fix `importo_totale` | **47.4%** | **60.9%** |
+
+0.0% documenti completamente corretti resta su tutti e 4 i giri — nessun
+pattern residuo grande quanto i tre risolti è stato ancora trovato.

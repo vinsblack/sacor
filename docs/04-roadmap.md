@@ -230,18 +230,14 @@ grafici che portano dati (barre/torta, generatore è solo testo).
   (`eval/run_reale.py`), contro 45.3% sul sintetico — il tier 0 non
   generalizza alle etichette reali, gap grande e ora misurato.
 
-  **Bake-off tier 1 sul reale** (ADR-043→044): primo giro 9.0%/14.3%
-  acc. campo (haiku/opus). **Causa reale trovata (ADR-044, non il
-  prompt)**: `sacor.providers.parsing.normalizza_risposta()` scartava
-  ogni numero JSON nativo del modello (comportamento normale, non un
-  errore suo) prima di passarlo a `ripara()` — bug di parsing, mai un
-  problema di prompt. Fix + rimisura: **43.6%/51.9%** acc. campo (4.8x/
-  3.6x). 0.0% documenti completamente corretti resta — due pattern
-  concreti non ancora affrontati: `giorni` mai calcolato quando
-  calcolabile dalle date; `importo_totale` che a volte prende un
-  subtotale invece del totale finale (differenza costante €18.00 in
-  2 bollette di fornitori diversi, probabile onere fisso saltato).
-  Benchmark CLI locale e community corpus restano non pianificati.
+  **Bake-off tier 1 sul reale, 4 giri** (ADR-042→044, ~$8.30 spesi):
+  9.0%/14.3% → **47.4%/60.9%** acc. campo (haiku/opus). Causa dominante:
+  bug di parsing (`normalizza_risposta()` scartava numeri JSON nativi),
+  non il prompt. Due fix minori (`giorni` calcolabile da date,
+  `importo_totale` — oracle e prompt erano in contraddizione tra loro,
+  verificato a occhio sui PDF, non un limite del modello). 0.0%
+  documenti completamente corretti resta, nessun pattern residuo grande
+  trovato finora. Benchmark CLI locale e community corpus non pianificati.
 - **Ri-segmentazione su testo OCR** per scansioni multi-fattura (S011):
   la segmentazione oggi legge solo il text layer nativo — su una pagina
   scansionata non può leggere "Fattura n. X", limite noto (ADR-024).
