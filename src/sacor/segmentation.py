@@ -72,13 +72,27 @@ def _raggruppa(valori: Sequence[str | None]) -> list[tuple[int, int]]:
     return spezzoni
 
 
+def _lettera_istanza(indice: int) -> str:
+    """Lettera(e) per la i-esima istanza (0-indicizzato): a, b, ..., z, aa,
+    ab, ... — stessa numerazione delle colonne di un foglio di calcolo, mai
+    un IndexError oltre la 26esima (T4.13, trovato in review: un'invarianza
+    di dominio ('mai piu' di 26 fatture nello stesso file') non era mai stata
+    dichiarata, solo assunta dalla dimensione dell'alfabeto)."""
+    n = indice + 1  # base-26 bijettiva: 1-indicizzata, senza cifra dello zero
+    lettere = []
+    while n > 0:
+        n, resto = divmod(n - 1, len(_LETTERE_ISTANZA))
+        lettere.append(_LETTERE_ISTANZA[resto])
+    return "".join(reversed(lettere))
+
+
 def _assegna_id(file: Path, spezzoni: list[tuple[int, int]]) -> tuple[Istanza, ...]:
     doc_id = file.stem
     if len(spezzoni) == 1:
         pagina_da, pagina_a = spezzoni[0]
         return (Istanza(id=doc_id, file=file, pagina_da=pagina_da, pagina_a=pagina_a),)
     return tuple(
-        Istanza(id=f"{doc_id}{_LETTERE_ISTANZA[i]}", file=file, pagina_da=da, pagina_a=a)
+        Istanza(id=f"{doc_id}{_lettera_istanza(i)}", file=file, pagina_da=da, pagina_a=a)
         for i, (da, a) in enumerate(spezzoni)
     )
 

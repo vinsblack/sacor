@@ -137,7 +137,10 @@ def valuta(
             certa_ma_sbagliati_istanze += 1
 
         totale_intervalli += 1
-        attesi = {tuple(metadata[c]["pagine"]) for c in chiavi}  # type: ignore[arg-type]
+        attesi: set[tuple[int, ...]] = {
+            tuple(metadata[c]["pagine"])  # type: ignore[arg-type]
+            for c in chiavi
+        }
         ottenuti = {(i.pagina_da, i.pagina_a) for i in esito_segmentazione.istanze}
         if attesi == ottenuti:
             corretti_intervalli += 1

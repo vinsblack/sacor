@@ -170,6 +170,33 @@ def test_pattern_mai_trovato_e_presunta(tmp_path: Path) -> None:
     assert len(risultato.istanze) == 1
 
 
+def test_oltre_26_istanze_non_solleva_indexerror() -> None:
+    """T4.13 (BASSA, trovato in review): _LETTERE_ISTANZA e' l'alfabeto di 26
+    lettere indicizzato da posizione — la 27esima istanza sollevava
+    IndexError invece di ricevere un id (es. stile colonne foglio di
+    calcolo: ...y, z, aa, ab, ...)."""
+    pagine = tuple(
+        PaginaInfo(
+            numero=i,
+            ha_text_layer=True,
+            densita_testo=1.0,
+            copertura_immagine=0.0,
+            tipo=TipoPagina.DIGITALE,
+            rotazione=0,
+        )
+        for i in range(1, 28)
+    )
+    testi = [f"Fattura n. {i}" for i in range(1, 28)]  # 27 valori distinti -> 27 istanze
+    config = SegmentazioneConfig(tipo="cambio_valore", pattern=PATTERN_FATTURA, minimo_pagine=1)
+
+    risultato = segmenta(Path("XXX.pdf"), pagine, testi, config)
+
+    assert len(risultato.istanze) == 27
+    assert risultato.istanze[0].id == "XXXa"
+    assert risultato.istanze[25].id == "XXXz"
+    assert risultato.istanze[26].id == "XXXaa"
+
+
 def test_pagina_prima_del_primo_match_non_diventa_istanza_fantasma() -> None:
     """T4.13 (trovato in code review): una pagina senza match PRIMA che il
     pattern compaia per la prima volta (es. una copertina, o un OCR/match

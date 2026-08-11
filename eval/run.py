@@ -164,9 +164,7 @@ def istanze_da_completare(
             file_disallineati += 1
             continue
 
-        for istanza, chiave_oracle in zip(
-            esito_segmentazione.istanze, chiavi_oracle, strict=True
-        ):
+        for istanza, chiave_oracle in zip(esito_segmentazione.istanze, chiavi_oracle, strict=True):
             estratti = tier0.extract(istanza, schema)
             campi_mancanti = tuple(c for c in schema.campi if estratti.get(c.nome) is None)
             if campi_mancanti:
@@ -417,7 +415,26 @@ def esegui_dry_run(
     if esito is None:
         return None
     schema, _oracle, chiamate, file_disallineati = esito
+    return stima_costo_chiamate(
+        schema, chiamate, file_disallineati, cache_dir, ttl_secondi, modelli
+    )
 
+
+def stima_costo_chiamate(
+    schema: Schema,
+    chiamate: list[ChiamataDaCompletare],
+    file_disallineati: int,
+    cache_dir: Path = DEFAULT_CACHE_DIR,
+    ttl_secondi: int = DEFAULT_TTL_SECONDI,
+    modelli: Sequence[str] = MODELLI_BAKEOFF,
+) -> StimaDryRun:
+    """Stima di costo a partire da un elenco di chiamate GIA' calcolato
+    (T4.13, BASSA, trovato in review): separata da esegui_dry_run perche' chi
+    ha gia' triage/segmentazione/rendering in mano (scripts/bakeoff.py, che
+    calcola le stesse chiamate per farle davvero) non deve rifare da capo lo
+    stesso lavoro — triage, segmentazione e rendering PNG di ogni pagina di
+    ogni file — solo per ottenere la stima di costo. esegui_dry_run resta
+    l'entry point quando le chiamate non sono ancora note."""
     cache = CacheDisco(cache_dir=cache_dir, ttl_secondi=ttl_secondi)
     gia_in_cache = 0
     # Renderizzata una sola volta per chiamata, riusata per ogni modello:
@@ -429,9 +446,7 @@ def esegui_dry_run(
         render = renderizza_pagine_istanza(chiamata.istanza)
         pagine_bytes = [png for png, _larghezza, _altezza in render]
 
-        chiave = chiave_cache(
-            pagine_bytes, prompt, _MODELLO_CACHE_GENERICO, schema.schema_version
-        )
+        chiave = chiave_cache(pagine_bytes, prompt, _MODELLO_CACHE_GENERICO, schema.schema_version)
         if cache.contiene(chiave):
             gia_in_cache += 1
             continue

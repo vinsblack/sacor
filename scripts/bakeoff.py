@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import statistics
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,11 +28,12 @@ from eval.run import (  # noqa: E402
     MODELLI_BAKEOFF,
     ChiamataDaCompletare,
     StimaCostoModello,
-    esegui_dry_run,
     istanze_da_completare,
     renderizza_pagine_istanza,
+    stima_costo_chiamate,
 )
 from sacor.compare import uguali  # noqa: E402
+from sacor.oracle import OracleError  # noqa: E402
 from sacor.providers.base import ModelProvider  # noqa: E402
 from sacor.providers.errors import ErroreProvider  # noqa: E402
 from sacor.providers.prompt import costruisci_prompt  # noqa: E402
@@ -96,7 +98,7 @@ class RigaBakeoff:
 def _valuta_modello(
     modello: str,
     chiamate: list[ChiamataDaCompletare],
-    oracle_documenti: dict[str, dict[str, str | None]],
+    oracle_documenti: Mapping[str, Mapping[str, str | None]],
     tracciatore: TracciatoreSpesa,
 ) -> RigaBakeoff:
     try:
@@ -176,12 +178,15 @@ def esegui_bakeoff(
     esito = istanze_da_completare()
     if esito is None:
         raise RuntimeError("corpus non ancora presente: manca corpus/attesi.json")
-    _schema, oracle, chiamate, _file_disallineati = esito
+    schema, oracle, chiamate, file_disallineati = esito
 
-    # Stessa stima di --dry-run, sulle stesse chiamate: per confrontare
-    # costo reale vs stimato dopo il giro (C2).
-    stima = esegui_dry_run(modelli=modelli)
-    stima_per_modello = stima.costo_per_modello if stima is not None else {}
+    # Stessa stima di --dry-run, sulle stesse chiamate: per confrontare costo
+    # reale vs stimato dopo il giro (C2). T4.13 (BASSA, trovato in review):
+    # riusa le chiamate appena calcolate sopra invece di richiamare
+    # istanze_da_completare() una seconda volta (che rifaceva triage,
+    # segmentazione e rendering PNG di ogni pagina di ogni file da capo).
+    stima = stima_costo_chiamate(schema, chiamate, file_disallineati, modelli=modelli)
+    stima_per_modello = stima.costo_per_modello
 
     tracciatore = TracciatoreSpesa(limite_spesa)
     righe = [_valuta_modello(m, chiamate, oracle.documenti, tracciatore) for m in modelli]
@@ -231,6 +236,12 @@ def main() -> int:
         risultato = esegui_bakeoff()
     except RuntimeError as exc:
         print(f"errore: {exc}", file=sys.stderr)
+        return 1
+    except OracleError as exc:
+        # T4.13: uguali() ora distingue oracle malformato da estrattore
+        # sbagliato (vedi sacor.compare) — un oracle rotto qui interrompe il
+        # giro, non lo maschera da modello che ha sbagliato tutto.
+        print(f"errore oracle: {exc}", file=sys.stderr)
         return 1
 
     print(formatta_tabella(risultato.righe))

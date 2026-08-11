@@ -24,6 +24,10 @@ _TIMEOUT_SECONDI = 60.0
 _MAX_RETRIES = 5  # retry con backoff esponenziale: gestito dall'SDK ufficiale
 _MAX_TOKEN_OUTPUT = 4096
 
+# T4.13 (ALTA, trovato in review): vedi sacor.providers.anthropic._STOP_REASON_OK
+# per il razionale — stesso bug, stessa causa, due SDK diversi.
+_FINISH_REASON_OK = frozenset({"stop"})
+
 
 class OpenAIProvider:
     nome = "openai"
@@ -66,12 +70,16 @@ class OpenAIProvider:
         except openai.RateLimitError as exc:
             raise ErroreProvider(f"rate limit OpenAI esaurito dopo i retry: {exc}") from exc
         except openai.APIConnectionError as exc:
-            raise ErroreProvider(
-                f"errore di connessione OpenAI (timeout incluso): {exc}"
-            ) from exc
+            raise ErroreProvider(f"errore di connessione OpenAI (timeout incluso): {exc}") from exc
         except openai.APIStatusError as exc:
             raise ErroreProvider(f"errore API OpenAI ({exc.status_code}): {exc.message}") from exc
         latenza_secondi = time.monotonic() - inizio
+
+        finish_reason = risposta.choices[0].finish_reason
+        if finish_reason not in _FINISH_REASON_OK:
+            raise ErroreProvider(
+                f"risposta OpenAI incompleta o rifiutata (finish_reason={finish_reason})"
+            )
 
         messaggio = risposta.choices[0].message.content
         testo = messaggio if isinstance(messaggio, str) else ""

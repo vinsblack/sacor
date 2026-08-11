@@ -30,6 +30,11 @@ DEFAULT_TTL_SECONDI = 30 * 24 * 60 * 60  # 30 giorni
 def chiave_cache(pagine: Sequence[bytes], prompt: str, modello: str, schema_version: int) -> str:
     hasher = hashlib.sha256()
     for pagina in pagine:
+        # T4.13 (BASSA, trovato in review): lunghezza come prefisso, non un
+        # delimitatore — un delimitatore fisso puo' comparire dentro i byte
+        # di una pagina, la lunghezza no. Senza, [b'AB', b'C'] e [b'A', b'BC']
+        # producevano lo stesso hash (byte concatenati identici).
+        hasher.update(len(pagina).to_bytes(8, "big"))
         hasher.update(pagina)
     hasher.update(b"\0")
     hasher.update(prompt.encode("utf-8"))

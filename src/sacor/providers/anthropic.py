@@ -24,6 +24,15 @@ _TIMEOUT_SECONDI = 60.0
 _MAX_RETRIES = 5  # retry con backoff esponenziale: gestito dall'SDK ufficiale
 _MAX_TOKEN_OUTPUT = 4096
 
+# T4.13 (ALTA, trovato in review): stop_reason diversi da questi due
+# significano che la risposta e' troncata (max_tokens) o non e' arrivata
+# intera per un altro motivo (refusal, pause_turn, ...). Un JSON troncato
+# diventa testo non parsabile -> normalizza_risposta lo legge come "il
+# modello non ha trovato nulla" (tutti i campi None), indistinguibile da
+# un'astensione legittima. La chiamata non e' andata a buon fine: va
+# segnalata come tale (ErroreProvider), non confusa con un valore assente.
+_STOP_REASON_OK = frozenset({"end_turn", "stop_sequence"})
+
 
 class AnthropicProvider:
     nome = "anthropic"
@@ -72,6 +81,11 @@ class AnthropicProvider:
                 f"errore API Anthropic ({exc.status_code}): {exc.message}"
             ) from exc
         latenza_secondi = time.monotonic() - inizio
+
+        if risposta.stop_reason not in _STOP_REASON_OK:
+            raise ErroreProvider(
+                f"risposta Anthropic incompleta o rifiutata (stop_reason={risposta.stop_reason})"
+            )
 
         testo = "".join(blocco.text for blocco in risposta.content if blocco.type == "text")
         valori = normalizza_risposta(testo, campi)

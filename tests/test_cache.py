@@ -78,6 +78,18 @@ def test_voce_entro_ttl_e_un_hit(tmp_path: Path) -> None:
     assert cache.leggi(chiave) == {"pod": "X"}
 
 
+def test_confine_tra_pagine_non_e_ambiguo() -> None:
+    """T4.13 (BASSA, trovato in review): chiave_cache concatenava i byte
+    delle pagine senza delimitatore tra una e l'altra — [b'AB', b'C'] e
+    [b'A', b'BC'] producevano lo stesso hash (stessa sequenza di byte in
+    ingresso a sha256.update, chiamata piu' volte o una sola non fa
+    differenza). Non e' solo teorico: e' riproducibile con questo esempio
+    minimo."""
+    chiave_1 = chiave_cache([b"AB", b"C"], "prompt", "modello-x", 1)
+    chiave_2 = chiave_cache([b"A", b"BC"], "prompt", "modello-x", 1)
+    assert chiave_1 != chiave_2
+
+
 def test_scritta_il_non_numerico_e_un_miss_non_un_crash(tmp_path: Path) -> None:
     """T4.13 (trovato in code review): un file di cache scritto a mano (o da
     una versione futura) con 'scritta_il' non numerico faceva sollevare un

@@ -12,6 +12,7 @@ import base64
 import os
 import stat
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -119,7 +120,7 @@ def _chiamata_raw(modello: str, pagine: list[bytes], prompt: str) -> str:
 
 
 def ispeziona_chiamata(
-    chiamata: ChiamataDaCompletare, indice: int, atteso: dict[str, str | None]
+    chiamata: ChiamataDaCompletare, indice: int, atteso: Mapping[str, str | None]
 ) -> None:
     cartella = OUTPUT_ROOT / f"{chiamata.istanza.file.stem}_istanza{indice}"
     _crea_dir_privata(cartella)

@@ -236,6 +236,7 @@ def test_anthropic_provider_estrae_da_risposta_mockata(monkeypatch: pytest.Monke
     risposta_finta = SimpleNamespace(
         content=[SimpleNamespace(type="text", text='{"pod": "IT001E12345678"}')],
         usage=SimpleNamespace(input_tokens=100, output_tokens=10),
+        stop_reason="end_turn",
     )
     provider._client.messages.create = lambda **kwargs: risposta_finta  # type: ignore[method-assign]
 
@@ -249,6 +250,34 @@ def test_anthropic_provider_estrae_da_risposta_mockata(monkeypatch: pytest.Monke
     assert risultato.modello == "claude-haiku-4-5"
 
 
+@pytest.mark.parametrize("stop_reason", ["max_tokens", "refusal", "pause_turn"])
+def test_anthropic_provider_stop_reason_anomalo_solleva(
+    monkeypatch: pytest.MonkeyPatch, stop_reason: str
+) -> None:
+    """T4.13 (trovato in review): una risposta troncata (max_tokens) o
+    rifiutata non deve diventare silenziosamente 'tutti i campi None' —
+    indistinguibile da 'il modello non ha trovato nulla'. La chiamata non e'
+    andata a buon fine: ErroreProvider, non un RispostaModello con valori
+    vuoti."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "chiave-finta-di-test")
+    prezzi = TabellaPrezzi(
+        aggiornato_il="2026-01-01",
+        prezzi={"claude-haiku-4-5": PrezzoModello(1.0, 2.0)},
+    )
+    provider = AnthropicProvider("claude-haiku-4-5", prezzi=prezzi)
+
+    risposta_finta = SimpleNamespace(
+        content=[SimpleNamespace(type="text", text='{"pod": "IT001E12345678"}')],
+        usage=SimpleNamespace(input_tokens=100, output_tokens=10),
+        stop_reason=stop_reason,
+    )
+    provider._client.messages.create = lambda **kwargs: risposta_finta  # type: ignore[method-assign]
+
+    campi = _campi(("pod", "string"))
+    with pytest.raises(ErroreProvider, match=stop_reason):
+        provider.estrai([b"immagine finta"], "prompt", campi)
+
+
 def test_openai_provider_estrae_da_risposta_mockata(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "chiave-finta-di-test")
     prezzi = TabellaPrezzi(
@@ -258,7 +287,12 @@ def test_openai_provider_estrae_da_risposta_mockata(monkeypatch: pytest.MonkeyPa
     provider = OpenAIProvider("gpt-4o-mini", prezzi=prezzi)
 
     risposta_finta = SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content='{"pod": "IT001E12345678"}'))],
+        choices=[
+            SimpleNamespace(
+                message=SimpleNamespace(content='{"pod": "IT001E12345678"}'),
+                finish_reason="stop",
+            )
+        ],
         usage=SimpleNamespace(prompt_tokens=100, completion_tokens=10),
     )
     provider._client.chat.completions.create = lambda **kwargs: risposta_finta  # type: ignore[method-assign]
@@ -270,3 +304,33 @@ def test_openai_provider_estrae_da_risposta_mockata(monkeypatch: pytest.MonkeyPa
     assert risultato.token_input == 100
     assert risultato.token_output == 10
     assert risultato.modello == "gpt-4o-mini"
+
+
+@pytest.mark.parametrize("finish_reason", ["length", "content_filter", "tool_calls"])
+def test_openai_provider_finish_reason_anomalo_solleva(
+    monkeypatch: pytest.MonkeyPatch, finish_reason: str
+) -> None:
+    """Stesso principio del provider Anthropic: una risposta troncata
+    (length) o filtrata dal content moderation non deve diventare
+    silenziosamente 'tutti i campi None'."""
+    monkeypatch.setenv("OPENAI_API_KEY", "chiave-finta-di-test")
+    prezzi = TabellaPrezzi(
+        aggiornato_il="2026-01-01",
+        prezzi={"gpt-4o-mini": PrezzoModello(1.0, 2.0)},
+    )
+    provider = OpenAIProvider("gpt-4o-mini", prezzi=prezzi)
+
+    risposta_finta = SimpleNamespace(
+        choices=[
+            SimpleNamespace(
+                message=SimpleNamespace(content='{"pod": "IT001E12345678"}'),
+                finish_reason=finish_reason,
+            )
+        ],
+        usage=SimpleNamespace(prompt_tokens=100, completion_tokens=10),
+    )
+    provider._client.chat.completions.create = lambda **kwargs: risposta_finta  # type: ignore[method-assign]
+
+    campi = _campi(("pod", "string"))
+    with pytest.raises(ErroreProvider, match=finish_reason):
+        provider.estrai([b"immagine finta"], "prompt", campi)
