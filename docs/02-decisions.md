@@ -874,3 +874,37 @@ numero che le distingue.
 **Non affrontato qui**: rendere il tier 0 (o il tier 1) capace di leggere
 le etichette reali è lavoro a parte, grande, non fatto in questa sessione.
 Questo ADR fissa solo il metodo di misura e il primo numero onesto.
+
+## ADR-043 — Bake-off tier 1 sul corpus reale: anche l'AI fatica
+
+**2026-08-11.** `scripts/bakeoff_reale.py` (nuovo, stessa logica di
+scripts/bakeoff.py puntata a `corpus/reale`), 14 chiamate, $2.05 spesi
+(sotto il tetto $5). Nessuna chiamata fallita, nessun file saltato.
+
+| Modello | Acc. campo | Acc. documento | Costo/doc | Inventati |
+|---|---|---|---|---|
+| claude-haiku-4-5 | 9.0% | 0.0% | $0.0142 | 14/14 |
+| claude-opus-5 | 14.3% | 0.0% | $0.1322 | 7/14 |
+
+**Non è un problema di tier0-vs-AI.** Il tier 1 (vera chiamata al modello,
+non regex) resta comunque molto basso sui campi che gli sono stati chiesti
+(quelli che il tier 0 non ha trovato — quasi tutti, vedi ADR-042). **0.0%
+documenti corretti su entrambi i modelli.**
+
+**Il segnale più serio non è l'accuratezza, è `inventati`**: 14/14 per
+haiku, 7/14 per opus — il modello non si astiene su un campo che non
+riconosce, risponde con un valore sbagliato con sicurezza. Per la
+disciplina del progetto (ADR-037: "su input illeggibile il modello
+inventa") è il fallimento peggiore possibile — peggio di un `None` onesto.
+
+**Ipotesi, non verificata**: il prompt (`sacor.providers.prompt.
+costruisci_prompt`) è generico sui 10 campi schema, non tarato sulla
+diversità reale catalogata in ADR-040 — fasce F1/F23 vs F1/F2/F3, canone
+RAI + doppio totale, formule di offerta diverse per fornitore, sotto-righe
+"di cui vendita/rete". Un modello capace potrebbe comunque confondersi
+senza indicazioni su QUALE dei più numeri candidati sulla pagina è il
+campo richiesto.
+
+**Non affrontato qui**: riprogettare il prompt per la diversità reale è
+lavoro a parte, non fatto in questa sessione. Questo ADR fissa solo la
+misura e la sua interpretazione onesta.

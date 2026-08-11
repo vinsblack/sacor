@@ -228,10 +228,17 @@ grafici che portano dati (barre/torta, generatore è solo testo).
   ottenuto, oracle (`corpus/reale/attesi.json`) nel repo, PDF originali
   solo in locale (`.gitignore`). Primo numero reale: **5.7%/campo**
   (`eval/run_reale.py`), contro 45.3% sul sintetico — il tier 0 non
-  generalizza alle etichette reali, gap grande e ora misurato. Resta da
-  fare: rendere tier 0/1 capaci di leggere bollette vere (lavoro grosso,
-  non iniziato); benchmark CLI locale (`sacor benchmark my-bills/`) e
-  community corpus restano non pianificati, il secondo prematuro.
+  generalizza alle etichette reali, gap grande e ora misurato.
+
+  **Bake-off tier 1 sul reale** (ADR-043, `scripts/bakeoff_reale.py`,
+  $2.05 spesi): anche l'AI fatica — 9.0%/14.3% acc. campo (haiku/opus),
+  **0.0% documenti corretti su entrambi**, `inventati` alto (14/14, 7/14)
+  — il modello non si astiene, sbaglia con sicurezza. Non un problema di
+  tier0-vs-AI: il prompt è generico, non tarato sulla diversità reale
+  (ADR-040). Prossimo passo vero: riprogettare il prompt per la diversità
+  reale, non ancora iniziato. Benchmark CLI locale (`sacor benchmark
+  my-bills/`) e community corpus restano non pianificati, il secondo
+  prematuro.
 - **Ri-segmentazione su testo OCR** per scansioni multi-fattura (S011):
   la segmentazione oggi legge solo il text layer nativo — su una pagina
   scansionata non può leggere "Fattura n. X", limite noto (ADR-024).
