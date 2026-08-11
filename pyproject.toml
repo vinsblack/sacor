@@ -19,6 +19,9 @@ dependencies = ["PyYAML~=6.0", "pdfplumber~=0.11", "Pillow~=12.3"]
 [project.urls]
 Homepage = "https://github.com/vinsblack/sacor"
 
+[project.scripts]
+sacor = "sacor.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "ruff~=0.16",
