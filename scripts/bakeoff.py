@@ -33,10 +33,12 @@ from eval.run import (  # noqa: E402
     stima_costo_chiamate,
 )
 from sacor.compare import uguali  # noqa: E402
+from sacor.invariants import valuta_tutte  # noqa: E402
 from sacor.oracle import OracleError  # noqa: E402
 from sacor.providers.base import ModelProvider  # noqa: E402
 from sacor.providers.errors import ErroreProvider  # noqa: E402
 from sacor.providers.prompt import costruisci_prompt  # noqa: E402
+from sacor.schema import Schema  # noqa: E402
 from sacor.segmentation import Istanza  # noqa: E402
 
 # T4.5/T4.12, C2: se il costo REALE dell'intero giro supera questo tetto, ci
@@ -93,6 +95,10 @@ class RigaBakeoff:
     inventati: int
     chiamate_fallite: int
     chiamate_saltate: int  # non partite: tetto di spesa gia' raggiunto
+    violazioni_invarianti: int = 0  # ADR-045: valutate solo sui campi chiesti
+    # in questa chiamata (campi_mancanti) — se un'invariante referenzia anche
+    # un campo gia' risolto dal tier 0 (non incluso qui), non e' valutabile:
+    # limite noto, non un bug (serve il valore tier0 per calcolarla per intero).
 
 
 def _valuta_modello(
@@ -100,6 +106,7 @@ def _valuta_modello(
     chiamate: list[ChiamataDaCompletare],
     oracle_documenti: Mapping[str, Mapping[str, str | None]],
     tracciatore: TracciatoreSpesa,
+    schema: Schema,
 ) -> RigaBakeoff:
     try:
         provider = _provider_per_modello(modello)
@@ -111,6 +118,7 @@ def _valuta_modello(
     documenti_corretti = 0
     chiamate_fallite = chiamate_saltate = 0
     costo_totale = 0.0
+    violazioni_invarianti = 0
     latenze: list[float] = []
 
     for chiamata in chiamate:
@@ -137,6 +145,10 @@ def _valuta_modello(
             )
         latenze.append(risposta.latenza_secondi)
 
+        # ADR-045: valutata solo sui campi chiesti in QUESTA chiamata (vedi
+        # commento su RigaBakeoff.violazioni_invarianti per il limite noto).
+        violazioni_invarianti += len(valuta_tutte(schema, risposta.valori))
+
         attesi = oracle_documenti[chiamata.chiave_oracle]
         documento_corretto = True
         for campo in chiamata.campi_mancanti:
@@ -161,6 +173,7 @@ def _valuta_modello(
         inventati=inventati,
         chiamate_fallite=chiamate_fallite,
         chiamate_saltate=chiamate_saltate,
+        violazioni_invarianti=violazioni_invarianti,
     )
 
 
@@ -189,7 +202,7 @@ def esegui_bakeoff(
     stima_per_modello = stima.costo_per_modello
 
     tracciatore = TracciatoreSpesa(limite_spesa)
-    righe = [_valuta_modello(m, chiamate, oracle.documenti, tracciatore) for m in modelli]
+    righe = [_valuta_modello(m, chiamate, oracle.documenti, tracciatore, schema) for m in modelli]
 
     return RisultatoBakeoff(
         righe=righe,
@@ -203,6 +216,7 @@ def formatta_tabella(righe: list[RigaBakeoff]) -> str:
     intestazione = (
         f"{'modello':<20}{'acc. campo':>12}{'acc. doc':>10}"
         f"{'costo/doc':>12}{'lat. p50':>10}{'inventati':>11}{'fallite':>9}{'saltate':>9}"
+        f"{'inv. viol.':>11}"
     )
     linee = [intestazione, "-" * len(intestazione)]
     for r in righe:
@@ -211,7 +225,7 @@ def formatta_tabella(righe: list[RigaBakeoff]) -> str:
             f"{r.modello:<20}{r.accuratezza_campo * 100:>11.1f}%"
             f"{r.accuratezza_documento * 100:>9.1f}%"
             f"{r.costo_per_doc:>12.4f}{lat:>10}{r.inventati:>11}"
-            f"{r.chiamate_fallite:>9}{r.chiamate_saltate:>9}"
+            f"{r.chiamate_fallite:>9}{r.chiamate_saltate:>9}{r.violazioni_invarianti:>11}"
         )
     return "\n".join(linee)
 

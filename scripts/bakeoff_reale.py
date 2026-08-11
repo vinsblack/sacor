@@ -38,7 +38,7 @@ def main() -> int:
     if esito is None:
         print("corpus reale non presente: manca corpus/reale/attesi.json")
         return 0
-    _schema, oracle, chiamate, file_disallineati = esito
+    schema, oracle, chiamate, file_disallineati = esito
 
     print(
         "sacor bake-off SU CORPUS REALE (T4.14) — cache disattivata, chiamate reali.\n"
@@ -47,7 +47,10 @@ def main() -> int:
     )
 
     tracciatore = TracciatoreSpesa(LIMITE_SPESA_USD)
-    righe = [_valuta_modello(m, chiamate, oracle.documenti, tracciatore) for m in MODELLI_BAKEOFF]
+    righe = [
+        _valuta_modello(m, chiamate, oracle.documenti, tracciatore, schema)
+        for m in MODELLI_BAKEOFF
+    ]
 
     print(formatta_tabella(righe))
     print(f"\nSpeso reale totale: ${tracciatore.speso:.4f}")
