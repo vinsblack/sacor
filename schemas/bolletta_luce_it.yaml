@@ -79,11 +79,13 @@ campi:
     tipo: decimal
     obbligatorio: false
     descrizione: >-
-      Il totale della sola componente energia (spesso etichettato "Totale
-      scontrino" o "Totale bolletta"). MAI un importo finale diverso che
-      somma canone RAI, bolli, o rate aggiuntive sopra il totale energia —
-      se sulla pagina compaiono piu' totali, scegli quello dello scontrino
-      energia, non l'ultimo/il piu' grande.
+      Il totale FINALE da pagare (spesso etichettato "Totale da pagare"),
+      comprensivo di eventuali addebiti extra sommati sopra il totale
+      energia (es. canone RAI/abbonamento TV, bolli, rate). Se sulla pagina
+      compaiono piu' totali (es. un "Totale bolletta"/"Totale scontrino"
+      di sola energia, poi un "Totale da pagare" piu' alto con extra
+      aggiunti sopra), scegli SEMPRE quello finale/piu' alto — e' l'importo
+      realmente dovuto, non un subtotale intermedio.
     estrazione:
       tipo: regex
       pattern: 'Importo totale:\s*EUR\s*([\d.,]+)'

@@ -958,7 +958,18 @@ bollette di fornitori diversi (probabile riga di onere fisso saltata).
 (calcolo da `periodo_da`/`periodo_a` quando non scritto esplicitamente).
 Impatto: claude-haiku-4-5 invariato (43.6%), claude-opus-5 **51.9% →
 54.9%**. Effetto reale ma piccolo — non risolve da solo lo 0.0% documenti.
-`importo_totale`/subtotale resta non affrontato: R010 e R013 sono
-scansioni pure (0 caratteri testo, confermato via pdfplumber), non
-verificabili senza `pdftoppm` (mancante, richiede sudo non disponibile in
-questa sessione) — non ipotizzato oltre, lasciato aperto onestamente.
+
+**`importo_totale`/subtotale — RISOLTO, era un bug mio, non del modello.**
+`pdftoppm` installato (utente), R010 e R013 ispezionati a occhio (immagine
+vera, non solo testo). Entrambe hanno un "Canone di abbonamento alla
+televisione" di **€18,00 esatto**, sommato sopra un "Totale Bolletta" per
+dare il "Totale da Pagare" (R010: 98,20+18,00=116,20; R013:
+138,22+18,00=156,22). Il modello aveva risposto 98,20 e 138,22 — **letto
+giusto**, seguendo alla lettera la descrizione scritta in ADR-043 ("usa il
+totale energia, MAI un importo con canone"). L'oracle invece usa sempre
+"Totale da pagare" (con canone) — stessa scelta, con nota esplicita, già
+fatta per R003/R005/R006/R007. **Prompt e oracle si contraddicevano**,
+scritti in momenti diversi senza incrociarli — non un limite del modello.
+
+Fix: descrizione invertita — "Totale FINALE da pagare... SEMPRE quello
+finale/più alto", allineata alla convenzione che l'oracle già usava.
