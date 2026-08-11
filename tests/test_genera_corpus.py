@@ -108,6 +108,19 @@ def test_importo_renderizzato_usa_la_virgola_decimale_italiana() -> None:
     assert f"EUR {oracle_entries['S001']['importo_totale']}" not in testo  # mai piu' col punto
 
 
+def test_periodo_alfa_usa_punti_come_separatore_data() -> None:
+    """T4.14 (ADR-040): tra le 22 bollette reali ispezionate, Hera/EstEnergy
+    usa gg.mm.aaaa (punti), non gg/mm/aaaa — un secondo formato data reale
+    oltre a slash e mese-esteso. Assegnato ad Alfa Energia per introdurre
+    diversita' reale nel corpus, non per sostituire lo slash ovunque: Beta/
+    Gamma restano su 'mese esteso anno' (periodo_mensile)."""
+    pdf, _, _ = genera_documento(random.Random(11), "S001", "Alfa Energia", Flags())
+    with pdfplumber.open(io.BytesIO(pdf)) as doc:
+        testo = doc.pages[0].extract_text() or ""
+    assert re.search(r"Dal \d{2}\.\d{2}\.\d{4} al \d{2}\.\d{2}\.\d{4}", testo)
+    assert not re.search(r"Dal \d{2}/\d{2}/\d{4}", testo)
+
+
 def test_genera_corpus_scrive_una_voce_metadata_per_documento(tmp_path: Path) -> None:
     genera_corpus(
         seed=99,

@@ -20,7 +20,8 @@
       "monoraria": true,
       "qualita": "digitale",
       "flag_attivi": [
-        "monoraria"
+        "monoraria",
+        "data_con_punti"
       ]
     },
     "S002": {
@@ -63,7 +64,8 @@
       "monoraria": true,
       "qualita": "digitale",
       "flag_attivi": [
-        "monoraria"
+        "monoraria",
+        "data_con_punti"
       ]
     },
     "S005": {
@@ -109,7 +111,8 @@
       "qualita": "scansione_sporca",
       "flag_attivi": [
         "monoraria",
-        "scansione_sporca"
+        "scansione_sporca",
+        "data_con_punti"
       ]
     },
     "S008": {
@@ -155,7 +158,8 @@
       "qualita": "digitale",
       "flag_attivi": [
         "multi_fattura",
-        "monoraria"
+        "monoraria",
+        "data_con_punti"
       ]
     },
     "S010b": {
@@ -170,7 +174,8 @@
       "qualita": "digitale",
       "flag_attivi": [
         "multi_fattura",
-        "monoraria"
+        "monoraria",
+        "data_con_punti"
       ]
     },
     "S011a": {

@@ -15,7 +15,7 @@ from decimal import Decimal, InvalidOperation
 
 from sacor.schema import TipoCampo
 
-_PATTERN_DATA = re.compile(r"^(\d{2})[/-](\d{2})[/-](\d{4})$")
+_PATTERN_DATA = re.compile(r"^(\d{2})[/.-](\d{2})[/.-](\d{4})$")
 
 
 def _ripara_data(valore: str) -> str | None:

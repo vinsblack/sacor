@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| Commit | 877dc84 |
-| Test | 125 passed in 68.91s (0:01:08) |
+| Commit | f70e2f0 |
+| Test | 126 passed in 72.96s (0:01:12) |
 | Accuratezza (per campo) | 43.6% |
 | Accuratezza (per documento) | 28.6% |
 | Triage — numero istanze | 91.7% |
@@ -17,7 +17,7 @@
 | Triage — attributo peggiore (per accuratezza) | numero istanze, 91.7% |
 | Degrado scansione (produzione, ADR-036) | medio (blur 0.6, downscale 1.5, jpeg 70) |
 | Tasso di escalation | n/d |
-| Generato il | 2026-08-11 09:32 UTC |
+| Generato il | 2026-08-11 09:47 UTC |
 
 ## Blocco corrente
 

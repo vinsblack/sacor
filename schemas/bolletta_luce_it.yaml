@@ -19,13 +19,13 @@ campi:
     obbligatorio: true
     estrazione:
       tipo: regex
-      pattern: 'Dal\s+(\d{2}/\d{2}/\d{4})'
+      pattern: 'Dal\s+(\d{2}[/.]\d{2}[/.]\d{4})'
   - nome: periodo_a
     tipo: date
     obbligatorio: true
     estrazione:
       tipo: regex
-      pattern: '\bal\s+(\d{2}/\d{2}/\d{4})'
+      pattern: '\bal\s+(\d{2}[/.]\d{2}[/.]\d{4})'
   - nome: giorni
     tipo: integer
     obbligatorio: false

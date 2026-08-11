@@ -64,6 +64,7 @@ FLAG_NOMI: tuple[str, ...] = (
     "scansione_aggressiva",
     "scansione_illeggibile",
     "pagina_ibrida",
+    "data_con_punti",
 )
 
 
@@ -77,6 +78,10 @@ class Flags:
     ruotata: bool = False
     scansione: bool = False
     scansione_sporca: bool = False
+    # T4.14 (ADR-040): gg.mm.aaaa invece di gg/mm/aaaa — secondo formato
+    # data osservato su bollette reali (Hera/EstEnergy), oltre a slash e
+    # mese-esteso. Solo sul periodo "Dal...al...": periodo_mensile non lo usa.
+    data_con_punti: bool = False
     # T4.10, C1: casi dichiarati distinti dal degrado di produzione (MEDIO).
     # scansione_aggressiva -> caso difficile ma leggibile (97% misurato).
     # scansione_illeggibile -> atteso reject, non "estrarre bene" (ADR-036).
@@ -94,7 +99,7 @@ class Flags:
 # somma ai flag del caso (struttura: scansione/rotazione/multi-fattura),
 # non li sostituisce — sono due assi indipendenti.
 _STILE_LAYOUT: dict[str, Flags] = {
-    "Alfa Energia": Flags(monoraria=True),
+    "Alfa Energia": Flags(monoraria=True, data_con_punti=True),
     "Beta Luce": Flags(periodo_mensile=True),
     "Gamma Power": Flags(periodo_mensile=True, consumo_stimato=True),
 }
@@ -288,12 +293,13 @@ def _a_oracle(dati: DatiFattura) -> dict[str, str | None]:
     }
 
 
-def _testo_periodo(dati: DatiFattura, periodo_mensile: bool) -> str:
+def _testo_periodo(dati: DatiFattura, periodo_mensile: bool, data_con_punti: bool = False) -> str:
     if periodo_mensile:
         mese = MESI_IT[dati.periodo_da.month - 1]
         return f"Periodo di fatturazione: {mese} {dati.periodo_da.year}"
-    da = dati.periodo_da.strftime("%d/%m/%Y")
-    a = dati.periodo_a.strftime("%d/%m/%Y")
+    formato = "%d.%m.%Y" if data_con_punti else "%d/%m/%Y"
+    da = dati.periodo_da.strftime(formato)
+    a = dati.periodo_a.strftime(formato)
     return f"Dal {da} al {a} ({dati.giorni} giorni)"
 
 
@@ -319,7 +325,7 @@ def _righe_pagina1(dati: DatiFattura, flags: Flags) -> list[str]:
         "TOTALE DA PAGARE",
         f"Importo totale: EUR {_fmt_it(dati.importo_totale)}",
         f"Scadenza: {dati.scadenza.strftime('%d/%m/%Y')}",
-        _testo_periodo(dati, flags.periodo_mensile),
+        _testo_periodo(dati, flags.periodo_mensile, flags.data_con_punti),
         f"Consumo del periodo: {_fmt_it(dati.kwh_totale)} kWh",
         f"Consumo annuo (ultimi 12 mesi): {_fmt_it(dati.consumo_annuo_kwh)} kWh",
     ]
