@@ -9,6 +9,29 @@ con **accuratezza misurata e dimostrabile**.
 
 Primo e unico modulo: bollette luce/gas italiane (`sacor-bollette`).
 
+**Visione (ADR-047, 11-08)**: sacor non è, alla fine, un estrattore di
+documenti — è lo strato di fiducia mancante tra i modelli AI e il software
+gestionale. Il prodotto non è il parser, è la capacità di trasformare un
+documento in dati verificati con un livello di fiducia misurabile. Le
+bollette luce sono il primo campo di prova per dimostrare questo, non il
+mercato finale.
+
+### Le tre fasi
+
+1. **Open source** — credibilità tecnica, benchmark pubblici, community di
+   sviluppatori. Fase attuale, subordinata a G1/G2/G3 sotto.
+2. **Ecosistema** — pacchetto Python, nodo n8n, API, plugin per i
+   principali workflow documentali (coerente con "Distribuzione" sotto).
+3. **Business** — piattaforma enterprise: API gestite, supporto,
+   monitoraggio, self-hosted, strumenti di validazione avanzata. Si
+   costruisce quando la fase 2 ha già utenti reali, non prima (ADR-004).
+
+Posizionamento: non si compete con convertitori PDF/OCR generici (mercato
+affollato, il prezzo è il fattore competitivo). Sacor si posiziona dove un
+errore ha un costo economico misurabile — energia, assicurazioni, banche,
+logistica, sanità, amministrazione. Bollette luce è il primo di questi
+verticali, non l'unico previsto.
+
 ## Il differenziatore
 
 Non è l'AI. È la **cultura della misurazione**.
@@ -60,3 +83,10 @@ Il canale esiste prima del codice. Non è la SEO.
 
 Se a 6 mesi nessuno l'ha usato: il risultato è comunque il progetto tecnico più
 credibile del profilo GitHub. Non è un fallimento, è un esito diverso.
+
+**Riconfermato esplicitamente (ADR-047, 11-08)**: anche con la visione a 3
+fasi sopra, G1 resta subordinato ad accuratezza per campo alta su tutto lo
+schema — non si pubblica un benchmark pubblico con i numeri di oggi
+(50-61%/campo, 0% documento, ADR-046) solo perché "trasparente è meglio di
+niente". La credibilità tecnica della Fase 1 open source si costruisce con
+numeri buoni resi pubblici, non con numeri onesti ma deboli.

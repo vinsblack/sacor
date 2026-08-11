@@ -1085,3 +1085,53 @@ misurare.
 reali consenzienti (proprie dell'utente, community, altro canale) — è
 una decisione di prodotto/canale, non tecnica, va presa esplicitamente
 prima di continuare a scrivere codice sui 14 documenti attuali.
+
+## ADR-047 — Visione di prodotto: infrastruttura di fiducia, non parser
+
+**2026-08-11.** Decisione di prodotto dell'utente, testuale (non
+riassunta, per non perdere sfumature): sacor non deve diventare un
+semplice estrattore di documenti, ma **il livello di affidabilità che
+oggi manca tra i modelli AI e i software gestionali**. Il vero prodotto
+non è il parser, è la capacità di trasformare un documento in dati
+verificati con un livello di fiducia misurabile.
+
+**Tre fasi**:
+1. Open source — credibilità tecnica, benchmark pubblici, community
+2. Ecosistema — pacchetto Python, nodo n8n, API, plugin per i
+   principali workflow documentali
+3. Business — piattaforma enterprise: API gestite, supporto,
+   monitoraggio, self-hosted, strumenti di validazione avanzata
+
+**Posizionamento**: non competere con convertitori PDF/OCR generici
+(mercato affollato, il prezzo è il fattore competitivo). Posizionarsi
+dove un errore ha un costo economico misurabile — energia,
+assicurazioni, banche, logistica, sanità, amministrazione. Bollette
+luce resta il primo campo di prova, non il mercato finale — questo
+riduce (non elimina) il dubbio sollevato in sessione sul mercato
+stretto: la nicchia bollette è la dimostrazione, non il tetto.
+
+**Caratteristica da rafforzare**: misurazione continua. Ogni rilascio
+pubblica metriche verificabili, mostrando dove il sistema è affidabile
+e dove richiede ancora supervisione — coerente con `docs/00-north-star.md`
+("il gate è una feature"), qui reso esplicito come impegno permanente
+di prodotto, non solo principio tecnico.
+
+**Investimento fondamentale**: distribuzione. Integrazioni semplici,
+documentazione eccellente, esempi concreti. L'obiettivo è diventare il
+motore che altri sviluppatori scelgono di integrare perché si fidano
+dei risultati — il business nasce sopra quella reputazione, non prima.
+
+**Tensione esplicitamente sollevata e risolta nella stessa sessione**:
+la Fase 1 (open source) potrebbe suggerire di pubblicare SUBITO con
+benchmark onesti anche se imperfetti (trasparenza come credibilità
+immediata). Chiesto esplicitamente: **G1 resta subordinato ad
+accuratezza per campo alta** (decisione ADR-046 riconfermata, non
+sostituita). La Fase 1 si costruisce con numeri buoni resi pubblici,
+non con numeri onesti ma deboli — vedi `docs/00-north-star.md`.
+
+**Effetto pratico su ADR-045/046**: nessuno immediato sul codice. Il
+collo di bottiglia resta lo stesso (più corpus reale, Fase 3 ADR-045) —
+questa visione ne conferma l'urgenza, non la cambia. Cambia però la
+cornice con cui leggere le prossime decisioni tecniche: ogni scelta di
+API/schema/plugin va giudicata anche su "aiuta l'ecosistema (Fase 2) a
+integrarsi facilmente", non solo su accuratezza pura.
