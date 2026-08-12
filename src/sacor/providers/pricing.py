@@ -37,12 +37,39 @@ class PrezzoModello:
     costo_input_per_milione: float
     costo_output_per_milione: float
     token_immagine: TokenImmagineConfig | None = None
+    # ADR-054: prompt caching (Anthropic cache_control). None = modello senza
+    # cache configurata — ricevere token di cache con questi campi a None e'
+    # un errore di dominio (PrezziError), mai un costo zero assunto in
+    # silenzio (stesso principio di "mai indovinare" applicato al costo).
+    costo_cache_scrittura_per_milione: float | None = None
+    costo_cache_lettura_per_milione: float | None = None
 
-    def costo(self, token_input: int, token_output: int) -> float:
-        return (
+    def costo(
+        self,
+        token_input: int,
+        token_output: int,
+        token_cache_scrittura: int = 0,
+        token_cache_lettura: int = 0,
+    ) -> float:
+        totale = (
             token_input * self.costo_input_per_milione / 1_000_000
             + token_output * self.costo_output_per_milione / 1_000_000
         )
+        if token_cache_scrittura:
+            if self.costo_cache_scrittura_per_milione is None:
+                raise PrezziError(
+                    "token di cache in scrittura ricevuti ma "
+                    "'costo_cache_scrittura_per_milione' non e' configurato per questo modello"
+                )
+            totale += token_cache_scrittura * self.costo_cache_scrittura_per_milione / 1_000_000
+        if token_cache_lettura:
+            if self.costo_cache_lettura_per_milione is None:
+                raise PrezziError(
+                    "token di cache in lettura ricevuti ma "
+                    "'costo_cache_lettura_per_milione' non e' configurato per questo modello"
+                )
+            totale += token_cache_lettura * self.costo_cache_lettura_per_milione / 1_000_000
+        return totale
 
 
 @dataclass(frozen=True)
@@ -92,9 +119,29 @@ def carica(path: Path = PREZZI_PATH) -> TabellaPrezzi:
             costo_input_per_milione=float(costo_input),
             costo_output_per_milione=float(costo_output),
             token_immagine=_leggi_token_immagine(voce.get("token_immagine"), nome, path),
+            costo_cache_scrittura_per_milione=_leggi_float_opzionale(
+                voce.get("costo_cache_scrittura_per_milione"),
+                "costo_cache_scrittura_per_milione",
+                nome,
+                path,
+            ),
+            costo_cache_lettura_per_milione=_leggi_float_opzionale(
+                voce.get("costo_cache_lettura_per_milione"),
+                "costo_cache_lettura_per_milione",
+                nome,
+                path,
+            ),
         )
 
     return TabellaPrezzi(aggiornato_il=aggiornato_il, prezzi=prezzi)
+
+
+def _leggi_float_opzionale(grezzo: Any, campo: str, nome_modello: str, path: Path) -> float | None:
+    if grezzo is None:
+        return None
+    if not isinstance(grezzo, int | float) or isinstance(grezzo, bool):
+        raise PrezziError(f"'{path}': modello '{nome_modello}' con '{campo}' invalido")
+    return float(grezzo)
 
 
 def _leggi_token_immagine(

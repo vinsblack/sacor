@@ -50,7 +50,23 @@ class AnthropicProvider:
     def estrai(
         self, pagine: Sequence[bytes], prompt: str, campi: Sequence[Campo]
     ) -> RispostaModello:
+        # ADR-054: il prompt (testo, non le immagini) va PRIMA nel content e
+        # porta il breakpoint di cache_control. Anthropic cachea il prefisso
+        # fino al blocco marcato incluso — mettere il testo per primo lo
+        # rende quel prefisso: chiamate diverse con lo stesso insieme di
+        # campi mancanti (stesso prompt generato da costruisci_prompt)
+        # condividono la cache anche se le immagini (dopo, non cacheate)
+        # cambiano documento per documento. Se il prompt e' sotto la soglia
+        # minima cacheabile del modello, cache_control e' ignorato senza
+        # errore ne' costo aggiuntivo.
         contenuto: list[dict[str, object]] = [
+            {
+                "type": "text",
+                "text": prompt,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ]
+        contenuto.extend(
             {
                 "type": "image",
                 "source": {
@@ -60,8 +76,7 @@ class AnthropicProvider:
                 },
             }
             for pagina in pagine
-        ]
-        contenuto.append({"type": "text", "text": prompt})
+        )
 
         inizio = time.monotonic()
         try:
@@ -92,7 +107,16 @@ class AnthropicProvider:
 
         token_input = risposta.usage.input_tokens
         token_output = risposta.usage.output_tokens
-        costo_stimato = self._prezzi.prezzo(self._modello).costo(token_input, token_output)
+        # ADR-054: la risposta separa i token di cache da input_tokens (che
+        # resta "solo non cacheati") — vanno sommati a parte al costo, mai
+        # ignorati: un costo_stimato che non li conta sottostimerebbe la
+        # spesa reale in silenzio. getattr perche' l'SDK non li restituisce
+        # affatto se la risposta non ha usato la cache.
+        token_cache_scrittura = getattr(risposta.usage, "cache_creation_input_tokens", None) or 0
+        token_cache_lettura = getattr(risposta.usage, "cache_read_input_tokens", None) or 0
+        costo_stimato = self._prezzi.prezzo(self._modello).costo(
+            token_input, token_output, token_cache_scrittura, token_cache_lettura
+        )
 
         return RispostaModello(
             valori=valori,

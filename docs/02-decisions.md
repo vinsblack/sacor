@@ -1475,3 +1475,52 @@ una misura, dichiarato esplicitamente ovunque nel codice e qui.
 Prossimo passo naturale per renderli misurabili: un piccolo corpus
 gas/CTE con oracle, come fu fatto per luce (ADR-042) — non fatto
 stasera, richiede consenso sui documenti come per il reale luce.
+
+## ADR-054 — Prompt caching (cache_control) sul provider Anthropic
+
+**2026-08-12.** Confronto diretto: la spesa API mensile reale di un
+altro progetto dell'autore (stesso account, stesso tipo di documenti
+analizzati) risultava una frazione del costo per chiamata del tier 1
+di sacor, a parita' di account Anthropic. Causa trovata leggendo
+`src/sacor/providers/anthropic.py`, non ipotizzata: zero
+`cache_control` da nessuna parte nel payload — ogni chiamata tier 1
+paga prezzo pieno per tutto, anche quando prompt/istruzioni sono
+identici chiamata dopo chiamata (stesso schema, stesso insieme di
+campi mancanti, documenti diversi).
+
+Non e' lo stesso meccanismo di ADR-034 (quella e' una cache di
+dedup su disco lato eval: stesso `sha256(immagine+prompt+modello+
+schema)` gia' visto -> costo zero, chiamata saltata del tutto).
+Questa e' la prompt cache **lato server Anthropic**: anche per
+chiamate genuinamente diverse (documenti diversi), la parte statica
+del prompt (istruzioni/schema, generata da `costruisci_prompt`) puo'
+essere riusata a sconto se il prefisso del `content` combacia
+byte-per-byte con una chiamata recente. Le due cache sono
+complementari, non alternative.
+
+**Decisione.** Nel `content` inviato all'API, il blocco testo
+(prompt) va PRIMA e porta `cache_control: {"type": "ephemeral"}`; le
+immagini (che cambiano per ogni documento, mai identiche tra
+chiamate) vengono DOPO. Il breakpoint di cache copre il prefisso fino
+al blocco marcato incluso: mettendo il testo per primo, quel prefisso
+e' la parte che si ripete tra documenti diversi con lo stesso insieme
+di campi mancanti — le immagini restano fuori dal breakpoint e non
+devono combaciare per ottenere lo sconto sulla parte cacheata.
+
+Corollario di costo: `risposta.usage` separa `cache_creation_input_
+tokens` (scrittura, 1.25x il prezzo input base) e `cache_read_input_
+tokens` (lettura, 0.1x) da `input_tokens` (solo non cacheato).
+Ignorarli avrebbe fatto sottostimare `costo_stimato` in silenzio non
+appena la cache si fosse attivata — stesso principio di "mai
+indovinare" applicato al costo dichiarato, non solo ai valori
+estratti: `PrezzoModello.costo()` ora richiede prezzi di cache
+espliciti in `config/prezzi_modelli.yaml` per contarli, e solleva
+`PrezziError` (non assume zero) se li riceve senza un prezzo
+configurato.
+
+Non misurato quanto sconto reale la cache produca su un corpus vero
+(richiede rilanciare il tier 1 su piu' documenti dello stesso schema
+di seguito, non fatto stasera) — la correttezza del meccanismo e'
+verificata via test (ordine del `content`, presenza del breakpoint,
+conteggio del costo con e senza token di cache), non ancora la resa
+economica reale.

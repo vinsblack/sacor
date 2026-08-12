@@ -208,6 +208,40 @@ def test_costo_calcolato_da_token() -> None:
     assert prezzo.costo(token_input=1_000_000, token_output=500_000) == pytest.approx(2.0)
 
 
+def test_costo_con_token_cache_configurati() -> None:
+    prezzo = PrezzoModello(
+        costo_input_per_milione=1.0,
+        costo_output_per_milione=2.0,
+        costo_cache_scrittura_per_milione=1.25,
+        costo_cache_lettura_per_milione=0.10,
+    )
+    costo = prezzo.costo(
+        token_input=0,
+        token_output=0,
+        token_cache_scrittura=1_000_000,
+        token_cache_lettura=1_000_000,
+    )
+    assert costo == pytest.approx(1.25 + 0.10)
+
+
+def test_costo_con_token_cache_senza_prezzo_configurato_solleva() -> None:
+    """Mai assumere costo zero per token di cache non prezzati (stesso
+    principio di 'mai indovinare' applicato al costo, non solo ai valori
+    estratti)."""
+    prezzo = PrezzoModello(costo_input_per_milione=1.0, costo_output_per_milione=2.0)
+    with pytest.raises(PrezziError):
+        prezzo.costo(token_input=0, token_output=0, token_cache_scrittura=100)
+    with pytest.raises(PrezziError):
+        prezzo.costo(token_input=0, token_output=0, token_cache_lettura=100)
+
+
+def test_carica_prezzi_reali_parsa_costi_cache() -> None:
+    prezzi = carica(PREZZI_PATH)
+    prezzo = prezzi.prezzo("claude-opus-5")
+    assert prezzo.costo_cache_scrittura_per_milione == pytest.approx(6.25)
+    assert prezzo.costo_cache_lettura_per_milione == pytest.approx(0.50)
+
+
 def test_carica_prezzi_reali_parsa_token_immagine() -> None:
     prezzi = carica(PREZZI_PATH)
     config = prezzi.prezzo("claude-haiku-4-5").token_immagine
@@ -313,6 +347,103 @@ def test_anthropic_provider_estrae_da_risposta_mockata(monkeypatch: pytest.Monke
     assert risultato.token_output == 10
     assert risultato.costo_stimato == pytest.approx(100 / 1_000_000 + 10 * 2 / 1_000_000)
     assert risultato.modello == "claude-haiku-4-5"
+
+
+def test_anthropic_provider_manda_prompt_prima_delle_immagini_con_cache_control(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR-054: il testo deve essere il PRIMO blocco del content e portare
+    cache_control — e' lui il prefisso cacheabile, le immagini (variabili
+    per documento) vengono dopo e restano fuori dal breakpoint."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "chiave-finta-di-test")
+    prezzi = TabellaPrezzi(
+        aggiornato_il="2026-01-01",
+        prezzi={"claude-haiku-4-5": PrezzoModello(1.0, 2.0)},
+    )
+    provider = AnthropicProvider("claude-haiku-4-5", prezzi=prezzi)
+
+    risposta_finta = SimpleNamespace(
+        content=[SimpleNamespace(type="text", text='{"pod": "IT001E12345678"}')],
+        usage=SimpleNamespace(input_tokens=100, output_tokens=10),
+        stop_reason="end_turn",
+    )
+    content_ricevuto: list[dict[str, object]] = []
+
+    def _create(**kwargs: object) -> SimpleNamespace:
+        content_ricevuto.extend(kwargs["messages"][0]["content"])  # type: ignore[index]
+        return risposta_finta
+
+    provider._client.messages.create = _create  # type: ignore[method-assign]
+
+    campi = _campi(("pod", "string"))
+    provider.estrai([b"immagine finta 1", b"immagine finta 2"], "prompt", campi)
+
+    assert content_ricevuto[0]["type"] == "text"
+    assert content_ricevuto[0]["cache_control"] == {"type": "ephemeral"}
+    assert [b["type"] for b in content_ricevuto[1:]] == ["image", "image"]
+    assert "cache_control" not in content_ricevuto[1]
+
+
+def test_anthropic_provider_conta_costo_dei_token_di_cache(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "chiave-finta-di-test")
+    prezzi = TabellaPrezzi(
+        aggiornato_il="2026-01-01",
+        prezzi={
+            "claude-haiku-4-5": PrezzoModello(
+                1.0,
+                2.0,
+                costo_cache_scrittura_per_milione=1.25,
+                costo_cache_lettura_per_milione=0.10,
+            )
+        },
+    )
+    provider = AnthropicProvider("claude-haiku-4-5", prezzi=prezzi)
+
+    risposta_finta = SimpleNamespace(
+        content=[SimpleNamespace(type="text", text='{"pod": "IT001E12345678"}')],
+        usage=SimpleNamespace(
+            input_tokens=100,
+            output_tokens=10,
+            cache_creation_input_tokens=500,
+            cache_read_input_tokens=1000,
+        ),
+        stop_reason="end_turn",
+    )
+    provider._client.messages.create = lambda **kwargs: risposta_finta  # type: ignore[method-assign]
+
+    campi = _campi(("pod", "string"))
+    risultato = provider.estrai([b"immagine finta"], "prompt", campi)
+
+    atteso = 100 / 1_000_000 + 10 * 2 / 1_000_000 + 500 * 1.25 / 1_000_000 + 1000 * 0.10 / 1_000_000
+    assert risultato.costo_stimato == pytest.approx(atteso)
+
+
+def test_anthropic_provider_senza_cache_nella_risposta_non_rompe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Una risposta che non ha mai usato cache_control (o un SDK vecchio)
+    non ha gli attributi cache_*_input_tokens sull'oggetto usage: deve
+    trattarsi come zero, non far esplodere getattr."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "chiave-finta-di-test")
+    prezzi = TabellaPrezzi(
+        aggiornato_il="2026-01-01",
+        prezzi={"claude-haiku-4-5": PrezzoModello(1.0, 2.0)},
+    )
+    provider = AnthropicProvider("claude-haiku-4-5", prezzi=prezzi)
+
+    risposta_finta = SimpleNamespace(
+        content=[SimpleNamespace(type="text", text='{"pod": "IT001E12345678"}')],
+        usage=SimpleNamespace(input_tokens=100, output_tokens=10),
+        stop_reason="end_turn",
+    )
+    provider._client.messages.create = lambda **kwargs: risposta_finta  # type: ignore[method-assign]
+
+    campi = _campi(("pod", "string"))
+    risultato = provider.estrai([b"immagine finta"], "prompt", campi)
+
+    assert risultato.costo_stimato == pytest.approx(100 / 1_000_000 + 10 * 2 / 1_000_000)
 
 
 @pytest.mark.parametrize("stop_reason", ["max_tokens", "refusal", "pause_turn"])
