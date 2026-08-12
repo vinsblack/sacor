@@ -1,0 +1,357 @@
+{
+  "dataset": "cte-it-v1",
+  "totale": 39,
+  "documenti": [
+    {
+      "file": "acea_energia/Acea Energia Fix Casa_Luce_Casa.pdf",
+      "fornitore": "acea_energia",
+      "sha256": "7099bd3ac351e5e48a0777b2b178247f6cd34fdd9d8d19be181766ec426b016f",
+      "pagine": 3,
+      "dimensione_byte": 52728,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "acea_energia/Acea Energia Flex Casa_Gas_Casa.pdf",
+      "fornitore": "acea_energia",
+      "sha256": "5d02cec15c72661d75f990d8fa8359079139d748a28612daee87e7422f616065",
+      "pagine": 2,
+      "dimensione_byte": 44961,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "acea_energia/Acea Energia Flex Casa_Luce_Casa.pdf",
+      "fornitore": "acea_energia",
+      "sha256": "150985ac8126d44164326e447e4ef73501ce2b12e0c14c8cfa36be20333bae25",
+      "pagine": 3,
+      "dimensione_byte": 54715,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "acea_energia/Acea Energia Sprint AU_Gas_Business.pdf",
+      "fornitore": "acea_energia",
+      "sha256": "cfcb0deef785d6f754ae8a56d8ed810c62b32ab2d5b3a95d8e3a5ee78d90a7e1",
+      "pagine": 2,
+      "dimensione_byte": 43461,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "acea_energia/Acea Energia Sprint AU_Luce_Business.pdf",
+      "fornitore": "acea_energia",
+      "sha256": "375bfdd483742c5666217e012372edc4c91d6d415bf619c22fea2fe6995faba0",
+      "pagine": 3,
+      "dimensione_byte": 55062,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "acea_energia/Acea Energia Sprint_Gas_Casa.pdf",
+      "fornitore": "acea_energia",
+      "sha256": "ac484535976fb69a6578a322d54ed213bf6550860936c167ec48fe4e708cb719",
+      "pagine": 2,
+      "dimensione_byte": 44927,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "acea_energia/Acea Energia Sprint_Luce_Casa.pdf",
+      "fornitore": "acea_energia",
+      "sha256": "17460fa39c4562f27c93711dc987af1a2c8da6a379e92690a9879d7bfadee819",
+      "pagine": 3,
+      "dimensione_byte": 54690,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "acea_energia/Acea Fix Casa Gas_Gas_Casa.pdf",
+      "fornitore": "acea_energia",
+      "sha256": "5579b0b9eeeab63b20813892394098e0275b032b9d5b74cf14d372494a40f47d",
+      "pagine": 2,
+      "dimensione_byte": 38968,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "bluenergy/Jump Business_Gas_Business.pdf",
+      "fornitore": "bluenergy",
+      "sha256": "9ff696b616bcb1fc858dc3572a1368d75af74edb68ff5ebd909297518c9314ce",
+      "pagine": 6,
+      "dimensione_byte": 309459,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "bluenergy/Jump Business_Luce_Business.pdf",
+      "fornitore": "bluenergy",
+      "sha256": "257a4ee41915aec2411bf367e112dad376ed83090ae904f16e59c6c7522c32f5",
+      "pagine": 6,
+      "dimensione_byte": 333386,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "bluenergy/Jump Casa_Gas_Casa.pdf",
+      "fornitore": "bluenergy",
+      "sha256": "ab7ed45549aa5f48f432fbd140305bfaba63c40731e0756e0786a962c7374bfe",
+      "pagine": 7,
+      "dimensione_byte": 312028,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "bluenergy/Jump Casa_Luce_Casa.pdf",
+      "fornitore": "bluenergy",
+      "sha256": "35285e2a5e1bab26724084d0934538442837c22f9bcc7687866cc9e35f78890f",
+      "pagine": 6,
+      "dimensione_byte": 317758,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "bluenergy/Jump SPEED_Gas_Casa.pdf",
+      "fornitore": "bluenergy",
+      "sha256": "098a076f57b645120f8b09744bb5039d53092024d0df09922455c1ab5f4bbcff",
+      "pagine": 7,
+      "dimensione_byte": 298569,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "bluenergy/Jump SPEED_Luce_Casa.pdf",
+      "fornitore": "bluenergy",
+      "sha256": "abd3ce938480d5622051145a6fdf49746438703420c4de39451f921c958419e9",
+      "pagine": 6,
+      "dimensione_byte": 306106,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "bluenergy/Jump SPRINT_Gas_Casa.pdf",
+      "fornitore": "bluenergy",
+      "sha256": "064588fc585d85aff3267f05b731bfeecc2887ffb091672f7f43bc43d3781c15",
+      "pagine": 7,
+      "dimensione_byte": 310913,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "bluenergy/Jump SPRINT_Luce_Casa.pdf",
+      "fornitore": "bluenergy",
+      "sha256": "659d2446eb6f92a5c0a63d9dd5e2bfedfb09a301825586fbe1124f71d2ce6221",
+      "pagine": 6,
+      "dimensione_byte": 316491,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "bluenergy/Relax Casa_Gas_Casa.pdf",
+      "fornitore": "bluenergy",
+      "sha256": "46bb9f98173f13eb1d653e6ffd49ea28ee8df117b1a1e4847e9c73bc674defeb",
+      "pagine": 7,
+      "dimensione_byte": 302112,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "bluenergy/Relax Casa_Luce_Casa.pdf",
+      "fornitore": "bluenergy",
+      "sha256": "d01274064e60f999517d456ccd2775b3906e1bcc67501d697c8c595567bf17eb",
+      "pagine": 9,
+      "dimensione_byte": 333385,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "bluenergy/SU MISURA_Gas_Casa.pdf",
+      "fornitore": "bluenergy",
+      "sha256": "83de113960a2dddd744bf1c579abcb6e370a8d1466217cb8794032680710e75e",
+      "pagine": 7,
+      "dimensione_byte": 540894,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "bluenergy/SU MISURA_Luce_Casa.pdf",
+      "fornitore": "bluenergy",
+      "sha256": "d4a0b1be859c3987c69beff6cf5ed4d257f4fe05f6b8b5105199b0f0c95aec90",
+      "pagine": 9,
+      "dimensione_byte": 577845,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "edison/Edison Superflex_Gas_Casa.pdf",
+      "fornitore": "edison",
+      "sha256": "49ea6ceab9655cad49a9edab9d1e5711a01b2fee4de9c002b28dc3251bfe9f7c",
+      "pagine": 29,
+      "dimensione_byte": 1744265,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "edison/Edison Superflex_Luce_Casa.pdf",
+      "fornitore": "edison",
+      "sha256": "c1e729cfd3fc697d75a9f2006adf2486adbed897145409d64358d266a186659b",
+      "pagine": 17,
+      "dimensione_byte": 1211894,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "edison/Edison World_Gas_Casa.pdf",
+      "fornitore": "edison",
+      "sha256": "1ada99eaab63729548cec632578a6c60003d22a524eb12cb04cce7251bab73ed",
+      "pagine": 29,
+      "dimensione_byte": 1738223,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "edison/Flex Business Luce_Luce_Business.pdf",
+      "fornitore": "edison",
+      "sha256": "307e2fd6135f4defe5e0fd4ad579b1c4529da098c22768c7635d4001bd01d646",
+      "pagine": 6,
+      "dimensione_byte": 506806,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "edison/Flex Business gas_Gas_Business.pdf",
+      "fornitore": "edison",
+      "sha256": "4820e4a3586f9ea6464f132769b0a8a79d7423e582647022d45ea211de2291ee",
+      "pagine": 5,
+      "dimensione_byte": 413776,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "edison/Superflex Business Luce_Luce_Business.pdf",
+      "fornitore": "edison",
+      "sha256": "a78a7cff4b85b63ca25e200c7974386208aeffb92098f8cfc6a1481903425b91",
+      "pagine": 7,
+      "dimensione_byte": 508544,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "edison/Superflex Gas Business_Gas_Business.pdf",
+      "fornitore": "edison",
+      "sha256": "e358f27ad0408d091ee37d354fab9ced79890c09b3b306403b63f4f12eab8f80",
+      "pagine": 5,
+      "dimensione_byte": 414769,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "edison/Top40 Flex Gas_Gas_Business.pdf",
+      "fornitore": "edison",
+      "sha256": "f16ff5b171baf3d765daff291bb5dc68e63179b505fb23d8cff177a3d194493c",
+      "pagine": 5,
+      "dimensione_byte": 414526,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "edison/Top50 Flex_Luce_Business.pdf",
+      "fornitore": "edison",
+      "sha256": "bf3729129fcf6fe86d4d3e600aedfeeeaf76279301313e3911f1d5e72e84dfd7",
+      "pagine": 7,
+      "dimensione_byte": 508637,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "edison/World Luce_Luce_Casa.pdf",
+      "fornitore": "edison",
+      "sha256": "2b103c769e72deb1d9813979a535f7355140a756c2bca5771e9a3b0a320134ee",
+      "pagine": 16,
+      "dimensione_byte": 1192622,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "engie/Engie Vedo Chiaro Smile_Gas_Casa.pdf",
+      "fornitore": "engie",
+      "sha256": "cf5c793879b1f509c1d8790452631d140a2fd5ce2f01dcfe322d4b684be08287",
+      "pagine": 4,
+      "dimensione_byte": 344175,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "engie/Engie Vedo Chiaro Smile_Luce_Casa.pdf",
+      "fornitore": "engie",
+      "sha256": "cf5c793879b1f509c1d8790452631d140a2fd5ce2f01dcfe322d4b684be08287",
+      "pagine": 4,
+      "dimensione_byte": 344175,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "engie/Extra Energia_Luce_Casa.pdf",
+      "fornitore": "engie",
+      "sha256": "9111ade4fd42192b23d1a1acaa3a0eb4dcfae7d5045a10a69a61a2f444bdde69",
+      "pagine": 3,
+      "dimensione_byte": 243184,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "engie/Fisso 12 Mesi_Gas_Casa.pdf",
+      "fornitore": "engie",
+      "sha256": "05e0d362753b346aab3f07907ec8c9dc09d2509f3f529f55ea23c5d8ad5a702f",
+      "pagine": 2,
+      "dimensione_byte": 160127,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "engie/RestiRisparmi_Luce_Casa.pdf",
+      "fornitore": "engie",
+      "sha256": "b709fc6b66e8584b7475dc62d6d8272c48c0b7bc0b87e3e9dd83bc4e4ca5a9e0",
+      "pagine": 3,
+      "dimensione_byte": 212748,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "engie/eFIX Gas_Gas_Business.pdf",
+      "fornitore": "engie",
+      "sha256": "c6b4125365d8d8348f9745b80ecb1befccd32f021674b1cba7d6be2c7ace84db",
+      "pagine": 2,
+      "dimensione_byte": 144097,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "engie/eFIX Luce_Luce_Business.pdf",
+      "fornitore": "engie",
+      "sha256": "fade2b3b4a402aa3f2b0c9a62e805be36eb621403ec2d77cbabf1a4c61e0b872",
+      "pagine": 3,
+      "dimensione_byte": 185821,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "engie/eFlex_Gas_Business.pdf",
+      "fornitore": "engie",
+      "sha256": "63eefde64d3a6fbae8b2203853303c945604bd5639872550126011df5ada2094",
+      "pagine": 4,
+      "dimensione_byte": 345365,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    },
+    {
+      "file": "engie/eFlex_Luce_Business.pdf",
+      "fornitore": "engie",
+      "sha256": "63eefde64d3a6fbae8b2203853303c945604bd5639872550126011df5ada2094",
+      "pagine": 4,
+      "dimensione_byte": 345365,
+      "pubblico": "da_confermare",
+      "redistribuibile": "da_confermare"
+    }
+  ]
+}
