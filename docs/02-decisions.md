@@ -1389,3 +1389,57 @@ trovati e corretti (non solo bug del motore), un'inconsistenza oracle
 corretta con verifica prima di toccarla. Nessun numero corretto senza
 prima misurarlo — inclusi i tre tentativi falliti su periodo_da/
 periodo_a (ADR-050), lasciati nella storia, non cancellati.
+
+## ADR-053 — Classificazione documento (gas/luce/CTE) prima di
+estrarre: mai forzare lo schema sbagliato in silenzio
+
+**2026-08-12, stessa sessione.** Prova empirica richiesta dall'utente:
+tre documenti reali esterni al corpus (una bolletta luce, una gas,
+una fattura d'acquisto CTE Engie — mai nel repo) passati a `sacor
+extract --tier1`. Trovato un bug reale: una bolletta gas ("Borello
+Simona", cartella "Bollette_Luce" per errore di chi l'ha archiviata)
+letta comunque con lo schema luce — POD segnalato "bassa confidenza"
+(giusto: era un PDR gas, formato diverso), ma `kwh_totale` ha preso il
+consumo in Smc senza che nulla lo segnalasse. sacor non ha mai saputo
+che tipo di documento avesse davanti — si fida sempre di `--schema`
+(default: luce), mai controllato.
+
+**Nuovo modulo `sacor.classifica`** (tier0-style: zero AI, un
+`Enum TipoDocumento` — luce/gas/cte/sconosciuto). Segnali scelti
+leggendo i tre documenti reali, poi verificati sui 15 documenti del
+corpus reale prima di fissarli:
+- `"periodo di fatturazione"` scartato dopo verifica: troppe varianti
+  per fornitore (`periodo oggetto di fatturazione`, `periodo di
+  competenza`, `periodo di riferimento`, bare `PERIODO:`) — fragile,
+  stesso problema di T4.17 sulle etichette.
+- `"totale da pagare"` verificato universale su 6+ fornitori reali
+  diversi — unico cancello bolletta/non-bolletta.
+- `smc`/`kwh` (parola intera) distinguono gas da luce dentro una
+  bolletta.
+- `"condizioni economiche"`/`"codice offerta"` senza `"totale da
+  pagare"` → CTE (documento di condizioni contrattuali, non un
+  consuntivo — per definizione niente importo dovuto).
+- Alcuni fornitori (Eni Plenitude, Hera) anteponono una lettera di
+  copertina (comunicazione, non dati) alla pagina con l'importo —
+  lette le prime 3 pagine, non solo la prima.
+
+**Risultato sul corpus reale** (15 doc, tutti noti essere luce): 6/15
+classificati con certezza corretta, 9/15 onestamente "sconosciuto"
+(6 completamente scansionati, nessun text layer da leggere — la
+classificazione è tier0-style, non prova a indovinare da un'immagine;
+3 dopo la lettera di copertina servirebbero più di 3 pagine). **Zero
+falsi positivi** — nessun documento classificato nel tipo sbagliato.
+
+**CLI**: senza `--schema` esplicito, classifica prima. `bolletta_luce`
+→ schema esistente. `gas`/`cte` → errore chiaro, nessuno schema li
+forza nel posto sbagliato (solo bolletta_luce ha uno schema oggi).
+`sconosciuto` → resta luce per compatibilità (unico schema esistente,
+corpus reale attuale è tutto luce), ma con avviso esplicito su
+stderr, non in silenzio — coerente con "dichiara l'incertezza, non la
+nascondere" (ADR-047).
+
+**Cosa NON è stato fatto**: schema gas e schema CTE non esistono
+ancora — costruirli è lavoro separato, non fatto stasera. La
+classificazione è la struttura che li renderà sicuri da aggiungere in
+futuro (rileva il tipo, sceglie lo schema giusto), non l'estrazione
+gas/CTE stessa.
