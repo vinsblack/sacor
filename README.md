@@ -73,12 +73,11 @@ reale a pagamento, richiede `ANTHROPIC_API_KEY`. Un errore del provider
 `tier1_errore`, il resto del risultato resta utilizzabile.
 
 Accuratezza reale attuale (tier0+tier1+riparazione aritmetica, corpus
-reale, 15 doc): **65.3% per campo, 0% per documento completo** — nessun
-campo blocca da solo il documento intero, tre restano deboli (fornitore
-33%, periodo_da/periodo_a 33%, kwh_f1 53%), gli altri vanno dal 67% al
-100%. Vedi `docs/02-decisions.md` (ADR-046/048/050/051) per il
-dettaglio — pubblicata per intero, non filtrata, compresi i tentativi
-di fix falliti.
+reale, 15 doc): **68.7% per campo, 13.3% per documento completo**
+(2/15). Campi più deboli: periodo_da/periodo_a 33%, kwh_f1 53%, gli
+altri dal 67% al 100%. Vedi `docs/02-decisions.md` (ADR-046/048/050/
+051/052) per il dettaglio — pubblicata per intero, non filtrata,
+compresi i tentativi di fix falliti.
 
 ## Perché
 
