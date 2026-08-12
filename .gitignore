@@ -19,6 +19,13 @@ htmlcov/
 # per misurare. Pubblicarli e' un consenso separato, mai dato.
 corpus/reale/raw/
 
+# 12-08: CTE, zero PII per costruzione (verificato, corpus/cte/README.md)
+# ma non necessariamente per questo "libero di gonfiare il repo" — solo
+# 4 esempi rappresentativi (corpus/cte/examples/) vanno in git. Il
+# dataset completo (39, in crescita) resta locale, tracciato solo
+# nell'inventario (hash, corpus/cte/inventario.json), non nei byte.
+corpus/cte/raw/
+
 # Prima escluso solo via .git/info/exclude (locale a una macchina, mai
 # condiviso) — hatchling legge .gitignore, non .git/info/exclude: lo
 # sdist per PyPI includeva settings.local.json (percorsi filesystem
