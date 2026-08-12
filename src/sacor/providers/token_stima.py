@@ -2,7 +2,7 @@
 sono su pagine SCANSIONE/IBRIDA, senza text layer — stimare dalla lunghezza
 del testo misura la cosa sbagliata. Si renderizza la pagina (come fa
 scripts/bakeoff.py) e si applica la formula del provider dichiarata in
-config/prezzi_modelli.yaml (campo `token_immagine`, con fonte e data).
+src/sacor/config/prezzi_modelli.yaml (campo `token_immagine`, con fonte e data).
 
 Il dispatch e' su `token_immagine.tipo`, non sul nome del modello: la
 formula vive qui, il riferimento vive nello YAML — vanno tenuti a mano in
@@ -37,7 +37,7 @@ def stima_token_immagine(prezzo: PrezzoModello, larghezza_px: int, altezza_px: i
     if config is None:
         raise TipoFormulaSconosciuto(
             "nessuna formula 'token_immagine' dichiarata per questo modello "
-            "in config/prezzi_modelli.yaml"
+            "in src/sacor/config/prezzi_modelli.yaml"
         )
 
     if config.tipo == "lineare_wh_750":

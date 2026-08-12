@@ -1885,3 +1885,35 @@ un test che fallisce se smette di essere vera. Prossimo passo
 dichiarato (non di questo ADR): validare che il contratto regga anche
 sui 39 documenti CTE, un dominio diverso da quello su cui è stato
 disegnato.
+
+## ADR-061 — Bug di packaging: config/prezzi_modelli.yaml non finiva nel wheel
+
+**12-08, primo `uv build` prima della pubblicazione PyPI.** `sacor.
+providers.pricing.PREZZI_PATH` risaliva da `parents[3]` rispetto alla
+posizione del file — funziona solo dentro il checkout del repo
+(`src/sacor/providers/pricing.py` → repo root). `config/` viveva FUORI
+da `src/sacor/`, quindi mai incluso nel wheel (verificato ispezionando
+`dist/*.whl` prima del fix: assente). Chiunque avesse fatto `pip
+install sacor` e usato `--tier1` sarebbe andato in crash al primo
+tentativo di leggere i prezzi — mai osservato prima perché ogni test
+di questa sessione gira dal checkout sorgente, mai da un pacchetto
+installato.
+
+**Decisione.** `config/prezzi_modelli.yaml` spostato dentro il
+pacchetto (`src/sacor/config/prezzi_modelli.yaml`) — resta un file
+YAML separato dal codice (principio invariato: "i prezzi cambiano, non
+devono stare nel codice"), ma ora dentro l'albero che hatchling
+impacchetta. `PREZZI_PATH` ricalcolato relativo al pacchetto
+(`Path(__file__).parent.parent`), non al repo.
+
+Verificato non solo a occhio: wheel ricostruito, installato in un
+venv isolato fuori dal repo (`/tmp`), `sacor.providers.pricing.
+carica()` e `sacor extract` (CLI reale, su un documento CTE vero) *
+entrambi eseguiti con successo da quell'installazione — la stessa
+condizione in cui si sarebbe presentato il bug a un utente reale.
+
+Trovato PRIMA della pubblicazione perché il passo "costruisci e
+ispeziona il wheel prima di pubblicare" è stato eseguito per la prima
+volta in questa sessione — non c'era in nessun ADR precedente come
+passo esplicito. Lo diventa ora: nessuna pubblicazione futura salta
+questo passo.

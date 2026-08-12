@@ -5,9 +5,9 @@ reale a pagamento, mai automatica — richiede ANTHROPIC_API_KEY.
 
 Senza --schema, classifica il documento (ADR-053) prima di scegliere lo
 schema — bug osservato in sessione: una bolletta gas letta con lo schema
-luce senza nessun avviso. bolletta_luce e bolletta_gas hanno uno schema;
-CTE no ancora, si ferma con un errore chiaro invece di essere letto col
-posto sbagliato."""
+luce senza nessun avviso. bolletta_luce, bolletta_gas e CTE hanno uno
+schema; un tipo futuro senza schema si ferma con un errore chiaro
+invece di essere letto col posto sbagliato."""
 
 from __future__ import annotations
 

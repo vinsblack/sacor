@@ -1,6 +1,11 @@
 """Tabella prezzi dei modelli reali (T4.3): letta da un file YAML separato
 dal codice — 'i prezzi cambiano: non devono stare nel codice' (istruzione
-utente verbatim). Vedi config/prezzi_modelli.yaml."""
+utente verbatim). Vedi src/sacor/config/prezzi_modelli.yaml.
+
+Il path e' relativo al PACCHETTO (non al repo, ADR-061: 'config/'
+viveva fuori da src/sacor/ e non finiva nel wheel — chi installava via
+pip e usava --tier1 andava in crash, mai testato prima della
+pubblicazione perche' i test girano sempre dal checkout)."""
 
 from __future__ import annotations
 
@@ -10,8 +15,7 @@ from typing import Any
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-PREZZI_PATH = REPO_ROOT / "config" / "prezzi_modelli.yaml"
+PREZZI_PATH = Path(__file__).resolve().parent.parent / "config" / "prezzi_modelli.yaml"
 
 
 class PrezziError(Exception):

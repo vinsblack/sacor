@@ -14,6 +14,7 @@ from sacor.providers.errors import ErroreProvider
 from sacor.providers.openai import OpenAIProvider
 from sacor.providers.parsing import estrai_json, normalizza_risposta
 from sacor.providers.pricing import (
+    PREZZI_PATH,
     PrezziError,
     PrezzoModello,
     TabellaPrezzi,
@@ -26,7 +27,6 @@ from sacor.schema import Campo, load
 
 REPO_ROOT = Path(__file__).parent.parent
 SCHEMA_PATH = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_luce_it.yaml"
-PREZZI_PATH = REPO_ROOT / "config" / "prezzi_modelli.yaml"
 
 
 def _campi(*nomi_tipi: tuple[str, str]) -> list[Campo]:
