@@ -1,0 +1,131 @@
+schema_version: 1
+documento: bolletta_gas_it
+
+# ADR-053: primo schema gas, costruito leggendo due bollette gas reali
+# (Alperia, Iren) date dall'utente per la prova empirica — non un
+# corpus con oracle come bolletta_luce_it.yaml. NESSUNA misura di
+# accuratezza esiste ancora per questo schema: i pattern tier0 sono
+# best-effort verificati su questi due soli documenti, non su un corpus
+# reale come per luce (T4.17). Aspettarsi che molti campi vadano quasi
+# sempre a tier1 finché non esiste un corpus gas con oracle da misurare.
+
+campi:
+  - nome: pdr
+    tipo: string
+    obbligatorio: true
+    descrizione: >-
+      Il PDR (Punto di Riconsegna) — l'equivalente gas del POD elettrico,
+      un codice numerico di 14 cifre (es. "00881900782465"), etichettato
+      "PDR" sul documento (spesso vicino a un QR code o all'indirizzo di
+      riconsegna, non necessariamente in prima pagina).
+    estrazione:
+      tipo: regex
+      pattern: 'PDR:?\s*(\d{14})'
+  - nome: fornitore
+    tipo: string
+    obbligatorio: false
+    descrizione: >-
+      Il nome commerciale/comune del fornitore che emette la bolletta —
+      es. "Alperia", "Iren". NON la forma legale estesa da note
+      boilerplate a piè di pagina ("società soggetta a direzione e
+      coordinamento di X", "Società Benefit") — quelle sono informazioni
+      societarie aggiuntive, non il nome con cui il fornitore si presenta
+      al cliente. Stessa regola di bolletta_luce_it.
+  - nome: periodo_da
+    tipo: date
+    obbligatorio: true
+    descrizione: >-
+      La data di INIZIO del periodo di CONSUMO/FATTURAZIONE fatturato in
+      QUESTO documento — es. "Periodo di competenza della bolletta:
+      01/02/2026-28/02/2026" (periodo_da=2026-02-01), o "Periodo di
+      riferimento: 01 aprile 2026 - 31 maggio 2026". NON la data di
+      emissione fattura, NON la scadenza di pagamento, NON la finestra
+      del consumo annuo (es. "Consumo annuo... dal 01/03/2025 al
+      28/02/2026" copre 12 mesi, e' un campo diverso).
+    estrazione:
+      tipo: regex
+      # Verificato solo sul formato Alperia (trattino, date numeriche
+      # sulla stessa riga della label) — il formato Iren (mese in
+      # lettere, "Periodo di riferimento") non ha ancora un pattern,
+      # va a tier1.
+      pattern: '[Pp]eriodo di competenza[^\d]{0,40}(\d{2}/\d{2}/\d{4})-\d{2}/\d{2}/\d{4}'
+  - nome: periodo_a
+    tipo: date
+    obbligatorio: true
+    descrizione: >-
+      La data di FINE del periodo di CONSUMO/FATTURAZIONE fatturato in
+      QUESTO documento. Stesse esclusioni di periodo_da: NON emissione
+      fattura, NON scadenza pagamento, NON la finestra del consumo annuo.
+    estrazione:
+      tipo: regex
+      pattern: '[Pp]eriodo di competenza[^\d]{0,40}\d{2}/\d{2}/\d{4}-(\d{2}/\d{2}/\d{4})'
+  - nome: giorni
+    tipo: integer
+    obbligatorio: false
+    descrizione: >-
+      Numero di giorni del periodo fatturato. Se non e' scritto
+      esplicitamente sul documento ma periodo_da e periodo_a sono
+      entrambi date esatte leggibili, calcolalo come la differenza in
+      giorni tra le due date PIU' UNO — non lasciarlo null solo perche'
+      non c'e' scritto un numero, se e' calcolabile dalle date.
+  - nome: smc_totale
+    tipo: decimal
+    obbligatorio: false
+    descrizione: >-
+      Il consumo fatturato nel periodo, in Smc (standard metro cubo) —
+      NON il consumo annuo su finestra mobile di 12 mesi che alcune
+      bollette riportano come numero separato ("Consumo annuo
+      aggiornato").
+    estrazione:
+      tipo: regex
+      pattern: 'Consumo totale fatturato (?:del|nel) periodo\D{0,15}([\d.,]+)\s*Smc'
+  - nome: importo_totale
+    tipo: decimal
+    obbligatorio: false
+    descrizione: >-
+      Il totale FINALE da pagare (etichettato "Totale da pagare"). Se
+      sulla pagina compaiono piu' totali (es. un "Totale bolletta" di
+      sola energia/gas, poi un "Totale da pagare" con extra aggiunti
+      sopra, es. rateizzazioni), scegli SEMPRE quello finale/piu' alto.
+    estrazione:
+      tipo: regex
+      pattern: '(?i:Totale\s+da\s+pagare)\s*[:=]?\s*€?\s*([\d.,]+)'
+
+invarianti:
+  - id: giorni_inclusivi
+    tipo: differenza_giorni
+    da: periodo_da
+    a: periodo_a
+    risultato: giorni
+    offset: 1
+    severita: warning
+
+  - id: smc_totale_non_negativo
+    tipo: valore_minimo
+    campo: smc_totale
+    minimo: 0
+    severita: warning
+
+  - id: importo_totale_non_negativo
+    tipo: valore_minimo
+    campo: importo_totale
+    minimo: 0
+    severita: warning
+
+  - id: periodo_ordinato
+    tipo: ordine_date
+    precedente: periodo_da
+    successiva: periodo_a
+    severita: warning
+
+  - id: formato_pdr
+    tipo: formato
+    campo: pdr
+    pattern: '\d{14}'
+    severita: warning
+
+# Nessuna 'segmentazione' dichiarata (ADR-017: aggiunta solo quando
+# evidenza reale la richiede, non per simmetria con bolletta_luce_it) —
+# nessun caso di PDF multi-bolletta gas osservato finora. Se emerge,
+# 'Bolletta n.' (visto in entrambi i documenti) e' il candidato naturale
+# per 'cambio_valore', come 'Fattura n.' per luce.

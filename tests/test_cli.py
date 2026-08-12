@@ -104,22 +104,46 @@ def _pdf_minimo_con_testo(path: Path, testo: str) -> None:
     c.save()
 
 
-def test_extract_documento_gas_senza_schema_esplicito_da_errore_chiaro(
+def test_extract_documento_gas_senza_schema_esplicito_usa_schema_gas(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """ADR-053: nessuno schema gas esiste ancora — meglio fermarsi con un
-    errore chiaro che forzare lo schema luce in silenzio (bug osservato
-    in sessione: bolletta gas letta come luce, kWh al posto di Smc)."""
+    """ADR-053: una bolletta gas senza --schema esplicito viene
+    classificata e letta con bolletta_gas_it.yaml (kWh/Smc corretti),
+    non forzata nel posto sbagliato (bug osservato in sessione: bolletta
+    gas letta come luce, kWh al posto di Smc, nessun avviso)."""
     path = tmp_path / "gas.pdf"
     _pdf_minimo_con_testo(
-        path, "Bolletta Gas Naturale\nTotale da pagare 37,14 EUR\nConsumo 35,97 Smc"
+        path,
+        "Bolletta Gas Naturale\nTotale da pagare 37,14 EUR\n"
+        "Consumo totale fatturato del periodo 35,97 Smc\nPDR: 00881900782465",
+    )
+
+    codice = main(["extract", str(path)])
+
+    output = json.loads(capsys.readouterr().out)
+    assert output[0]["valori"]["pdr"] == "00881900782465"
+    assert output[0]["valori"]["smc_totale"] == "35.97"
+    # obbligatori (periodo_da/periodo_a) mancanti su un PDF minimo -> reject,
+    # ma con lo schema giusto, non quello luce sbagliato.
+    assert codice == 1
+
+
+def test_extract_documento_cte_senza_schema_esplicito_da_errore_chiaro(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """ADR-053: nessuno schema CTE esiste ancora — meglio fermarsi con un
+    errore chiaro che forzare lo schema luce su un documento che non e'
+    nemmeno una bolletta (non ha importo/periodo fatturato)."""
+    path = tmp_path / "cte.pdf"
+    _pdf_minimo_con_testo(
+        path, "CONDIZIONI ECONOMICHE GENERALI\nCodice Offerta: ABC123\nTipologia: Variabile"
     )
 
     codice = main(["extract", str(path)])
 
     assert codice == 2
     err = capsys.readouterr().err
-    assert "bolletta_gas" in err
+    assert "cte" in err
 
 
 def test_extract_tier1_senza_chiave_api_riporta_errore_non_esplode(

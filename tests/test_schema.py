@@ -6,6 +6,7 @@ from sacor.schema import SchemaError, load
 
 REPO_ROOT = Path(__file__).parent.parent
 SCHEMA_REALE = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_luce_it.yaml"
+SCHEMA_GAS = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_gas_it.yaml"
 
 
 def test_schema_bolletta_luce_carica_10_campi_9_invarianti() -> None:
@@ -15,6 +16,16 @@ def test_schema_bolletta_luce_carica_10_campi_9_invarianti() -> None:
     assert len(schema.invarianti) == 9
     assert schema.segmentazione is not None  # ADR-028: attivata sullo schema reale
     assert schema.segmentazione.tipo == "cambio_valore"
+
+
+def test_schema_bolletta_gas_carica_7_campi_5_invarianti() -> None:
+    """ADR-053: nessun corpus/oracle gas esiste ancora (a differenza di
+    luce, T4.17) — solo verifica di caricamento, nessuna misura di
+    accuratezza qui."""
+    schema = load(SCHEMA_GAS)
+    assert len(schema.campi) == 7
+    assert len(schema.invarianti) == 5
+    assert schema.segmentazione is None  # ADR-017: nessuna evidenza ancora
 
 
 def test_file_mancante_alza_schema_error(tmp_path: Path) -> None:

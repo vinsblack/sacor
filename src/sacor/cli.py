@@ -5,9 +5,9 @@ reale a pagamento, mai automatica — richiede ANTHROPIC_API_KEY.
 
 Senza --schema, classifica il documento (ADR-053) prima di scegliere lo
 schema — bug osservato in sessione: una bolletta gas letta con lo schema
-luce senza nessun avviso. Solo bolletta_luce ha uno schema oggi; gas/CTE
-si fermano con un errore chiaro invece di essere letti col posto
-sbagliato."""
+luce senza nessun avviso. bolletta_luce e bolletta_gas hanno uno schema;
+CTE no ancora, si ferma con un errore chiaro invece di essere letto col
+posto sbagliato."""
 
 from __future__ import annotations
 
@@ -29,16 +29,29 @@ def _schema_default() -> Path:
     return Path(__file__).parent / "schemas" / "bolletta_luce_it.yaml"
 
 
+def _schema_gas() -> Path:
+    return Path(__file__).parent / "schemas" / "bolletta_gas_it.yaml"
+
+
+# ADR-053: solo i tipi con uno schema pronto. CTE (e qualunque tipo
+# futuro) resta assente qui apposta — vedi il ramo else sotto, si ferma
+# con un errore chiaro invece di forzare un tipo sbagliato.
+_SCHEMA_PER_TIPO = {
+    TipoDocumento.BOLLETTA_LUCE: _schema_default,
+    TipoDocumento.BOLLETTA_GAS: _schema_gas,
+}
+
+
 def _schema_da_classificazione(file: Path) -> Path | None:
     """None = nessuno schema utilizzabile, l'estrazione deve fermarsi con
     un errore chiaro (mai forzare bolletta_luce su un documento che non lo
     e', ADR-053). SCONOSCIUTO (documenti scansionati, nessun text layer)
     resta bolletta_luce per compatibilita' — con avviso, non in silenzio:
-    e' l'unico schema che esiste oggi, e resta il default corretto per il
-    corpus reale attuale (tutto luce)."""
+    e' il default piu' probabile sul corpus reale attuale (tutto luce)."""
     tipo = classifica_file(file)
-    if tipo == TipoDocumento.BOLLETTA_LUCE:
-        return _schema_default()
+    costruttore = _SCHEMA_PER_TIPO.get(tipo)
+    if costruttore is not None:
+        return costruttore()
     if tipo == TipoDocumento.SCONOSCIUTO:
         print(
             "avviso: tipo documento non determinato con certezza, uso lo "
