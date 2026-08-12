@@ -42,7 +42,18 @@ def main(argv: list[str] | None = None) -> int:
             "delle chiamate di questo confronto — opt-in esplicito)."
         ),
     )
+    parser.add_argument(
+        "--solo-arbitrato",
+        action="store_true",
+        help=(
+            "Richiede --arbitrato. Salta il bake-off per-modello (gia' misurato "
+            "in un giro precedente, non lo rifa' — ne' lo ripaga): chiama solo "
+            "la coppia in arbitrato."
+        ),
+    )
     args = parser.parse_args(argv)
+    if args.solo_arbitrato and not args.arbitrato:
+        parser.error("--solo-arbitrato richiede --arbitrato MODELLO_A MODELLO_B")
 
     if not CORPUS_RAW.is_dir():
         print(
@@ -64,13 +75,15 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     tracciatore = TracciatoreSpesa(LIMITE_SPESA_USD)
-    righe = [
-        _valuta_modello(m, chiamate, oracle.documenti, tracciatore, schema)
-        for m in MODELLI_BAKEOFF
-    ]
-
-    print(formatta_tabella(righe))
-    print(f"\nSpeso reale totale: ${tracciatore.speso:.4f}")
+    if args.solo_arbitrato:
+        print("--solo-arbitrato: salto il bake-off per-modello, solo la coppia in arbitrato.\n")
+    else:
+        righe = [
+            _valuta_modello(m, chiamate, oracle.documenti, tracciatore, schema)
+            for m in MODELLI_BAKEOFF
+        ]
+        print(formatta_tabella(righe))
+        print(f"\nSpeso reale totale: ${tracciatore.speso:.4f}")
 
     if args.arbitrato:
         modello_a, modello_b = args.arbitrato

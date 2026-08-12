@@ -1176,3 +1176,46 @@ pubblica CON i numeri reali attuali (50-61%/campo, 0% documento,
 escalation 100%), dichiarati, non nascosti né minimizzati. Cambia solo
 il criterio di stop per G1: non più "aspetta che i numeri siano alti",
 ma "pubblica onesto, migliora in pubblico".
+
+## ADR-049 — Arbitrato haiku/opus sul reale: il disaccordo non è un
+segnale utile, si usa solo opus
+
+**2026-08-12.** Prima esecuzione di `sacor.arbitrate` (ADR-045 Fase 2)
+sul corpus reale — codice pronto da ADR-045, mai lanciato sul reale
+prima d'ora. `scripts/bakeoff_reale.py --arbitrato claude-haiku-4-5
+claude-opus-5 --solo-arbitrato` (nuovo flag: salta il bake-off
+per-modello già misurato in ADR-044, misura solo la coppia in
+arbitrato — evita di ripagare un numero già noto). 15/15 documenti,
+126 campi confrontati, $2.2339 spesi (tetto $5, non raggiunto).
+
+**Misura**:
+
+| | |
+|---|---|
+| Disaccordo (campi) | 31.0% (39/126) |
+| Quando disaccordano — opus ha ragione | 21/39 |
+| Quando disaccordano — haiku ha ragione | 8/39 |
+| Quando disaccordano — nessuno dei due | 10/39 |
+| Accuratezza quando concordano | 56.3% |
+
+**Interpretazione**: l'ipotesi di ADR-045 (il disaccordo tra due
+provider è il segnale, non va risolto scegliendo uno dei due) regge
+solo a metà sul reale. Regge la prima parte: quando concordano, sono
+corretti solo il 56.3% delle volte — l'accordo non è affidabile quanto
+sperato, quindi va bene non trattarlo come oracolo implicito. Ma la
+conseguenza pratica è negativa: un arbitro che, in caso di disaccordo,
+si fidasse sempre di opus otterrebbe 21/39 = 53.8% — peggio che
+fidarsi di opus da solo su tutto (60.9%/campo, ADR-044). L'arbitrato
+raddoppia il costo per chiamata e non migliora l'accuratezza rispetto
+a un singolo modello forte.
+
+**Decisione (dell'utente)**: tier1 usa **solo claude-opus-5**, non
+arbitrato multi-provider. `sacor.arbitrate` resta nel codice (potrebbe
+tornare utile con un corpus più grande o provider diversi — non
+rimosso, YAGNI si applica a "usarlo ora", non a "cancellarlo"), ma non
+è la strada per migliorare l'accuratezza con l'informazione attuale.
+
+**Non cambia** la priorità di ADR-048 (distribuzione prima di altro
+tuning) — questa misura chiude un pending item lasciato aperto
+(arbitrato mai lanciato sul reale), non riapre la fase di
+ottimizzazione sui 15 documenti.

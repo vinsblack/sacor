@@ -11,6 +11,7 @@ from __future__ import annotations
 import pytest
 
 import eval.run as run_mod
+import scripts.bakeoff_reale as bakeoff_reale_mod
 from scripts.bakeoff import esegui_bakeoff
 
 
@@ -30,3 +31,33 @@ def test_bakeoff_non_rifa_triage_due_volte_per_file(monkeypatch: pytest.MonkeyPa
     assert all(n == 1 for n in chiamate_per_file.values()), (
         f"triage rifatto piu' di una volta per file nello stesso giro: {chiamate_per_file}"
     )
+
+
+def test_solo_arbitrato_salta_il_bakeoff_per_modello(monkeypatch: pytest.MonkeyPatch) -> None:
+    """--solo-arbitrato non deve rifare (e ripagare) il bake-off per-modello
+    gia' misurato in un giro precedente — solo la coppia in arbitrato."""
+    if not bakeoff_reale_mod.CORPUS_RAW.is_dir():
+        pytest.skip("PDF reali non presenti in locale (corpus/reale/raw/, mai nel repo)")
+
+    chiamate_valuta_modello = 0
+    chiamate_valuta_arbitrato = 0
+
+    def _finto_valuta_modello(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        nonlocal chiamate_valuta_modello
+        chiamate_valuta_modello += 1
+        raise AssertionError("non deve essere chiamato con --solo-arbitrato")
+
+    def _finto_valuta_arbitrato(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        nonlocal chiamate_valuta_arbitrato
+        chiamate_valuta_arbitrato += 1
+        return None
+
+    monkeypatch.setattr(bakeoff_reale_mod, "_valuta_modello", _finto_valuta_modello)
+    monkeypatch.setattr(bakeoff_reale_mod, "_valuta_arbitrato", _finto_valuta_arbitrato)
+    monkeypatch.setattr(bakeoff_reale_mod, "formatta_tabella_arbitrato", lambda _riga: "")
+
+    codice = bakeoff_reale_mod.main(["--arbitrato", "modello-a", "modello-b", "--solo-arbitrato"])
+
+    assert codice == 0
+    assert chiamate_valuta_modello == 0
+    assert chiamate_valuta_arbitrato == 1
