@@ -1,7 +1,7 @@
 """CLI (ADR-048): `sacor extract file.pdf` — il punto d'ingresso per chi
-integra sacor senza scrivere Python. Solo tier0 per ora (YAGNI: tier1
-richiede una chiave API a pagamento, non lo fa partire di default finché
-qualcuno non lo chiede esplicitamente — vedi sacor.pipeline)."""
+integra sacor senza scrivere Python. Tier0 sempre (regex, gratis). Tier1
+(ADR-048 punto 1) opt-in via --tier1: claude-opus-5 (ADR-049), chiamata
+reale a pagamento, mai automatica — richiede ANTHROPIC_API_KEY."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from pathlib import Path
 
 from sacor.pipeline import estrai_file
 from sacor.schema import SchemaError, load
+
 
 def _schema_default() -> Path:
     # Schema impacchettato dentro src/sacor/schemas/ (parte del wheel:
@@ -34,17 +35,22 @@ def _comando_extract(args: argparse.Namespace) -> int:
         print(f"errore: file non trovato: {file}", file=sys.stderr)
         return 2
 
-    risultati = estrai_file(file, schema)
+    risultati = estrai_file(file, schema, usa_tier1=args.tier1)
     output = [
         {
             "istanza_id": r.istanza_id,
             "valori": r.valori,
+            # ADR-048 punto 2: "alta"/"media"/"bassa" per campo, None se il
+            # campo non ha valore — vedi sacor.pipeline._calcola_confidenza.
+            "confidenza": r.confidenza,
             "esito": r.esito,
             "motivo": r.motivo,
             "violazioni": [
                 {"id": v.invariante_id, "severita": v.severita, "messaggio": v.messaggio}
                 for v in r.violazioni
             ],
+            "costo_tier1_usd": round(r.costo_tier1_usd, 6),
+            "tier1_errore": r.tier1_errore,
         }
         for r in risultati
     ]
@@ -61,6 +67,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     estrai.add_argument("file", help="Percorso del PDF da estrarre.")
     estrai.add_argument("--schema", help="Schema YAML da usare (default: bolletta_luce_it).")
+    estrai.add_argument(
+        "--tier1",
+        action="store_true",
+        help=(
+            "Completa i campi non trovati dal tier0 con claude-opus-5 "
+            "(ADR-049). Chiamata reale a pagamento, richiede "
+            "ANTHROPIC_API_KEY — opt-in esplicito, mai automatico."
+        ),
+    )
     estrai.set_defaults(func=_comando_extract)
 
     args = parser.parse_args(argv)

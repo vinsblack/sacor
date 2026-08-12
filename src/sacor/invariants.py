@@ -191,3 +191,17 @@ def valuta(invariante: Invariante, valori: Mapping[str, str | None]) -> Violazio
 
 def valuta_tutte(schema: Schema, valori: Mapping[str, str | None]) -> tuple[Violazione, ...]:
     return tuple(v for inv in schema.invarianti if (v := valuta(inv, valori)) is not None)
+
+
+def campi_coinvolti(invariante: Invariante) -> tuple[str, ...]:
+    """Nomi dei campi che questa invariante referenzia (ADR-048 punto 2):
+    usato per marcare come 'bassa confidenza' i campi coinvolti in
+    un'invariante violata, non solo il documento nel suo complesso. Stessa
+    tabella TIPI_NOTI che valida le referenze al load dello schema — un
+    parametro qui e' o il nome di un campo (str) o una lista di nomi
+    (es. 'addendi' in somma_approssimata)."""
+    nomi: list[str] = []
+    for chiave in TIPI_NOTI[invariante.tipo]:
+        valore = invariante.params[chiave]
+        nomi.extend(valore if isinstance(valore, list) else [valore])
+    return tuple(nomi)

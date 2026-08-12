@@ -5,7 +5,6 @@ dichiarate nell'oracle (ADR-033): misura la pipeline vera."""
 
 from __future__ import annotations
 
-import io
 import json
 import sys
 from collections.abc import Mapping, Sequence
@@ -28,6 +27,7 @@ from sacor.providers.pricing import PrezziError
 from sacor.providers.pricing import carica as carica_prezzi
 from sacor.providers.prompt import costruisci_prompt
 from sacor.providers.token_stima import TipoFormulaSconosciuto, stima_token_immagine
+from sacor.render import renderizza_pagine_istanza
 from sacor.schema import Campo, Schema, SchemaError, load
 from sacor.segmentation import Istanza, segmenta
 from sacor.triage import analizza, normalizza_testo
@@ -43,11 +43,6 @@ CORPUS_RAW = REPO_ROOT / "corpus" / "synth"
 # l'insieme su cui gira il confronto; la tabella prodotta dal bake-off
 # decide, non questa lista (istruzione utente verbatim).
 MODELLI_BAKEOFF: tuple[str, ...] = ("claude-haiku-4-5", "gpt-4o-mini", "claude-opus-5")
-
-# T4.5, C1: stessa risoluzione usata da --dry-run per stimare e da
-# scripts/bakeoff.py per chiamare davvero — la stima deve misurare quello
-# che poi viene realmente inviato, non un'approssimazione indipendente.
-RISOLUZIONE_RENDER_DPI = 150
 
 # ADR-035 (provvisorio): nessun modello di produzione scelto per il flusso
 # tier 1 normale (non bake-off, che disattiva sempre la cache — T4.4). Serve
@@ -173,23 +168,6 @@ def istanze_da_completare(
                 chiamate.append(ChiamataDaCompletare(istanza, chiave_oracle, campi_mancanti))
 
     return schema, oracle, chiamate, file_disallineati
-
-
-def renderizza_pagine_istanza(istanza: Istanza) -> list[tuple[bytes, int, int]]:
-    """PNG (bytes, larghezza_px, altezza_px) per ogni pagina dell'istanza,
-    alla stessa risoluzione di scripts/bakeoff.py (T4.5, C1): le pagine del
-    tier 1 sono SCANSIONE/IBRIDA, senza text layer — solo l'immagine
-    renderizzata dice quanto costa davvero la chiamata."""
-    with pdfplumber.open(istanza.file) as documento:
-        pagine = documento.pages[istanza.pagina_da - 1 : istanza.pagina_a]
-        risultato: list[tuple[bytes, int, int]] = []
-        for pagina in pagine:
-            immagine = pagina.to_image(resolution=RISOLUZIONE_RENDER_DPI).original
-            buffer = io.BytesIO()
-            immagine.save(buffer, format="PNG")
-            larghezza, altezza = immagine.size
-            risultato.append((buffer.getvalue(), larghezza, altezza))
-        return risultato
 
 
 def _diagnostica_per(

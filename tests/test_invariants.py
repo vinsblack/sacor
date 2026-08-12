@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sacor.invariants import valuta, valuta_tutte
+from sacor.invariants import campi_coinvolti, valuta, valuta_tutte
 from sacor.schema import Invariante, load
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -231,3 +231,18 @@ def test_valuta_tutte_su_valori_incongruenti_trova_entrambe() -> None:
     }
     violazioni = valuta_tutte(schema, valori)
     assert {v.invariante_id for v in violazioni} == {"somma_fasce", "giorni_inclusivi"}
+
+
+# --- campi_coinvolti (usato dalla confidenza per campo, ADR-048 punto 2) --
+
+
+def test_campi_coinvolti_somma_approssimata_addendi_e_totale() -> None:
+    assert set(campi_coinvolti(_somma_fasce())) == {"kwh_f1", "kwh_f2", "kwh_f3", "kwh_totale"}
+
+
+def test_campi_coinvolti_differenza_giorni() -> None:
+    assert set(campi_coinvolti(_giorni_inclusivi())) == {"periodo_da", "periodo_a", "giorni"}
+
+
+def test_campi_coinvolti_campo_singolo() -> None:
+    assert campi_coinvolti(_formato_pod()) == ("pod",)

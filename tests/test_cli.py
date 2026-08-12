@@ -67,3 +67,36 @@ def test_extract_schema_esplicito_sovrascrive_default(tmp_path: Path, capsys: py
 def test_main_senza_comando_esce_con_errore_argparse() -> None:
     with pytest.raises(SystemExit):
         main([])
+
+
+def test_extract_output_include_confidenza_costo_e_errore_tier1(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """ADR-048 punto 1/2: senza --tier1 la forma dell'output resta stabile
+    (confidenza/costo/errore sempre presenti, non solo quando servono) —
+    un consumatore esterno (n8n, API) non deve gestire chiavi opzionali."""
+    pdf_bytes, _, _ = genera_documento(random.Random(64), "S044", "Alfa Energia", Flags())
+    path = _scrivi(tmp_path, "S044.pdf", pdf_bytes)
+
+    main(["extract", str(path)])
+
+    output = json.loads(capsys.readouterr().out)
+    assert output[0]["confidenza"]["pod"] == "alta"
+    assert output[0]["costo_tier1_usd"] == 0.0
+    assert output[0]["tier1_errore"] is None
+
+
+def test_extract_tier1_senza_chiave_api_riporta_errore_non_esplode(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    pdf_bytes, _, _ = genera_documento(
+        random.Random(65), "S045", "Gamma Power", Flags(scansione=True)
+    )
+    path = _scrivi(tmp_path, "S045.pdf", pdf_bytes)
+
+    codice = main(["extract", str(path), "--tier1"])
+
+    assert codice == 1  # scansione: obbligatori restano mancanti, tier1 non ha potuto aiutare
+    output = json.loads(capsys.readouterr().out)
+    assert output[0]["tier1_errore"] is not None
