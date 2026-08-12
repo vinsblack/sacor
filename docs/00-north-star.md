@@ -61,9 +61,14 @@ Un documento è adatto a sacor se ha **tutte e quattro** queste proprietà:
 La proprietà 2 è il vincolo che distingue sacor. Senza invarianti interne lo
 strato di arbitrato non ha nulla su cui lavorare e il vantaggio evapora.
 
-**Fuori scope:** contratti, referti, atti (nessuna invariante aritmetica);
-fatture B2B italiane (già XML via SDI dal 2019); CTE (mercato ~50 aziende,
-zona già coperta da un impegno commerciale esistente dell'autore).
+**Fuori scope:** contratti, referti, atti (nessuna invariante
+aritmetica); fatture B2B italiane (già XML via SDI dal 2019).
+
+**CTE (12-08): dentro lo scope, non più fuori.** La nota precedente
+("zona coperta da un impegno commerciale") non vale più come vincolo —
+CTE è ora uno schema sacor costruito e verificato (39 documenti reali,
+`docs/verification-report-v1.md`), coerente con la proprietà 2
+(condizioni economiche/prezzi sono verificabili tra loro).
 
 ## Distribuzione
 

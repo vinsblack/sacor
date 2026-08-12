@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <title>sacor</title>
+  <!-- Esagono: il contenitore, lo schema -->
+  <polygon points="50,12 82.9,31 82.9,69 50,88 17.1,69 17.1,31"
+           fill="none" stroke="#2563EB" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Linee: dai tre segnali (origin/evidence/confidence) al valore -->
+  <line x1="50" y1="50" x2="50" y2="28" stroke="#94A3B8" stroke-width="2"/>
+  <line x1="50" y1="50" x2="30.95" y2="61" stroke="#94A3B8" stroke-width="2"/>
+  <line x1="50" y1="50" x2="69.05" y2="61" stroke="#94A3B8" stroke-width="2"/>
+  <!-- Tre nodi: origin, evidence, confidence -->
+  <circle cx="50" cy="28" r="6" fill="#2563EB"/>
+  <circle cx="30.95" cy="61" r="6" fill="#2563EB"/>
+  <circle cx="69.05" cy="61" r="6" fill="#2563EB"/>
+  <!-- Nodo centrale: il valore, dove tutto converge -->
+  <circle cx="50" cy="50" r="7" fill="#06B6D4"/>
+</svg>

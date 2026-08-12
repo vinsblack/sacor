@@ -1,156 +1,175 @@
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="sacor — Evidence-first Document Extraction" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://github.com/vinsblack/sacor/actions/workflows/ci.yml"><img src="https://github.com/vinsblack/sacor/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://pypi.org/project/sacor/"><img src="https://img.shields.io/pypi/v/sacor" alt="PyPI"></a>
+  <a href="https://pypi.org/project/sacor/"><img src="https://img.shields.io/pypi/pyversions/sacor" alt="Python versions"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License"></a>
+  <img src="https://img.shields.io/badge/status-pre--alpha-orange" alt="Pre-alpha">
+</p>
+
 # sacor
 
-**The Open Document Extraction Engine.**
+**Evidence-first Document Extraction.**
 
-Un framework di affidabilità documentale: estrae dati da documenti
-semi-strutturati e dichiara quanto si può fidare di ogni campo.
-
-Primo schema implementato: bollette luce e gas italiane.
-
-## Quickstart
-
-Richiede Python 3.12+.
+Extracting a value from a document is easy. Trusting it is hard.
+sacor returns evidence, not only values — every field comes with
+where it came from, what happened to it, and what it was checked
+against.
 
 ```bash
 pip install sacor
 ```
 
-Oppure da sorgente:
+## Why
 
-```bash
-git clone https://github.com/vinsblack/sacor
-cd sacor
-pip install .
+An extractor that returns `"total": "312.45"` is asking you to trust
+it. An extractor that returns the value **and** the evidence behind it
+lets you check.
+
+```json
+{
+  "total": {
+    "value": "312.45",
+    "confidence": "alta",
+    "evidence": {
+      "origin": "tier0",
+      "repair": [{"tipo": "ripara", "da": "312,45", "a": "312.45"}],
+      "invariants": {"passed": 3, "failed": 0}
+    }
+  }
+}
 ```
 
-Estrai un PDF:
+`origin` says a regex read it deterministically, not a model guessing.
+`repair` says the raw text was normalized (Italian decimal comma →
+dot) — traceable, not silent. `invariants` says three arithmetic
+checks against sibling fields held. Confidence is not a number someone
+picked — it's computed from this evidence (see below).
+
+A field sacor couldn't find is `null`, not a plausible guess. That's
+the whole bet: an extractor that says "I don't know" on the fields it
+can't verify is worth more than one that's silently wrong.
+
+## Quick start
 
 ```bash
 sacor extract bolletta.pdf
 ```
 
-Output — JSON con un oggetto per istanza (una bolletta può contenerne più
-di una): non solo i valori estratti, ma la loro **evidenza** — da dove
-viene ogni campo, quali riparazioni ha subito, quali invarianti ha
-superato (Result Contract v1, ADR-056). Esempio reale, un campo
-espanso per intero e gli altri abbreviati per leggibilità:
+Tier0 (regex, deterministic) always runs, free. `--tier1` opts into
+an AI pass (claude-opus-5) for fields tier0 couldn't resolve — real
+API cost, `ANTHROPIC_API_KEY` required, never automatic:
 
-```json
-[
-  {
-    "istanza_id": "demo",
-    "documento": {
-      "schema": "bolletta_luce_it",
-      "schema_versione": 1,
-      "classificazione": null,
-      "pagine": [{"indice": 1, "tipo": "digitale"}, "..."]
-    },
-    "campi": {
-      "kwh_totale": {
-        "value": "174.74",
-        "evidence": {
-          "origin": "tier0",
-          "status": null,
-          "repair": [{"tipo": "ripara", "da": "174,74", "a": "174.74"}],
-          "derivation": [],
-          "invariants": {
-            "passed": 2,
-            "failed": 0,
-            "dettaglio": [
-              {"id": "somma_fasce", "esito": "pass", "severita": "warning", "messaggio": null},
-              {"id": "kwh_totale_non_negativo", "esito": "pass", "severita": "warning", "messaggio": null}
-            ]
-          }
-        },
-        "confidence": "alta"
-      },
-      "pod": {"value": "IT121E66496171", "evidence": "...", "confidence": "alta"},
-      "fornitore": {"value": "Alfa Energia", "evidence": "...", "confidence": "alta"}
-    },
-    "esito": "pass",
-    "motivo": null,
-    "costo_tier1_usd": 0.0,
-    "tier1_errore": null
-  }
-]
+```bash
+sacor extract bolletta.pdf --tier1
 ```
 
-`evidence.origin`: `tier0` (regex deterministica) / `tier1` (AI) /
-`derivato` (aritmetica, ADR-051) / `null` se assente — `evidence.status`
-dice perché quando manca (`tier1_non_tentato`, `tier1_fallito`,
-`non_trovato`). `confidence` per campo: `alta`/`media`/`bassa`/`null`,
-funzione pura di `evidence` (ADR-059) — `bassa` se il campo è coinvolto
-in un'invariante fallita, a prescindere dall'origine. `esito` è
-`pass` / `warning` / `reject`, deciso dal Gate leggendo solo Evidence
-(ADR-060). Exit code: `0` se tutte le istanze passano, `1` se almeno una
-è `reject`, `2` per errori (file o schema non trovato).
+Full output shape and field-by-field evidence: see [Evidence
+Model](#evidence-model) below, or the real example in
+[`docs/06-documento-tecnico.md`](docs/06-documento-tecnico.md).
 
-Tier 0 (regex, zero costo, sempre disponibile) gira sempre. Con
-`--tier1` completa i campi che il tier 0 lascia `None` chiamando
-claude-opus-5 (ADR-049) — opt-in esplicito, mai automatico: chiamata
-reale a pagamento, richiede `ANTHROPIC_API_KEY`. Un errore del provider
-(chiave mancante, rate limit) non fa fallire l'estrazione: si vede in
-`tier1_errore`, il resto del risultato resta utilizzabile.
+## Evidence Model
 
-Accuratezza reale attuale (tier0+tier1+riparazione aritmetica, corpus
-reale, 15 doc): **68.7% per campo, 13.3% per documento completo**
-(2/15). Campi più deboli: periodo_da/periodo_a 33%, kwh_f1 53%, gli
-altri dal 67% al 100%. Vedi `docs/02-decisions.md` (ADR-046/048/050/
-051/052) per il dettaglio — pubblicata per intero, non filtrata,
-compresi i tentativi di fix falliti.
+Every extracted field is a `value` plus an `evidence` object — never
+just the value alone:
 
-## Perché
+| Key | Answers |
+|---|---|
+| `origin` | Where did this come from — `tier0` (regex), `tier1` (AI), `derivato` (computed from other fields)? |
+| `status` | If there's no value, why — not attempted, tried and failed, or genuinely not found? |
+| `repair` | What transformation was applied to the raw text (date/number normalization)? |
+| `derivation` | If computed, from which fields and which rule? |
+| `invariants` | How many arithmetic/logical checks against sibling fields passed or failed? |
 
-La maggior parte degli estrattori dichiara "99% di accuratezza" senza mostrare
-come è stato calcolato. sacor pubblica corpus, oracle e accuratezza per singolo
-campo, rieseguiti in CI a ogni commit.
+`confidence` (`alta`/`media`/`bassa`/`null`) is not stored — it's a
+**pure function of evidence**: `alta` for a clean tier0 read, `media`
+for AI or derived (inherits upstream uncertainty), `bassa` if any
+invariant involving the field failed — regardless of origin. The Gate
+(`pass`/`warning`/`reject`) is the same idea one level up: a pure
+function that reads only evidence, nothing else.
 
-Accuratezza corrente: vedi `docs/03-current-state.md`.
+Full contract, JSON shape, and the decisions behind it:
+[`docs/02-decisions.md`](docs/02-decisions.md), ADR-056 onward.
 
-E quando non è sicuro, lo dichiara. Ogni campo esce con un livello di
-confidenza, ogni documento con un esito `pass` / `warning` / `reject`, ogni
-pagina classificata `digitale` / `ibrida` / `scansione`.
+## Architecture
 
-Il principio è sempre lo stesso: **dove il segnale è incerto, il sistema lo
-dice invece di scegliere in silenzio.** Un sistema che dice "guardalo tu" sul
-5% dei casi è più utile di uno che sbaglia in silenzio sul 3%.
+```mermaid
+flowchart LR
+    A[Classify] --> B[Triage]
+    B --> C[Segment]
+    C --> D[Tier0: regex]
+    D --> E[Derive]
+    E --> F["Tier1: AI (opt-in)"]
+    F --> G[Derive again]
+    G --> H[Invariants]
+    H --> I[Evidence]
+    I --> J[Confidence]
+    J --> K[Gate]
+    K --> L[JSON]
+```
 
-## Architettura
+AI is one step out of ten, opt-in, never automatic. Everything else is
+deterministic Python — no arithmetic ever passes through a model.
+Domain lives entirely in a YAML schema, not in code: a new document
+type is a new schema file, not a new sprint. Details:
+[`docs/01-architecture.md`](docs/01-architecture.md).
 
-Il core è indipendente dal tipo di documento. Il dominio vive negli schemi
-YAML — campi, invarianti aritmetiche, criteri di segmentazione — mai nel
-codice. Un nuovo tipo di documento è un nuovo schema, non un nuovo sprint.
+## Current status
 
-La pipeline ha sette strati e l'AI è uno solo di essi:
+**Pre-alpha. Do not use in production.**
 
-    Ingest      hash, dedup, cache                    deterministico
-    Triage      digitale / ibrida / scansione         deterministico
-    Extract     tier 1 economico -> gate -> tier 2    AI
-    Repair      formati numerici e date italiani      deterministico
-    Arbitrate   confronto fonti, tolleranze           deterministico
-    Gate        pass / warning / reject               deterministico
-    Output      JSON + confidence per campo
+Real accuracy (real corpus, 15 documents, tier0+tier1+derivation):
+**68.7% per field, 13.3% per complete document.** Published in full —
+weakest fields (`periodo_da`/`periodo_a` 33%, `kwh_f1` 53%) included,
+not hidden. Full breakdown and every measurement attempt (including
+failed ones): [`docs/02-decisions.md`](docs/02-decisions.md).
 
-Il valore sta negli altri sei. Somme, IVA e riconciliazioni non passano mai da
-un modello: il modello estrae, il codice verifica.
+The Result/Evidence contract was verified — not just measured for
+accuracy — on 39 real documents of a second, structurally different
+document type (Italian pre-contractual utility offer sheets, CTE) it
+was never designed against: **39/39, zero contract changes needed**.
+[`docs/verification-report-v1.md`](docs/verification-report-v1.md).
 
-Ogni soglia del sistema è misurata prima di essere scelta, e annotata con il
-margine osservato — un numero senza margine non è monitorabile nel tempo. Le
-decisioni e le misure sono tracciate in `docs/02-decisions.md`.
+## Schemas
 
-Dettagli in `docs/01-architecture.md`.
+Italian utility bills (electricity, gas) and pre-contractual offer
+sheets (CTE) are the first schemas, not the destination. Any document
+where values must be arithmetically checkable against each other fits
+the model — see [`docs/00-north-star.md`](docs/00-north-star.md) for
+what does and doesn't.
 
-## Stato
+## Roadmap
 
-Pre-alpha. Non usare in produzione.
+Short version: PyPI package (done) → n8n node → stable API → external
+users → new real-world cases feeding the corpus, in that order — not
+"perfect accuracy first." Why, and the full history:
+[`docs/04-roadmap.md`](docs/04-roadmap.md).
 
-## Contribuire
+## FAQ
 
-Vedi `CONTRIBUTING.md` — in breve: misura prima di dichiarare, nessun
-documento di terzi nel repo, un nuovo tipo di documento è uno schema
-YAML nuovo, non nuovo codice. `CODE_OF_CONDUCT.md` per le regole di
-comportamento.
+**Why not just ask an LLM to return JSON?** You can. What you get back
+is a value with no way to check it — same failure mode as a human
+guessing confidently. sacor's bet is that the verification layer
+(regex-first, arithmetic invariants, evidence, a gate) is worth more
+long-term than a better prompt, because it survives model changes: the
+prompt-only approach's accuracy is tied to whichever model you called;
+sacor's evidence model doesn't change when the underlying model does.
 
-## Licenza
+**Does it work well?** Not yet, not fully — see Current status above.
+It's public because the contract is stable and the number is real, not
+because the number is high.
 
-Apache-2.0
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) — short version: measure
+before claiming, no third-party documents in the repo, a new document
+type is a new YAML schema, not new code.
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) for behavior,
+[`SECURITY.md`](SECURITY.md) to report a vulnerability.
+
+## License
+
+Apache-2.0. Citation: [`CITATION.cff`](CITATION.cff).
