@@ -1524,3 +1524,40 @@ di seguito, non fatto stasera) — la correttezza del meccanismo e'
 verificata via test (ordine del `content`, presenza del breakpoint,
 conteggio del costo con e senza token di cache), non ancora la resa
 economica reale.
+
+## ADR-055 — Il gate di pubblicazione è il contratto, non l'accuratezza
+(conferma ADR-048, non revoca)
+
+**2026-08-12, stessa sessione di ADR-048/053/054.** Proposto (di
+nuovo, la terza volta nella stessa sessione) di rimandare la
+pubblicazione per "consolidare l'accuratezza" sul corpus reale
+attuale. Stessa contraddizione già chiusa da ADR-048: il corpus dei
+15 documenti luce ha già dato il segnale che doveva dare (l'ipotesi
+tier0 falsificata), continuare a ottimizzarci sopra rischia
+overfitting, non nuovo segnale — un criterio di rilascio che si
+sposta implicitamente dall'architettura all'accuratezza ogni volta
+che il numero attuale mette disagio non è una decisione, è
+l'assenza di una decisione presa più volte di nascosto.
+
+**Decisione.** ADR-048 non si revoca, si conferma con una postilla
+esplicita: l'unico criterio di blocco rimasto prima della prima
+release è la **stabilità del contratto pubblico** — schema YAML,
+pipeline, e il modello Result/Evidence se e quando verrà introdotto
+(vedi discussione Evidence Model, stessa sessione, non ancora
+implementato). L'accuratezza attuale (68.7%/campo, 13.3%/documento,
+corpus reale, dichiarata per intero nel README) NON è più un
+criterio di rilascio — continuerà a crescere dopo la pubblicazione
+tramite casi reali portati dai primi utilizzatori, non prima.
+
+Corollario pratico: se in futuro si ripropone "aspettiamo un
+numero migliore prima di pubblicare" senza revocare esplicitamente
+questo ADR con un nuovo ADR che lo dica, la risposta di default è
+no — il criterio è già stato deciso, discusso, e confermato tre
+volte nella stessa sessione.
+
+**Nota a margine, stessa sessione**: il corpus CTE (39 documenti,
+4 fornitori, ADR odierno separato in `corpus/cte/README.md`) è stato
+costruito ma non ancora passato alla pipeline — nessuna misura,
+nessun oracle. Per lo stesso principio di questo ADR, questo NON
+blocca la pubblicazione del pacchetto luce: è lavoro parallelo
+successivo, non un prerequisito.
