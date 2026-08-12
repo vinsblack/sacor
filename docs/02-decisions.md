@@ -1339,3 +1339,53 @@ di misura si era disallineato dalla pipeline reale. Verificato con un
 test isolato gratuito PRIMA di sospettare altro — lo stesso principio
 di "diagnosi vera prima del fix" di ADR-050, applicato questa volta
 alla misura stessa, non solo al motore.
+
+## ADR-052 — Confronto case-insensitive + descrizione fornitore:
+65.3%→68.7%/campo, primo documento perfetto (0→2/15)
+
+**2026-08-12, stessa sessione di ADR-050/051.** Diagnosi reale
+(kwh_f1/f2/f3/totale + fornitore, $2.08): 32/40 "errori" kwh nel primo
+giro erano **falsi allarmi dello script diagnostico stesso**
+(confrontava stringhe con `==` invece di `sacor.compare.uguali()` —
+la pipeline vera già confrontava correttamente via `Decimal`). Solo
+8/40 errori kwh reali: 3 su R004 (già segnalati "bassa confidenza"
+dal sistema, correttamente), 5 arrotondamenti minori (0.001-0.003).
+
+Per fornitore, stesso pattern ma reale: `sacor.compare.normalizza`
+per stringhe faceva solo `.strip()`, case-sensitive — `'SMART ENERGY
+S.r.l.'` vs `'Smart Energy S.r.l.'` contava come errore per sole
+maiuscole/minuscole. Fix: case-insensitive, applicabile a tutti i
+campi string (bug di misura reale, non solo fornitore).
+
+Inoltre `descrizione` per fornitore (stesso meccanismo di periodo_da/
+periodo_a, ADR-050): nome commerciale/comune, non forma legale estesa
+da note boilerplate ("società soggetta a direzione e coordinamento
+di X", "Società Benefit") — il modello aggiungeva questi dettagli
+trovati altrove nel documento, l'oracle non li aveva.
+
+**Correzione oracle** (`corpus/reale/attesi.json`, R014/R015): il
+gruppo societario tra parentesi non era sul documento come nome
+fornitore, solo in una nota legale — corretto per coerenza con R009/
+R010 (stesso fornitore, verificato nel testo del PDF prima di
+toccare il file, non un tuning per far salire il numero).
+
+**Numero vero, corpus reale, 15 doc, $2.09**:
+
+| | ADR-051 | ADR-052 |
+|---|---|---|
+| Per campo | 65.3% | **68.7%** (103/150) |
+| fornitore | 33.3% | **66.7%** |
+| Per documento | 0/15 | **2/15** (13.3%) |
+
+Prima volta nella storia del progetto che un documento reale esce
+corretto su tutti e 10 i campi — due, non uno. Partenza di giornata
+(tier0 solo, T4.17): 16.4%/campo, 0% documento. Arrivo: 68.7%/campo,
+13.3% documento.
+
+**Bilancio della sessione** (ADR-050/051/052, un pomeriggio): CI
+riparata (era rotta da 10+ commit), tier1 wired nella CLI, confidenza
+per campo reale, derivazione aritmetica, due bug di misura propri
+trovati e corretti (non solo bug del motore), un'inconsistenza oracle
+corretta con verifica prima di toccarla. Nessun numero corretto senza
+prima misurarlo — inclusi i tre tentativi falliti su periodo_da/
+periodo_a (ADR-050), lasciati nella storia, non cancellati.
