@@ -41,6 +41,10 @@ class EsitoInvariante:
     id: str
     esito: Literal["pass", "fail"]
     severita: str
+    # ADR-060: il Gate legge SOLO Evidenza, non piu' le Violazioni della
+    # pipeline — il messaggio umano ("somma di X = Y, atteso Z") deve
+    # viaggiare qui, altrimenti un reject perderebbe la spiegazione.
+    messaggio: str | None = None
 
 
 @dataclass(frozen=True)
@@ -95,6 +99,11 @@ class RisultatoCampo:
     valore: str | None
     evidenza: Evidenza
     confidenza: Confidenza | None
+    # ADR-060: "e' obbligatorio" e' un fatto del contratto (schema), non
+    # un'evidenza di COME il valore e' stato ottenuto — vive qui, sul
+    # campo, non dentro Evidenza (che descrive solo la storia
+    # dell'estrazione). Il Gate legge questo, mai lo schema direttamente.
+    obbligatorio: bool = False
 
 
 def confidenza_da_evidenza(valore: str | None, evidenza: Evidenza) -> Confidenza | None:

@@ -1845,3 +1845,43 @@ costruisce `evidenze` PRIMA di `confidenza`, e `confidenza` si legge
 da lì — la pipeline non sa più cosa sia la confidenza, sa solo
 costruire Evidenza. Prepara il Commit 4 (il Gate legge solo Evidenza,
 non più tier0/tier1/repair/provider direttamente).
+
+## ADR-060 — Il Gate legge solo Evidence (chiude lo sprint Evidence Model)
+
+**2026-08-12, Commit 4/4.** `sacor.gate` (nuovo modulo): `gate(campi:
+Mapping[str, RisultatoCampo]) -> RisultatoGate`. Non importa
+`sacor.schema`, `sacor.pipeline`, `sacor.extractor`, `sacor.providers`
+— solo `sacor.evidence`. Sostituisce `pipeline._calcola_esito`
+(rimossa), stessa regola di sempre (obbligatorio mancante -> reject;
+invariante fallita severità reject -> reject; altra fallita ->
+warning; altrimenti pass), ora letta da Evidenza invece che da
+`(schema, valori, violazioni)`.
+
+Due pezzi mancavano in Evidenza per rendere il Gate autosufficiente,
+trovati implementando, non previsti in anticipo — coerente col
+principio dichiarato ("se durante il Commit 4 serve leggere un altro
+oggetto, è un pezzo di Evidence mancante, non una scorciatoia"):
+
+- `EsitoInvariante.messaggio` — il testo umano della violazione
+  ("somma di X = Y...") viveva solo in `Violazione` (pipeline), non in
+  Evidenza. Senza, un reject perderebbe la spiegazione.
+- `RisultatoCampo.obbligatorio` — "è un campo obbligatorio" è un fatto
+  del contratto (schema), non della storia dell'estrazione: non entra
+  in `Evidenza` (che descrive solo COME un valore è stato ottenuto),
+  ma deve viaggiare sul `RisultatoCampo` che il Gate riceve, altrimenti
+  il Gate tornerebbe a leggere lo schema.
+
+Verificato non solo funzionalmente ma **architetturalmente**:
+`test_gate_dipende_solo_da_evidence` fa il parse AST di `gate.py` e
+fallisce se un giorno qualcuno vi aggiunge un `import sacor.schema` (o
+pipeline/extractor/providers) — non un'affermazione in un commento, una
+proprietà verificata a ogni test run.
+
+**Sprint Evidence Model chiuso** (ADR-056→060, stessa sessione,
+quattro commit): la pipeline costruisce Evidenza; confidenza e gate
+sono funzioni pure che la leggono. Nessuna delle quattro proprietà
+dichiarate all'inizio dello sprint è rimasta un'intenzione — ognuna è
+un test che fallisce se smette di essere vera. Prossimo passo
+dichiarato (non di questo ADR): validare che il contratto regga anche
+sui 39 documenti CTE, un dominio diverso da quello su cui è stato
+disegnato.

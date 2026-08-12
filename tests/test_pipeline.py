@@ -9,8 +9,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from sacor.evidence import confidenza_da_evidenza
-from sacor.invariants import Violazione
-from sacor.pipeline import _calcola_esito, estrai_file
+from sacor.pipeline import estrai_file
 from sacor.providers.base import RispostaModello
 from sacor.providers.errors import ErroreProvider
 from sacor.schema import load
@@ -62,40 +61,10 @@ def _scrivi(tmp_path: Path, nome: str, pdf_bytes: bytes) -> Path:
     return p
 
 
-# --- _calcola_esito (puro) -------------------------------------------------
-
-
-def test_esito_pass_senza_mancanti_ne_violazioni() -> None:
-    schema = load(SCHEMA_PATH)
-    valori = {c.nome: "x" for c in schema.campi}
-    esito, motivo = _calcola_esito(schema, valori, ())
-    assert esito == "pass"
-    assert motivo is None
-
-
-def test_esito_reject_su_campo_obbligatorio_mancante() -> None:
-    schema = load(SCHEMA_PATH)
-    valori = {c.nome: None for c in schema.campi}
-    esito, motivo = _calcola_esito(schema, valori, ())
-    assert esito == "reject"
-    assert motivo is not None and "pod" in motivo
-
-
-def test_esito_warning_su_violazione_non_reject() -> None:
-    schema = load(SCHEMA_PATH)
-    valori = {c.nome: "x" for c in schema.campi}
-    violazione = Violazione(invariante_id="somma_fasce", severita="warning", messaggio="test")
-    esito, motivo = _calcola_esito(schema, valori, (violazione,))
-    assert esito == "warning"
-
-
-def test_esito_reject_su_violazione_severita_reject_anche_con_obbligatori_presenti() -> None:
-    schema = load(SCHEMA_PATH)
-    valori = {c.nome: "x" for c in schema.campi}
-    violazione = Violazione(invariante_id="somma_fasce", severita="reject", messaggio="grave")
-    esito, motivo = _calcola_esito(schema, valori, (violazione,))
-    assert esito == "reject"
-    assert motivo is not None and "grave" in motivo
+# --- _calcola_esito e' stata rimossa (Commit 4, ADR-060): il Gate legge
+# solo Evidence, vive in sacor.gate, testato in tests/test_gate.py.
+# estrai_file() sotto verifica l'integrazione end-to-end (gate() chiamato
+# con Evidence vera), non la regola pura in isolamento (quella e' li').
 
 
 # --- estrai_file (integrazione, tier0 su documento sintetico) --------------

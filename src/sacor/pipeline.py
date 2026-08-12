@@ -29,9 +29,11 @@ from sacor.evidence import (
     PaginaEvidenza,
     RiepilogoInvarianti,
     Riparazione,
+    RisultatoCampo,
     confidenza_da_evidenza,
 )
 from sacor.extractor import DiagnosticaCampo, TierZeroExtractor
+from sacor.gate import gate
 from sacor.invariants import (
     EsitoInvarianteValutazione,
     ProvenienzaDerivazione,
@@ -76,22 +78,6 @@ class RisultatoEstrazione:
     # nessun consumatore esistente li legge ancora.
     evidenze: dict[str, Evidenza] = field(default_factory=dict)
     evidenza_documento: EvidenzaDocumento | None = None
-
-
-def _calcola_esito(
-    schema: Schema, valori: dict[str, str | None], violazioni: tuple[Violazione, ...]
-) -> tuple[EsitoGate, str | None]:
-    mancanti = [c.nome for c in schema.campi if c.obbligatorio and valori.get(c.nome) is None]
-    if mancanti:
-        return "reject", f"campi obbligatori mancanti: {', '.join(mancanti)}"
-
-    violazioni_gravi = [v for v in violazioni if v.severita == "reject"]
-    if violazioni_gravi:
-        return "reject", f"invariante violata: {violazioni_gravi[0].messaggio}"
-
-    if violazioni:
-        return "warning", None
-    return "pass", None
 
 
 def _confidenza_da_evidenze(
@@ -160,7 +146,10 @@ def _costruisci_evidenze(
         if not v.valutata:
             continue
         esito_txt: Literal["pass", "fail"] = "fail" if v.violazione is not None else "pass"
-        voce = EsitoInvariante(id=v.invariante_id, esito=esito_txt, severita=v.severita)
+        messaggio = v.violazione.messaggio if v.violazione is not None else None
+        voce = EsitoInvariante(
+            id=v.invariante_id, esito=esito_txt, severita=v.severita, messaggio=messaggio
+        )
         for nome_campo in campi_coinvolti(by_id[v.invariante_id]):
             dettaglio_per_campo.setdefault(nome_campo, []).append(voce)
 
@@ -268,7 +257,6 @@ def estrai_file(
 
         valutazioni = valuta_tutte_con_esito(schema, valori)
         violazioni = tuple(v.violazione for v in valutazioni if v.violazione is not None)
-        esito, motivo = _calcola_esito(schema, valori, violazioni)
         evidenze = _costruisci_evidenze(
             schema,
             valori,
@@ -284,6 +272,21 @@ def estrai_file(
         # sopra. La pipeline non sa piu' cosa sia la confidenza, sa solo
         # costruire Evidenza.
         confidenza = _confidenza_da_evidenze(evidenze, valori)
+        # ADR-060: il Gate legge solo RisultatoCampo (valore + evidenza +
+        # confidenza + obbligatorio) — 'obbligatorio' e' l'unico fatto
+        # che la pipeline deve ancora prendere dallo schema, il Gate
+        # stesso non lo tocca mai.
+        campi_gate = {
+            c.nome: RisultatoCampo(
+                valore=valori.get(c.nome),
+                evidenza=evidenze[c.nome],
+                confidenza=confidenza.get(c.nome),
+                obbligatorio=c.obbligatorio,
+            )
+            for c in schema.campi
+        }
+        risultato_gate = gate(campi_gate)
+        esito, motivo = risultato_gate.esito, risultato_gate.motivo
         evidenza_documento = EvidenzaDocumento(
             schema=schema.documento,
             schema_versione=schema.schema_version,
