@@ -14,8 +14,8 @@ poi `docs/00-north-star.md`.
 ## Invarianti (non negoziabili)
 
 1. **Clean room.** Zero righe di codice, zero dati, zero listini provenienti da
-   VERO o da Massimo. Solo know-how. Se un file sembra derivato da VERO, si ferma
-   e si chiede.
+   altri progetti privati dell'autore. Solo know-how generale. Se un file
+   sembra derivato da un altro progetto, si ferma e si chiede.
 2. **Nessun documento di terzi nel corpus.** Solo bollette proprie, di persone
    che hanno dato consenso esplicito, sintetiche o fac-simile pubblici.
 3. **No push senza conferma esplicita.**
@@ -24,12 +24,14 @@ poi `docs/00-north-star.md`.
    dentro "bolletta", "luce" o "gas", è un errore di design.
 6. **L'AI non fa matematica.** Somme, IVA, riconciliazioni: solo Python.
 
-## I due gate di progetto
+## Gate di progetto
 
-- **G1** — Nodo n8n / pacchetto PyPI pubblicato entro **60 giorni** dall'inizio,
-  anche se estrae solo 4 campi. Pubblicare prima di perfezionare.
-- **G2** — Nessun secondo tipo di documento finché il primo non ha un numero di
-  accuratezza pubblicato **e** almeno un utente esterno.
+Storicamente G1/G2 erano vincolati a soglie di accuratezza fisse — vedi
+`docs/02-decisions.md`, ADR-046/047/048 per la cronologia completa (inclusa
+la revoca). Lo stato e le priorità attuali sono in ADR-048 in poi: non più
+"aspetta un numero alto", ma "pubblica onesto, migliora in pubblico" — la
+priorità corrente (pacchetto installabile, documentazione, primo
+utilizzatore esterno) è quella dichiarata lì, non qui.
 
 ## Memoria
 
