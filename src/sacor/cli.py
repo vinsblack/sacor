@@ -1,7 +1,13 @@
 """CLI (ADR-048): `sacor extract file.pdf` — il punto d'ingresso per chi
 integra sacor senza scrivere Python. Tier0 sempre (regex, gratis). Tier1
 (ADR-048 punto 1) opt-in via --tier1: claude-opus-5 (ADR-049), chiamata
-reale a pagamento, mai automatica — richiede ANTHROPIC_API_KEY."""
+reale a pagamento, mai automatica — richiede ANTHROPIC_API_KEY.
+
+Senza --schema, classifica il documento (ADR-053) prima di scegliere lo
+schema — bug osservato in sessione: una bolletta gas letta con lo schema
+luce senza nessun avviso. Solo bolletta_luce ha uno schema oggi; gas/CTE
+si fermano con un errore chiaro invece di essere letti col posto
+sbagliato."""
 
 from __future__ import annotations
 
@@ -10,6 +16,7 @@ import json
 import sys
 from pathlib import Path
 
+from sacor.classifica import TipoDocumento, classifica_file
 from sacor.pipeline import estrai_file
 from sacor.schema import SchemaError, load
 
@@ -22,17 +29,49 @@ def _schema_default() -> Path:
     return Path(__file__).parent / "schemas" / "bolletta_luce_it.yaml"
 
 
+def _schema_da_classificazione(file: Path) -> Path | None:
+    """None = nessuno schema utilizzabile, l'estrazione deve fermarsi con
+    un errore chiaro (mai forzare bolletta_luce su un documento che non lo
+    e', ADR-053). SCONOSCIUTO (documenti scansionati, nessun text layer)
+    resta bolletta_luce per compatibilita' — con avviso, non in silenzio:
+    e' l'unico schema che esiste oggi, e resta il default corretto per il
+    corpus reale attuale (tutto luce)."""
+    tipo = classifica_file(file)
+    if tipo == TipoDocumento.BOLLETTA_LUCE:
+        return _schema_default()
+    if tipo == TipoDocumento.SCONOSCIUTO:
+        print(
+            "avviso: tipo documento non determinato con certezza, uso lo "
+            "schema bolletta_luce per default — verifica il risultato.",
+            file=sys.stderr,
+        )
+        return _schema_default()
+    print(
+        f"errore: documento classificato come '{tipo.value}', nessuno "
+        "schema disponibile per questo tipo ancora — usa --schema per "
+        "forzarne uno esplicito.",
+        file=sys.stderr,
+    )
+    return None
+
+
 def _comando_extract(args: argparse.Namespace) -> int:
-    schema_path = Path(args.schema) if args.schema else _schema_default()
+    file = Path(args.file)
+    if not file.is_file():
+        print(f"errore: file non trovato: {file}", file=sys.stderr)
+        return 2
+
+    if args.schema:
+        schema_path: Path | None = Path(args.schema)
+    else:
+        schema_path = _schema_da_classificazione(file)
+    if schema_path is None:
+        return 2
+
     try:
         schema = load(schema_path)
     except SchemaError as exc:
         print(f"errore schema: {exc}", file=sys.stderr)
-        return 2
-
-    file = Path(args.file)
-    if not file.is_file():
-        print(f"errore: file non trovato: {file}", file=sys.stderr)
         return 2
 
     risultati = estrai_file(file, schema, usa_tier1=args.tier1)

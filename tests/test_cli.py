@@ -94,6 +94,34 @@ def test_extract_output_include_confidenza_costo_e_errore_tier1(
     assert output[0]["tier1_errore"] is None
 
 
+def _pdf_minimo_con_testo(path: Path, testo: str) -> None:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen.canvas import Canvas
+
+    c = Canvas(str(path), pagesize=A4, invariant=1)
+    for i, riga in enumerate(testo.split("\n")):
+        c.drawString(50, 800 - i * 15, riga)
+    c.save()
+
+
+def test_extract_documento_gas_senza_schema_esplicito_da_errore_chiaro(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """ADR-053: nessuno schema gas esiste ancora — meglio fermarsi con un
+    errore chiaro che forzare lo schema luce in silenzio (bug osservato
+    in sessione: bolletta gas letta come luce, kWh al posto di Smc)."""
+    path = tmp_path / "gas.pdf"
+    _pdf_minimo_con_testo(
+        path, "Bolletta Gas Naturale\nTotale da pagare 37,14 EUR\nConsumo 35,97 Smc"
+    )
+
+    codice = main(["extract", str(path)])
+
+    assert codice == 2
+    err = capsys.readouterr().err
+    assert "bolletta_gas" in err
+
+
 def test_extract_tier1_senza_chiave_api_riporta_errore_non_esplode(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
