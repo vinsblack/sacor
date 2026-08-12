@@ -1561,3 +1561,220 @@ costruito ma non ancora passato alla pipeline — nessuna misura,
 nessun oracle. Per lo stesso principio di questo ADR, questo NON
 blocca la pubblicazione del pacchetto luce: è lavoro parallelo
 successivo, non un prerequisito.
+
+## ADR-056 — Result Contract v1 (Evidence Model, design prima del codice)
+
+**2026-08-12, stessa sessione di ADR-055.** Prerequisito dichiarato
+da ADR-055: il gate di pubblicazione è la stabilità del contratto
+pubblico. Questo ADR è quel contratto — deciso PRIMA di scrivere
+codice, non estratto a posteriori da un'implementazione.
+
+### Lo stato di fatto oggi (la crepa che questo ADR chiude)
+
+`RisultatoEstrazione` (`pipeline.py`) porta `valori` e `confidenza`
+come due dict paralleli piatti. `confidenza` è già oggi, nel codice,
+una funzione pura di tre segnali — solo che quei segnali vengono
+calcolati e buttati via nello stesso respiro (`_calcola_confidenza`):
+
+```
+None                              se valore assente
+"bassa"                           se il campo è coinvolto in una
+                                   invariante VIOLATA (a prescindere
+                                   dall'origine — il disaccordo tra
+                                   campi è il segnale, ADR-045)
+"media"                           se origine in {tier1, derivato}
+"alta"                            altrimenti (origine == tier0)
+```
+
+Non tracciati oggi, calcolati e scartati: quali riparazioni
+(`repair.py`) sono state applicate, quante invarianti sono state
+VALUTATE (solo le fallite sopravvivono, come `violazioni`), la
+classificazione triage (`digitale`/`ibrida`/`scansione`) della
+pagina, il tipo documento deciso da `classifica.py`. Il campo
+"evidenza" di cui parla questo ADR non è un concetto nuovo da
+inventare — è quello che il sistema già sa e già dimentica.
+
+### Cos'è Result
+
+Un `Result` è l'output di `estrai_file()` per UNA istanza
+documentale (una bolletta, un CTE — la segmentazione, ADR-014-bis,
+può produrre più istanze per file). Non è "i valori estratti" — è
+**tutto ciò che il sistema sa giustificare** su quei valori.
+
+### Cos'è Evidence
+
+Evidence è la struttura che ogni singolo campo porta con sé, dalla
+quale la confidenza si CALCOLA (funzione pura, non un dato di
+input indipendente):
+
+- `origin` — chi ha prodotto il valore: `"tier0"` / `"tier1"` /
+  `"derivato"` oggi, stringa aperta non enum chiuso (un domani
+  `"tier2"`, `"arbitrato"` si aggiungono senza rompere nulla).
+- `repair` — lista, non booleano (un domani più trasformazioni in
+  sequenza sullo stesso campo): ogni voce `{"tipo": ..., "da": ...,
+  "a": ...}`.
+- `derivation` — lista, stessa ragione: ogni voce `{"tipo":
+  "somma_approssimata" | "differenza_giorni", "invariante_id": ...,
+  "da_campi": [...]}`.
+- `invariants` — non solo le fallite: `{"passed": N, "failed": M,
+  "dettaglio": [{"id", "esito": "pass"|"fail", "severita"}]}`. Oggi
+  il sistema valuta TUTTE le invarianti e tiene solo le fallite
+  (`violazioni`); questo è il motivo per cui "invarianti: 3/3" non è
+  rappresentabile ora.
+
+Document-level evidence (nuovo, oggi non esposto affatto):
+`triage` (classificazione pagina per pagina, già calcolata da
+`analizza()` e già scartata dopo aver deciso la segmentazione) e
+`classificazione` (tipo documento deciso da `classifica.py`, se la
+CLI l'ha eseguita). Serve a distinguere un problema di DOCUMENTO
+(scansione illeggibile) da un problema di CAMPO (regex non ha
+trovato nulla su un documento perfettamente leggibile) — oggi
+questi due casi sono indistinguibili nell'output.
+
+### Regola di derivazione della confidenza (dichiarata, stabile)
+
+```
+confidence(campo) =
+    null    se evidence.value è null
+    "bassa" se evidence.invariants.failed > 0 per un vincolo che
+            coinvolge questo campo
+    "media" se evidence.origin in {"tier1", "derivato"}
+    "alta"  altrimenti
+```
+
+Identica alla regola già in produzione oggi — cambia dove vive
+(funzione dichiarata sopra Evidence, non calcolo interno perso) non
+cosa calcola. Nessuna regressione comportamentale in questo ADR.
+
+### Esempio JSON completo
+
+```json
+{
+  "istanza_id": "demo",
+  "documento": {
+    "schema": "bolletta_luce_it",
+    "schema_versione": 1,
+    "classificazione": "bolletta_luce",
+    "pagine": [
+      {"indice": 0, "tipo": "digitale"},
+      {"indice": 1, "tipo": "digitale"}
+    ]
+  },
+  "campi": {
+    "kwh_totale": {
+      "value": "174.74",
+      "evidence": {
+        "origin": "tier0",
+        "repair": [],
+        "derivation": [],
+        "invariants": {
+          "passed": 1,
+          "failed": 0,
+          "dettaglio": [{"id": "somma_fasce", "esito": "pass", "severita": "warning"}]
+        }
+      },
+      "confidence": "alta"
+    },
+    "periodo_a": {
+      "value": "2025-05-13",
+      "evidence": {
+        "origin": "derivato",
+        "repair": [],
+        "derivation": [
+          {"tipo": "differenza_giorni", "invariante_id": "periodo_coerente", "da_campi": ["periodo_da", "giorni"]}
+        ],
+        "invariants": {"passed": 1, "failed": 0, "dettaglio": [{"id": "periodo_coerente", "esito": "pass", "severita": "warning"}]}
+      },
+      "confidence": "media"
+    },
+    "kwh_f3": {
+      "value": null,
+      "evidence": {"origin": null, "repair": [], "derivation": [], "invariants": {"passed": 0, "failed": 0, "dettaglio": []}},
+      "confidence": null
+    }
+  },
+  "esito": "pass",
+  "motivo": null,
+  "chiamate_tier1": [],
+  "costo_tier1_usd": 0.0,
+  "tier1_errore": null
+}
+```
+
+### Cosa è stabile (v1, il contratto — rompere questo è un major)
+
+- Forma di `campi`: mappa `nome_campo -> {value, evidence, confidence}`.
+- Dentro `evidence`: le quattro chiavi `origin`/`repair`/`derivation`/
+  `invariants`, sempre presenti (liste vuote, non assenti, se non
+  applicabile — un consumatore non deve mai fare `.get(x, default)`
+  su una chiave che potrebbe non esistere).
+- `confidence` valori possibili: `"alta"`/`"media"`/`"bassa"`/`null`
+  — la REGOLA sopra è stabile, cambiarla è la stessa gravità di
+  cambiare la forma.
+- `esito`: `"pass"`/`"warning"`/`"reject"`, e la sua semantica
+  (obbligatorio mancante o invariante `reject` → reject; altre
+  violazioni → warning; altrimenti pass).
+- `istanza_id`, top-level per file: una lista di `Result`, uno per
+  istanza segmentata.
+
+### Cosa può cambiare senza rompere nulla (additivo, non un major)
+
+- Nuovi valori di `origin` oltre i 3 attuali (client legge stringa,
+  non un enum chiuso lato consumatore).
+- Nuove chiavi dentro le voci di `repair`/`derivation` (sono dict
+  aperti, un consumatore legge `tipo` e ignora il resto).
+- `documento.classificazione`/`documento.pagine`: assenti oggi in
+  pratica se la CLI non ha classificato (es. `--schema` esplicito) —
+  trattare come opzionali fin da subito.
+- `chiamate_tier1`: lista di chiamate con costo/tempo/errore
+  attribuiti alla CHIAMATA (un tier1 oggi risolve N campi in una
+  sola chiamata — il costo non è attribuibile a un singolo campo
+  senza inventare un'euristica di riparto arbitraria, quindi non
+  si finge una precisione che non c'è). Un campo può riferire quale
+  chiamata l'ha risolto (`evidence.chiamata_id`, opzionale) se in
+  futuro arriva l'arbitrato multi-provider.
+- Un punteggio numerico di confidenza (0-1) potrà aggiungersi
+  ACCANTO alla categoria testuale, mai sostituirla in v1.
+
+### Esplicitamente fuori scope v1 (non costruire ora)
+
+- Attribuzione di costo/tempo per singolo campo (vedi sopra —
+  richiederebbe un riparto inventato, vietato dal principio "mai
+  indovinare" applicato al costo, ADR-054).
+- Confidenza come probabilità continua invece che categoriale.
+- Evidence per sotto-oggetti annidati (uno schema con campi
+  strutturati/ripetuti — nessuno schema attuale ne ha bisogno).
+
+### Il test richiesto: fra 3 anni, 20 tipi di documento, questo Result basta?
+
+Sì, e la ragione è verificabile riga per riga sopra: zero concetti
+specifici del dominio energia in questo contratto (niente "kwh",
+niente "POD" — `campi` è una mappa generica sui nomi dichiarati
+nello SCHEMA, mai nel contratto). Le quattro chiavi di Evidence
+(origin/repair/derivation/invariants) sono linguaggio di PIPELINE,
+non di dominio: si applicano identiche a un CTE (già verificato,
+zero campi economia-specifici nel modello) e a un ventesimo tipo
+documento non ancora immaginato, perché descrivono COME un valore è
+stato ottenuto e verificato, non COSA rappresenta.
+
+### Breaking change dichiarato
+
+Il JSON di oggi (README, `valori`+`confidenza` piatti e paralleli)
+NON è compatibile con questo — è il momento giusto per romperlo:
+pre-alpha dichiarato, zero utenti esterni ancora (ADR-048), prima
+del tag `0.1.0-alpha`. Romperlo dopo la prima release sarebbe la
+stessa violazione di contratto che questo ADR esiste per evitare.
+
+### Ordine deciso (non ancora eseguito, solo il design)
+
+1. Questo ADR (fatto).
+2. Implementare Evidence Model come feature, non refactoring
+   interno silenzioso: `pipeline.py`, `invariants.py` (deve
+   restituire passed/failed per invariante, non solo le fallite),
+   `base.py`/`anthropic.py` (chiamate come lista con id), CLI/JSON
+   output, README aggiornato con l'esempio sopra, test.
+3. Validare il contratto sui 39 CTE — non solo per misurarli, ma
+   come prova che il contratto regge su un dominio diverso da
+   quello su cui è stato disegnato.
+4. Release `0.1.0-alpha`: API dichiarata instabile, contratto
+   Result dichiarato stabile, benchmark pubblico, roadmap.
