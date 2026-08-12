@@ -124,6 +124,13 @@ Dettagli in `docs/01-architecture.md`.
 
 Pre-alpha. Non usare in produzione.
 
+## Contribuire
+
+Vedi `CONTRIBUTING.md` — in breve: misura prima di dichiarare, nessun
+documento di terzi nel repo, un nuovo tipo di documento è uno schema
+YAML nuovo, non nuovo codice. `CODE_OF_CONDUCT.md` per le regole di
+comportamento.
+
 ## Licenza
 
 Apache-2.0
