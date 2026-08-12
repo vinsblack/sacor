@@ -93,3 +93,49 @@ nuovo. Il collo di bottiglia è la distribuzione, non l'algoritmo: si
 pubblica un motore onesto (numeri reali attuali dichiarati, non
 nascosti) e si lascia che l'adozione porti nuovi casi reali. Il corpus
 è conseguenza della Fase 2, non prerequisito della Fase 1.
+
+## Mandato attuale (12-08, lettera dell'utente — vale come vincolo,
+non solo come nota)
+
+Il corpus dei 15 documenti ha già dato la risposta che doveva dare:
+l'ipotesi sintetica era sbagliata, il tier0 non generalizza come
+previsto, alcune scelte architetturali erano giuste, altre sono state
+riviste. Non sono sconfitte — sono il motivo per cui esiste un
+processo di misura. **Continuare a ottimizzare il motore sugli stessi
+15 documenti produce sempre meno informazione e sempre più rischio di
+overfitting.** Il collo di bottiglia oggi non è l'algoritmo, è
+l'assenza di nuovi utilizzatori — nuovi documenti reali arriveranno
+solo quando altre persone useranno sacor. Il corpus non è più il
+prerequisito della pubblicazione: è una sua conseguenza.
+
+**Cambia il criterio di successo.** Non più "far salire un numero".
+Da ora: permettere a uno sviluppatore esterno di installare sacor,
+provarlo su un proprio documento, e capire immediatamente cosa
+funziona e cosa no.
+
+**Il vero prodotto non è la pipeline, non sono le invarianti, non sono
+le regex — è la fiducia.** sacor deve essere riconosciuto come il
+motore che permette di usare modelli AI in processi dove un errore ha
+un costo economico reale. Se un domani i modelli miglioreranno del
+30%, sacor continuerà ad avere valore perché il suo compito non è
+leggere un documento meglio di un modello — è verificare, misurare e
+qualificare il risultato. Questo non si copia leggendo un prompt.
+
+**Priorità della fase attuale, in ordine** (sostituisce qualunque
+lettura che tratti ancora il corpus come lavoro da chiudere):
+
+1. Pubblicazione del pacchetto
+2. Documentazione eccellente
+3. Nodo n8n
+4. API stabile
+5. Primi utilizzatori esterni
+6. Raccolta di nuovi casi reali provenienti dall'utilizzo — non prima
+
+Il progetto non sarà giudicato dal numero di regole nello schema YAML
+o dalla complessità della pipeline, ma dalla capacità di diventare uno
+strumento che altri sviluppatori scelgono di integrare perché si
+fidano dei suoi risultati. La fiducia non nasce dalla promessa di
+essere perfetti — nasce dalla capacità di dichiarare con precisione
+ciò che il sistema sa, ciò che non sa, e di migliorare continuamente
+sulla base di dati reali (non di dati raccolti in laboratorio sugli
+stessi 15 documenti).
