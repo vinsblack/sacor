@@ -7,6 +7,58 @@ semi-strutturati e dichiara quanto si può fidare di ogni campo.
 
 Primo schema implementato: bollette luce e gas italiane.
 
+## Quickstart
+
+Richiede Python 3.12+. Non ancora su PyPI (vedi `docs/02-decisions.md`,
+ADR-048) — si installa da sorgente:
+
+```bash
+git clone https://github.com/vinsblack/sacor
+cd sacor
+pip install .
+```
+
+Estrai un PDF:
+
+```bash
+sacor extract bolletta.pdf
+```
+
+Output — JSON con un oggetto per istanza (una bolletta può contenerne più
+di una), valori estratti, esito ed eventuali violazioni:
+
+```json
+[
+  {
+    "istanza_id": "demo",
+    "valori": {
+      "pod": "IT121E66496171",
+      "fornitore": "Alfa Energia",
+      "periodo_da": "2025-03-19",
+      "periodo_a": "2025-05-13",
+      "giorni": "56",
+      "kwh_totale": "174.74",
+      "kwh_f1": "174.74",
+      "kwh_f2": "0.00",
+      "kwh_f3": "0.00",
+      "importo_totale": "82.25"
+    },
+    "esito": "pass",
+    "motivo": null,
+    "violazioni": []
+  }
+]
+```
+
+`esito` è `pass` / `warning` / `reject`. Exit code: `0` se tutte le istanze
+passano, `1` se almeno una è `reject`, `2` per errori (file o schema non
+trovato).
+
+Solo tier 0 per ora (regex, zero costo, sempre disponibile) — nessuna
+chiave API richiesta. Accuratezza reale attuale: 50-61% per campo, 0% per
+documento completo, vedi `docs/02-decisions.md` (ADR-046/048) — pubblicata
+per intero, non filtrata.
+
 ## Perché
 
 La maggior parte degli estrattori dichiara "99% di accuratezza" senza mostrare
