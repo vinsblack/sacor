@@ -1802,3 +1802,24 @@ buttata via": non comprimere due domande in una risposta.
 Aggiornamento all'esempio JSON di ADR-056: ogni voce `evidence`
 guadagna `"status": null | "<motivo>"` accanto a `"origin"`. Nessun
 altro campo del contratto cambia.
+
+## ADR-058 — Evidence è monotona (append-only)
+
+**2026-08-12, prima del Commit 2.** Regola per l'implementazione
+dell'Evidence Model (ADR-056/057), non ancora scritta come vincolo
+esplicito: nessun layer della pipeline può rimuovere o riscrivere
+informazione già presente in `Evidenza` — può solo aggiungerne.
+Tier0 scrive `origine`; Repair aggiunge a `repair`; Derivazione
+aggiunge a `derivazione`; Invarianti aggiunge a `invarianti`. Nessuno
+di questi corregge quanto scritto da un layer precedente.
+
+Corollario: Evidenza è un contenitore, non un decisore. Non contiene
+`if` che decidono qualcosa — descrive soltanto. Le decisioni
+(confidenza, gate) stanno FUORI, come funzioni pure che leggono
+Evidenza già completa, mai dentro la struttura dati stessa.
+
+Proprietà da verificare a fine Commit 2: per un campo qualsiasi, la
+sua storia completa (chi l'ha prodotto, quali riparazioni, quali
+derivazioni, quali invarianti valutate) deve essere ricostruibile
+leggendo SOLO la sua `Evidenza` — senza guardare `extractor`,
+`pipeline` o altro stato interno.
