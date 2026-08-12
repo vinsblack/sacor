@@ -16,23 +16,28 @@ jobs:
       - name: Set up Python 3.12
         run: uv python install 3.12
 
-      - name: Install package
-        run: uv pip install --system -e ".[dev]"
+      - name: Install dependencies
+        # 'uv pip install --system' fallisce sui runner ubuntu-latest
+        # (Python /usr esternamente gestito, PEP 668) — rotto da almeno
+        # 10 run consecutivi (11-08 in poi), CI non arrivava a pytest da
+        # una sessione intera. 'uv sync' crea il proprio .venv, stesso
+        # comando usato in locale in questo repo.
+        run: uv sync --all-extras
 
       - name: ruff
-        run: ruff check .
+        run: uv run ruff check .
 
       - name: mypy
-        run: mypy src/
+        run: uv run mypy src/
 
       - name: pytest
-        run: pytest
+        run: uv run pytest
 
       - name: report accuratezza (corpus sintetico)
         # README dichiara "accuratezza rieseguita in CI a ogni commit" —
-        # prima non era vero (CI girava solo test). Corpus reale (PDF, mai
-        # nel repo, ADR-042) non puo' girare qui: questo e' il sintetico,
-        # gia' committato in corpus/synth/. Non fallisce la build (nessuna
-        # soglia dichiarata da far rispettare) — rende visibile il numero
-        # ad ogni commit, che e' esattamente il claim da onorare.
-        run: python eval/run.py
+        # non era vero (CI non arrivava nemmeno a pytest, vedi sopra).
+        # Corpus reale (PDF, mai nel repo, ADR-042) non puo' girare qui:
+        # questo e' il sintetico, gia' committato in corpus/synth/. Non
+        # fallisce la build (nessuna soglia dichiarata da far rispettare)
+        # — rende visibile il numero ad ogni commit, onora il claim.
+        run: uv run python eval/run.py
