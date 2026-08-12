@@ -7,7 +7,7 @@ from sacor.oracle import OracleError, load_oracle
 from sacor.schema import load
 
 REPO_ROOT = Path(__file__).parent.parent
-SCHEMA_PATH = REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
+SCHEMA_PATH = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_luce_it.yaml"
 ORACLE_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "attesi.json"
 
 

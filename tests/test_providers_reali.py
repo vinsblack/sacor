@@ -25,7 +25,7 @@ from sacor.providers.token_stima import TipoFormulaSconosciuto, stima_token_imma
 from sacor.schema import Campo, load
 
 REPO_ROOT = Path(__file__).parent.parent
-SCHEMA_PATH = REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
+SCHEMA_PATH = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_luce_it.yaml"
 PREZZI_PATH = REPO_ROOT / "config" / "prezzi_modelli.yaml"
 
 

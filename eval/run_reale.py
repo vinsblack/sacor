@@ -20,7 +20,7 @@ from sacor.schema import SchemaError, load
 from sacor.segmentation import Istanza
 
 REPO_ROOT = Path(__file__).parent.parent
-SCHEMA_PATH = REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
+SCHEMA_PATH = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_luce_it.yaml"
 ORACLE_PATH = REPO_ROOT / "corpus" / "reale" / "attesi.json"
 CORPUS_RAW = REPO_ROOT / "corpus" / "reale" / "raw"
 

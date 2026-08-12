@@ -57,7 +57,7 @@ def test_extract_file_inesistente_esce_2(capsys: pytest.CaptureFixture[str]) -> 
 def test_extract_schema_esplicito_sovrascrive_default(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     pdf_bytes, _, _ = genera_documento(random.Random(62), "S042", "Alfa Energia", Flags())
     path = _scrivi(tmp_path, "S042.pdf", pdf_bytes)
-    schema_path = REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
+    schema_path = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_luce_it.yaml"
 
     codice = main(["extract", str(path), "--schema", str(schema_path)])
 

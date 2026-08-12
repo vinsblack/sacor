@@ -27,7 +27,7 @@ from sacor.triage import analizza, normalizza_testo
 from scripts.genera_corpus import genera_corpus_composito
 
 REPO_ROOT = Path(__file__).parent.parent
-SCHEMA_PATH = REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
+SCHEMA_PATH = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_luce_it.yaml"
 
 
 def test_segmentazione_e_raggiungibile_dal_corpus_di_default(tmp_path: Path) -> None:
@@ -40,7 +40,7 @@ def test_segmentazione_e_raggiungibile_dal_corpus_di_default(tmp_path: Path) -> 
 
     schema = load(SCHEMA_PATH)
     assert schema.segmentazione is not None, (
-        "schemas/bolletta_luce_it.yaml non dichiara 'segmentazione': "
+        "src/sacor/schemas/bolletta_luce_it.yaml non dichiara 'segmentazione': "
         "sacor.segmentation prenderebbe sempre il ramo di default (ADR-028)"
     )
 

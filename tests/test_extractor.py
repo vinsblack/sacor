@@ -10,7 +10,7 @@ from sacor.segmentation import Istanza
 from scripts.genera_corpus import Flags, genera_documento
 
 REPO_ROOT = Path(__file__).parent.parent
-SCHEMA_PATH = REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
+SCHEMA_PATH = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_luce_it.yaml"
 
 
 def _scrivi(tmp_path: Path, nome: str, pdf_bytes: bytes) -> Path:

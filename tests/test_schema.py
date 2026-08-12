@@ -5,7 +5,7 @@ import pytest
 from sacor.schema import SchemaError, load
 
 REPO_ROOT = Path(__file__).parent.parent
-SCHEMA_REALE = REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
+SCHEMA_REALE = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_luce_it.yaml"
 
 
 def test_schema_bolletta_luce_carica_10_campi_9_invarianti() -> None:

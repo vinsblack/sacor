@@ -14,7 +14,7 @@ from sacor.providers.pricing import PrezzoModello, TabellaPrezzi, TokenImmagineC
 from scripts.genera_corpus import Flags, genera_corpus
 
 REPO_ROOT = Path(__file__).parent.parent
-SCHEMA_PATH = REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
+SCHEMA_PATH = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_luce_it.yaml"
 
 _FORMULA_TEST = TokenImmagineConfig(
     tipo="lineare_wh_750", formula="...", fonte="test", verificato_il="2026-01-01"

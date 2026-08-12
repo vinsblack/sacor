@@ -5,7 +5,7 @@ from sacor.providers.fake import FakeProvider, chiave_pagine
 from sacor.schema import load
 
 REPO_ROOT = Path(__file__).parent.parent
-SCHEMA_PATH = REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
+SCHEMA_PATH = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_luce_it.yaml"
 
 
 def test_fake_provider_legge_valori_da_fixture(tmp_path: Path) -> None:

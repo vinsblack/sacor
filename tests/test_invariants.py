@@ -10,7 +10,7 @@ from sacor.invariants import valuta, valuta_tutte
 from sacor.schema import Invariante, load
 
 REPO_ROOT = Path(__file__).parent.parent
-SCHEMA_REALE = REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
+SCHEMA_REALE = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_luce_it.yaml"
 
 
 def _somma_fasce(tolleranza: float = 0.005) -> Invariante:

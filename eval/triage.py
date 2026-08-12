@@ -21,7 +21,7 @@ from sacor.segmentation import ConfidenzaSegmentazione, segmenta
 from sacor.triage import TipoPagina, analizza, normalizza_testo
 
 REPO_ROOT = Path(__file__).parent.parent
-SCHEMA_PATH = REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
+SCHEMA_PATH = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_luce_it.yaml"
 METADATA_PATH = REPO_ROOT / "corpus" / "metadata.json"
 CORPUS_SYNTH = REPO_ROOT / "corpus" / "synth"
 

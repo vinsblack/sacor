@@ -13,16 +13,12 @@ from pathlib import Path
 from sacor.pipeline import estrai_file
 from sacor.schema import SchemaError, load
 
-REPO_ROOT = Path(__file__).parent.parent.parent
-
-
 def _schema_default() -> Path:
-    # ponytail: schema letto dal repo, non ancora impacchettato nel wheel
-    # (un primo tentativo con force-include ha rotto l'editable install —
-    # namespace package fantasma in site-packages/sacor/). Da risolvere
-    # quando si pubblica davvero su PyPI, non prima: fino ad allora `sacor
-    # extract` funziona solo dentro il repo o con --schema esplicito.
-    return REPO_ROOT / "schemas" / "bolletta_luce_it.yaml"
+    # Schema impacchettato dentro src/sacor/schemas/ (parte del wheel:
+    # packages=["src/sacor"] in pyproject.toml lo include senza bisogno
+    # di force-include). Path relativo a questo file funziona sia in
+    # editable install sia da wheel installato altrove.
+    return Path(__file__).parent / "schemas" / "bolletta_luce_it.yaml"
 
 
 def _comando_extract(args: argparse.Namespace) -> int:
