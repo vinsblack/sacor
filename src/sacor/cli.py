@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 from sacor.classifica import TipoDocumento, classifica_file
-from sacor.pipeline import estrai_file
+from sacor.pipeline import RisultatoEstrazione, estrai_file
 from sacor.schema import SchemaError, load
 
 
@@ -93,26 +93,67 @@ def _comando_extract(args: argparse.Namespace) -> int:
         return 2
 
     risultati = estrai_file(file, schema, usa_tier1=args.tier1)
-    output = [
-        {
-            "istanza_id": r.istanza_id,
-            "valori": r.valori,
-            # ADR-048 punto 2: "alta"/"media"/"bassa" per campo, None se il
-            # campo non ha valore — vedi sacor.pipeline._calcola_confidenza.
-            "confidenza": r.confidenza,
-            "esito": r.esito,
-            "motivo": r.motivo,
-            "violazioni": [
-                {"id": v.invariante_id, "severita": v.severita, "messaggio": v.messaggio}
-                for v in r.violazioni
-            ],
-            "costo_tier1_usd": round(r.costo_tier1_usd, 6),
-            "tier1_errore": r.tier1_errore,
-        }
-        for r in risultati
-    ]
+    output = [_serializza_risultato(r) for r in risultati]
     print(json.dumps(output, indent=2, ensure_ascii=False))
     return 1 if any(r.esito == "reject" for r in risultati) else 0
+
+
+def _serializza_risultato(r: RisultatoEstrazione) -> dict[str, object]:
+    """Result Contract v1 (ADR-056, corretto da ADR-057/058/059/060) —
+    il JSON pubblico riflette la stessa struttura di Evidenza costruita
+    internamente, non una proiezione ridotta. Rompe la forma precedente
+    (valori/confidenza piatti) di proposito: e' il momento giusto per
+    farlo, prima del primo tag pubblico (ADR-056, 'romperlo dopo sarebbe
+    la stessa violazione di contratto che l'ADR esiste per evitare')."""
+    documento = None
+    if r.evidenza_documento is not None:
+        documento = {
+            "schema": r.evidenza_documento.schema,
+            "schema_versione": r.evidenza_documento.schema_versione,
+            "classificazione": r.evidenza_documento.classificazione,
+            "pagine": [
+                {"indice": p.indice, "tipo": p.tipo} for p in r.evidenza_documento.pagine
+            ],
+        }
+    return {
+        "istanza_id": r.istanza_id,
+        "documento": documento,
+        "campi": {nome: _serializza_campo(r, nome) for nome in r.valori},
+        "esito": r.esito,
+        "motivo": r.motivo,
+        "costo_tier1_usd": round(r.costo_tier1_usd, 6),
+        "tier1_errore": r.tier1_errore,
+    }
+
+
+def _serializza_campo(r: RisultatoEstrazione, nome: str) -> dict[str, object]:
+    ev = r.evidenze[nome]
+    return {
+        "value": r.valori[nome],
+        "evidence": {
+            "origin": ev.origine,
+            "status": ev.stato,
+            "repair": [{"tipo": rp.tipo, "da": rp.da, "a": rp.a} for rp in ev.repair],
+            "derivation": [
+                {"tipo": d.tipo, "invariante_id": d.invariante_id, "da_campi": list(d.da_campi)}
+                for d in ev.derivazione
+            ],
+            "invariants": {
+                "passed": ev.invarianti.passate,
+                "failed": ev.invarianti.fallite,
+                "dettaglio": [
+                    {
+                        "id": e.id,
+                        "esito": e.esito,
+                        "severita": e.severita,
+                        "messaggio": e.messaggio,
+                    }
+                    for e in ev.invarianti.dettaglio
+                ],
+            },
+        },
+        "confidence": r.confidenza.get(nome),
+    }
 
 
 def main(argv: list[str] | None = None) -> int:

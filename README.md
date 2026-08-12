@@ -25,45 +25,60 @@ sacor extract bolletta.pdf
 ```
 
 Output — JSON con un oggetto per istanza (una bolletta può contenerne più
-di una), valori estratti, confidenza per campo, esito ed eventuali
-violazioni:
+di una): non solo i valori estratti, ma la loro **evidenza** — da dove
+viene ogni campo, quali riparazioni ha subito, quali invarianti ha
+superato (Result Contract v1, ADR-056). Esempio reale, un campo
+espanso per intero e gli altri abbreviati per leggibilità:
 
 ```json
 [
   {
     "istanza_id": "demo",
-    "valori": {
-      "pod": "IT121E66496171",
-      "fornitore": "Alfa Energia",
-      "periodo_da": "2025-03-19",
-      "periodo_a": "2025-05-13",
-      "giorni": "56",
-      "kwh_totale": "174.74",
-      "kwh_f1": "174.74",
-      "kwh_f2": "0.00",
-      "kwh_f3": "0.00",
-      "importo_totale": "82.25"
+    "documento": {
+      "schema": "bolletta_luce_it",
+      "schema_versione": 1,
+      "classificazione": null,
+      "pagine": [{"indice": 1, "tipo": "digitale"}, "..."]
     },
-    "confidenza": {
-      "pod": "alta", "fornitore": "alta", "periodo_da": "alta",
-      "periodo_a": "alta", "giorni": "alta", "kwh_totale": "alta",
-      "kwh_f1": "alta", "kwh_f2": "alta", "kwh_f3": "alta",
-      "importo_totale": "alta"
+    "campi": {
+      "kwh_totale": {
+        "value": "174.74",
+        "evidence": {
+          "origin": "tier0",
+          "status": null,
+          "repair": [{"tipo": "ripara", "da": "174,74", "a": "174.74"}],
+          "derivation": [],
+          "invariants": {
+            "passed": 2,
+            "failed": 0,
+            "dettaglio": [
+              {"id": "somma_fasce", "esito": "pass", "severita": "warning", "messaggio": null},
+              {"id": "kwh_totale_non_negativo", "esito": "pass", "severita": "warning", "messaggio": null}
+            ]
+          }
+        },
+        "confidence": "alta"
+      },
+      "pod": {"value": "IT121E66496171", "evidence": "...", "confidence": "alta"},
+      "fornitore": {"value": "Alfa Energia", "evidence": "...", "confidence": "alta"}
     },
     "esito": "pass",
     "motivo": null,
-    "violazioni": [],
     "costo_tier1_usd": 0.0,
     "tier1_errore": null
   }
 ]
 ```
 
-`confidenza` per campo: `alta` (tier 0, regex deterministica), `media`
-(tier 1, AI), `bassa` (il campo è coinvolto in un'invariante violata —
-es. una somma che non torna), `null` se il campo non ha valore. `esito` è
-`pass` / `warning` / `reject`. Exit code: `0` se tutte le istanze passano,
-`1` se almeno una è `reject`, `2` per errori (file o schema non trovato).
+`evidence.origin`: `tier0` (regex deterministica) / `tier1` (AI) /
+`derivato` (aritmetica, ADR-051) / `null` se assente — `evidence.status`
+dice perché quando manca (`tier1_non_tentato`, `tier1_fallito`,
+`non_trovato`). `confidence` per campo: `alta`/`media`/`bassa`/`null`,
+funzione pura di `evidence` (ADR-059) — `bassa` se il campo è coinvolto
+in un'invariante fallita, a prescindere dall'origine. `esito` è
+`pass` / `warning` / `reject`, deciso dal Gate leggendo solo Evidence
+(ADR-060). Exit code: `0` se tutte le istanze passano, `1` se almeno una
+è `reject`, `2` per errori (file o schema non trovato).
 
 Tier 0 (regex, zero costo, sempre disponibile) gira sempre. Con
 `--tier1` completa i campi che il tier 0 lascia `None` chiamando

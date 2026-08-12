@@ -34,7 +34,7 @@ def test_extract_documento_pulito_esce_0_e_stampa_json(
     output = json.loads(capsys.readouterr().out)
     assert len(output) == 1
     assert output[0]["esito"] == "pass"
-    assert output[0]["valori"]["pod"] is not None
+    assert output[0]["campi"]["pod"]["value"] is not None
 
 
 def test_extract_scansione_esce_1_reject(
@@ -89,9 +89,37 @@ def test_extract_output_include_confidenza_costo_e_errore_tier1(
     main(["extract", str(path)])
 
     output = json.loads(capsys.readouterr().out)
-    assert output[0]["confidenza"]["pod"] == "alta"
+    assert output[0]["campi"]["pod"]["confidence"] == "alta"
     assert output[0]["costo_tier1_usd"] == 0.0
     assert output[0]["tier1_errore"] is None
+
+
+def test_extract_output_espone_il_result_contract_v1(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """ADR-056/057: il JSON pubblico (non solo gli oggetti Python interni)
+    porta 'documento' (evidenza a livello documento) e, per ogni campo,
+    'evidence' con le quattro chiavi sempre presenti — mai assenti anche
+    quando vuote (un consumatore non deve fare .get(x, default))."""
+    pdf_bytes, _, _ = genera_documento(random.Random(66), "S046", "Alfa Energia", Flags())
+    path = _scrivi(tmp_path, "S046.pdf", pdf_bytes)
+
+    main(["extract", str(path)])
+
+    (istanza,) = json.loads(capsys.readouterr().out)
+    assert istanza["documento"]["schema"] == "bolletta_luce_it"
+    assert isinstance(istanza["documento"]["pagine"], list)
+
+    campo = istanza["campi"]["pod"]
+    assert campo["value"] is not None
+    assert campo["evidence"]["origin"] == "tier0"
+    assert campo["evidence"]["status"] is None
+    assert campo["evidence"]["repair"] == []
+    assert campo["evidence"]["derivation"] == []
+    # pod ha un'invariante reale (formato_pod) che qui passa — 1/0, non 0/0.
+    assert campo["evidence"]["invariants"]["passed"] >= 1
+    assert campo["evidence"]["invariants"]["failed"] == 0
+    assert campo["confidence"] == "alta"
 
 
 def _pdf_minimo_con_testo(path: Path, testo: str) -> None:
@@ -121,8 +149,8 @@ def test_extract_documento_gas_senza_schema_esplicito_usa_schema_gas(
     codice = main(["extract", str(path)])
 
     output = json.loads(capsys.readouterr().out)
-    assert output[0]["valori"]["pdr"] == "00881900782465"
-    assert output[0]["valori"]["smc_totale"] == "35.97"
+    assert output[0]["campi"]["pdr"]["value"] == "00881900782465"
+    assert output[0]["campi"]["smc_totale"]["value"] == "35.97"
     # obbligatori (periodo_da/periodo_a) mancanti su un PDF minimo -> reject,
     # ma con lo schema giusto, non quello luce sbagliato.
     assert codice == 1
@@ -146,8 +174,8 @@ def test_extract_documento_cte_senza_schema_esplicito_usa_schema_cte(
 
     assert codice == 0
     output = json.loads(capsys.readouterr().out)
-    assert output[0]["valori"]["codice_offerta"] == "001714ENFFL05XXFSOL0000500000000"
-    assert output[0]["valori"]["durata_contratto"] == "Indeterminata"
+    assert output[0]["campi"]["codice_offerta"]["value"] == "001714ENFFL05XXFSOL0000500000000"
+    assert output[0]["campi"]["durata_contratto"]["value"] == "Indeterminata"
 
 
 def test_extract_documento_sconosciuto_usa_luce_con_avviso(
