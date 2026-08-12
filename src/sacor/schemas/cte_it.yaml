@@ -1,0 +1,118 @@
+schema_version: 1
+documento: cte_it
+
+# ADR-053: primo schema CTE ("Condizioni Tecnico-Economiche" — un
+# documento di offerta/condizioni contrattuali, non una bolletta: niente
+# importo da pagare, niente periodo fatturato). Costruito leggendo un
+# solo documento reale (ENGIE eFIX Luce, dato dall'utente per la prova
+# empirica) — NESSUN corpus con oracle esiste, nessuna misura di
+# accuratezza. Il layout CTE e' tabellare/multi-colonna: l'estrazione
+# testo (pdfplumber) esce spesso interlacciata/corrotta su alcuni campi
+# (es. "Venditore" — verificato leggendo il documento) anche se il
+# rendering immagine (tier1) resta leggibile — per questo diversi campi
+# qui non hanno regex tier0, solo descrizione per tier1.
+
+campi:
+  - nome: codice_offerta
+    tipo: string
+    obbligatorio: true
+    descrizione: >-
+      Il codice identificativo dell'offerta (es.
+      "001714ENFFL05XXFSOL0000500000000"), etichettato "Codice Offerta"
+      o "Codici offerta" — un token alfanumerico lungo, spesso preceduto
+      da un prefisso tipo "Single ELE"/"Single GAS" che NON fa parte del
+      codice stesso.
+    estrazione:
+      tipo: regex
+      pattern: '[Cc]odic[ei] [Oo]fferta\s*(?:\S+\s+)*?(\w{20,})'
+  - nome: fornitore
+    tipo: string
+    obbligatorio: false
+    descrizione: >-
+      Il nome commerciale del venditore/fornitore che propone l'offerta
+      — es. "ENGIE", "Alperia". NON la forma legale estesa (es. "ENGIE
+      Italia S.p.A." -> "ENGIE"), stessa regola degli altri schemi
+      bolletta_*_it.
+  - nome: valido_dal
+    tipo: date
+    obbligatorio: false
+    descrizione: >-
+      La data di INIZIO validità di QUESTA offerta — es. "Offerta
+      energetica valida dal 06/08/2026 al 16/09/2026"
+      (valido_dal=2026-08-06). Se il documento mostra solo una data di
+      scadenza ("valide fino al X", senza una data di inizio esplicita),
+      questo campo è null — non dedurlo dalla data di emissione o da
+      altre date sul documento.
+    estrazione:
+      tipo: regex
+      pattern: '[Vv]alid[ao]\s+dal\s+(\d{2}/\d{2}/\d{4})\s+al\s+\d{2}/\d{2}/\d{4}'
+  - nome: valido_al
+    tipo: date
+    obbligatorio: false
+    descrizione: >-
+      La data di FINE validità di QUESTA offerta — es. "Offerta
+      energetica valida dal 06/08/2026 al 16/09/2026"
+      (valido_al=2026-09-16), o "condizioni economiche valide fino al
+      16/09/2026".
+    estrazione:
+      tipo: regex
+      pattern: >-
+        (?:[Vv]alid[ao]\s+dal\s+\d{2}/\d{2}/\d{4}\s+al|valid[ei]\s+fino\s+al)\s+(\d{2}/\d{2}/\d{4})
+  - nome: durata_contratto
+    tipo: string
+    obbligatorio: false
+    descrizione: >-
+      La durata del contratto (non della validità dei prezzi) — es.
+      "Indeterminata", "12 mesi". Etichettata "Durata del contratto".
+    estrazione:
+      tipo: regex
+      pattern: 'Durata del contratto\s*\n?\s*([^\n]+?)(?:\n|$)'
+  - nome: tipologia_prezzo
+    tipo: string
+    obbligatorio: false
+    descrizione: >-
+      Se il prezzo della materia prima è fisso o variabile/indicizzato,
+      ed eventuale durata del blocco prezzo — es. "Fisso, 24 mesi",
+      "Variabile, indicizzato PSV". Etichettato "Prezzo materia prima
+      energia" (luce) o gas equivalente.
+    estrazione:
+      tipo: regex
+      pattern: 'Prezzo materia prima energia\s*\n?\s*([^\n]+?)(?:\n|$)'
+  - nome: corrispettivo_annuo
+    tipo: decimal
+    obbligatorio: false
+    descrizione: >-
+      Il corrispettivo fisso annuo (Pfix), in €/anno — es.
+      "Corrispettivo Annuo (Pfix) 180,00 €/anno" (corrispettivo_
+      annuo=180.00). Diverso dal "Costo Fisso Anno" nella scheda
+      sintetica se compaiono entrambi (stesso valore atteso, prendi
+      quello con etichetta più esplicita "Corrispettivo Annuo").
+    estrazione:
+      tipo: regex
+      pattern: 'Corrispettivo Annuo[^\d]*([\d.,]+)\s*€/anno'
+  - nome: onere_recesso
+    tipo: string
+    obbligatorio: false
+    descrizione: >-
+      L'eventuale onere/penale per recesso anticipato dal contratto —
+      es. "Nessuno". Etichettato "Onere di recesso anticipato" o
+      "Oneri di recesso anticipato".
+    estrazione:
+      tipo: regex
+      pattern: 'Oner[ei] di recesso anticipato\s*\n?\s*([^\n]+?)(?:\n|$)'
+
+invarianti:
+  - id: corrispettivo_annuo_non_negativo
+    tipo: valore_minimo
+    campo: corrispettivo_annuo
+    minimo: 0
+    severita: warning
+
+  - id: validita_ordinata
+    tipo: ordine_date
+    precedente: valido_dal
+    successiva: valido_al
+    severita: warning
+
+# Nessuna 'segmentazione' dichiarata (ADR-017): nessuna evidenza di CTE
+# multi-offerta in un solo file, un solo documento reale visto finora.

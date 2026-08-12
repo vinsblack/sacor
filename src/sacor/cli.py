@@ -33,12 +33,17 @@ def _schema_gas() -> Path:
     return Path(__file__).parent / "schemas" / "bolletta_gas_it.yaml"
 
 
-# ADR-053: solo i tipi con uno schema pronto. CTE (e qualunque tipo
-# futuro) resta assente qui apposta — vedi il ramo else sotto, si ferma
+def _schema_cte() -> Path:
+    return Path(__file__).parent / "schemas" / "cte_it.yaml"
+
+
+# ADR-053: solo i tipi con uno schema pronto. Un tipo futuro senza
+# schema resta assente qui apposta — vedi il ramo else sotto, si ferma
 # con un errore chiaro invece di forzare un tipo sbagliato.
 _SCHEMA_PER_TIPO = {
     TipoDocumento.BOLLETTA_LUCE: _schema_default,
     TipoDocumento.BOLLETTA_GAS: _schema_gas,
+    TipoDocumento.CTE: _schema_cte,
 }
 
 

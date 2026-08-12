@@ -128,22 +128,44 @@ def test_extract_documento_gas_senza_schema_esplicito_usa_schema_gas(
     assert codice == 1
 
 
-def test_extract_documento_cte_senza_schema_esplicito_da_errore_chiaro(
+def test_extract_documento_cte_senza_schema_esplicito_usa_schema_cte(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """ADR-053: nessuno schema CTE esiste ancora — meglio fermarsi con un
-    errore chiaro che forzare lo schema luce su un documento che non e'
-    nemmeno una bolletta (non ha importo/periodo fatturato)."""
+    """ADR-053: un CTE (documento di condizioni/offerta, non una
+    bolletta — niente importo da pagare) senza --schema esplicito viene
+    classificato e letto con cte_it.yaml, non forzato nello schema luce."""
     path = tmp_path / "cte.pdf"
     _pdf_minimo_con_testo(
-        path, "CONDIZIONI ECONOMICHE GENERALI\nCodice Offerta: ABC123\nTipologia: Variabile"
+        path,
+        "CONDIZIONI ECONOMICHE GENERALI\n"
+        "Codice Offerta\nSingle ELE 001714ENFFL05XXFSOL0000500000000\n"
+        "Durata del contratto\nIndeterminata",
     )
 
     codice = main(["extract", str(path)])
 
-    assert codice == 2
+    assert codice == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output[0]["valori"]["codice_offerta"] == "001714ENFFL05XXFSOL0000500000000"
+    assert output[0]["valori"]["durata_contratto"] == "Indeterminata"
+
+
+def test_extract_documento_sconosciuto_usa_luce_con_avviso(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Un documento senza segnali chiari (tier0-style classifica, nessun
+    match) non esplode e non forza lo schema luce in silenzio — avviso
+    esplicito su stderr (ADR-053)."""
+    path = tmp_path / "sconosciuto.pdf"
+    _pdf_minimo_con_testo(path, "Una lettera qualunque, nessun segnale di alcun tipo.")
+
+    codice = main(["extract", str(path)])
+
+    # SCONOSCIUTO -> default luce CON avviso (ADR-053), non un errore:
+    # comportamento scelto per compatibilita' col corpus reale attuale.
     err = capsys.readouterr().err
-    assert "cte" in err
+    assert "avviso" in err
+    assert codice in (0, 1)  # dipende dai campi obbligatori mancanti, non e' il punto qui
 
 
 def test_extract_tier1_senza_chiave_api_riporta_errore_non_esplode(
