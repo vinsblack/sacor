@@ -120,7 +120,11 @@ def main(argv: list[str] | None = None) -> int:
     sotto = parser.add_subparsers(dest="comando", required=True)
 
     estrai = sotto.add_parser(
-        "extract", help="Estrae dati da un documento (tier0, solo regex, zero costo)."
+        "extract",
+        help=(
+            "Estrae dati da un documento (tier0 gratis sempre; --tier1 "
+            "opzionale, chiamata reale a pagamento)."
+        ),
     )
     estrai.add_argument("file", help="Percorso del PDF da estrarre.")
     estrai.add_argument("--schema", help="Schema YAML da usare (default: bolletta_luce_it).")

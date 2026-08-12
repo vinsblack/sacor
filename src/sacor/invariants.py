@@ -227,32 +227,30 @@ def _deriva_differenza_giorni(invariante: Invariante, valori: dict[str, str | No
 
 
 def _deriva_somma_approssimata(invariante: Invariante, valori: dict[str, str | None]) -> None:
+    # SOLO il totale si deriva, mai un addendo mancante (bug trovato in
+    # audit, 12-08): un addendo None puo' significare "non ancora letto"
+    # (derivabile) O "non applicabile per questo documento" (es. kwh_f3 su
+    # bolletta bioraria — kwh_f2 e' GIA' l'aggregato F2+F3 per costruzione
+    # dello schema, kwh_f3 resta null per design, bolletta_luce_it.yaml
+    # descrizione kwh_f3). La funzione non puo' distinguere i due casi
+    # guardando solo 'None' — derivare comunque avrebbe inventato un
+    # valore plausibile ma falso, con confidenza 'media' invece di un
+    # allarme: esattamente cio' che "mai sbagliare in silenzio" vieta.
+    # Derivare il totale da TUTTI gli addendi noti non ha questa
+    # ambiguita' (nessun addendo viene inventato) e resta sicuro.
     addendi_nomi = invariante.params["addendi"]
     totale_nome = invariante.params["totale"]
 
     addendi_valori = [valori.get(nome) for nome in addendi_nomi]
     totale_valore = valori.get(totale_nome)
-    mancanti_addendi = [v is None for v in addendi_valori]
-    n_mancanti_addendi = sum(mancanti_addendi)
+    if totale_valore is not None or any(v is None for v in addendi_valori):
+        return
 
     try:
-        if totale_valore is None:
-            if n_mancanti_addendi > 0:
-                return  # serve conoscere TUTTI gli addendi per derivare il totale
-            somma = sum(
-                (Decimal(v) for v in addendi_valori if v is not None), start=Decimal(0)
-            )
-            valori[totale_nome] = str(somma)
-        elif n_mancanti_addendi == 1:
-            totale = Decimal(totale_valore)
-            noti = sum(
-                (Decimal(v) for v in addendi_valori if v is not None), start=Decimal(0)
-            )
-            indice = mancanti_addendi.index(True)
-            valori[addendi_nomi[indice]] = str(totale - noti)
-        # 0 mancanti: gia' tutto noto. 2+: sottodeterminato, non e' matematica.
+        somma = sum((Decimal(v) for v in addendi_valori if v is not None), start=Decimal(0))
     except InvalidOperation:
         return
+    valori[totale_nome] = str(somma)
 
 
 def deriva_mancanti(schema: Schema, valori: Mapping[str, str | None]) -> dict[str, str | None]:

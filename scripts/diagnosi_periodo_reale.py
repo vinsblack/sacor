@@ -23,6 +23,7 @@ REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from eval.run import SCHEMA_PATH, istanze_da_completare  # noqa: E402
+from sacor.compare import uguali  # noqa: E402
 from sacor.pipeline import MODELLO_TIER1, estrai_file  # noqa: E402
 from sacor.providers.anthropic import AnthropicProvider  # noqa: E402
 from sacor.providers.errors import ErroreProvider  # noqa: E402
@@ -80,8 +81,10 @@ def main() -> int:
             valore_finale = risultato.valori.get(nome_campo)
             atteso = attesi.get(nome_campo)
             fonte = risultato.confidenza.get(nome_campo)
+            campo_schema = schema.campo(nome_campo)
+            assert campo_schema is not None, f"campo '{nome_campo}' non nello schema"
 
-            if valore_finale == atteso:
+            if uguali(atteso, valore_finale, campo_schema.tipo):
                 esito_diagnosi = "CORRETTO"
                 corretti += 1
             elif valore_finale is None:

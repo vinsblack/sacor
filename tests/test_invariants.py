@@ -285,7 +285,13 @@ def test_deriva_giorni_da_periodo_da_e_periodo_a() -> None:
     assert derivati["giorni"] == "31"
 
 
-def test_deriva_addendo_mancante_somma_fasce() -> None:
+def test_non_deriva_addendo_mancante_somma_fasce() -> None:
+    """Bug trovato in audit (12-08): derivare un addendo mancante (es.
+    kwh_f1 = kwh_totale - kwh_f2 - kwh_f3) inventerebbe un valore quando
+    l'addendo None significa 'non applicabile', non 'non ancora letto' —
+    caso reale: bolletta bioraria, kwh_f2 e' GIA' l'aggregato F2+F3
+    (descrizione del campo nello schema), kwh_f3 resta None per design.
+    Solo il totale si deriva (nessuna ambiguita' analoga)."""
     schema = load(SCHEMA_REALE)
     valori = {
         "kwh_f1": None,
@@ -294,7 +300,22 @@ def test_deriva_addendo_mancante_somma_fasce() -> None:
         "kwh_totale": "50.00",
     }
     derivati = deriva_mancanti(schema, valori)
-    assert Decimal(derivati["kwh_f1"]) == Decimal("20.00")
+    assert derivati["kwh_f1"] is None
+
+
+def test_non_inventa_terza_fascia_su_bolletta_bioraria() -> None:
+    """Caso concreto trovato in audit: kwh_f2 aggregato F2+F3 (bioraria),
+    kwh_f3 strutturalmente assente — non deve uscire un valore plausibile
+    ma falso con confidenza 'media'."""
+    schema = load(SCHEMA_REALE)
+    valori = {
+        "kwh_f1": "31.61",
+        "kwh_f2": "71.28",
+        "kwh_f3": None,
+        "kwh_totale": "102.91",
+    }
+    derivati = deriva_mancanti(schema, valori)
+    assert derivati["kwh_f3"] is None
 
 
 def test_deriva_totale_mancante_somma_fasce() -> None:
