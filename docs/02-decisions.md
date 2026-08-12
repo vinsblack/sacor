@@ -1438,8 +1438,19 @@ corpus reale attuale è tutto luce), ma con avviso esplicito su
 stderr, non in silenzio — coerente con "dichiara l'incertezza, non la
 nascondere" (ADR-047).
 
-**Cosa NON è stato fatto**: schema gas e schema CTE non esistono
-ancora — costruirli è lavoro separato, non fatto stasera. La
-classificazione è la struttura che li renderà sicuri da aggiungere in
-futuro (rileva il tipo, sceglie lo schema giusto), non l'estrazione
-gas/CTE stessa.
+**Cosa NON è stato fatto inizialmente**: schema gas e schema CTE non
+esistevano — la classificazione era la struttura che li avrebbe resi
+sicuri da aggiungere, non l'estrazione stessa.
+
+**Seguito, stessa sessione — schema gas costruito**: `bolletta_gas_it.
+yaml`, 7 campi (pdr, fornitore, periodo_da/a, giorni, smc_totale,
+importo_totale), 5 invarianti — stesso disegno di luce (giorni_
+inclusivi, valore_minimo, ordine_date, formato), zero codice nuovo
+(ADR-017). Costruito leggendo i due documenti gas reali della prova
+empirica, non un corpus con oracle come luce — **nessuna misura di
+accuratezza esiste per questo schema**, dichiarato onestamente. Tier0
+verificato sui 2 documenti: 5/7 campi su uno, 1/7 sull'altro (label
+diverse per fornitore). Verifica reale end-to-end (`sacor extract
+--tier1`, $0.14) sul documento Alperia: **7/7 campi corretti, esito
+pass** — prima estrazione gas mai fatta dal motore, subito perfetta su
+un documento digitale pulito. Schema CTE resta non costruito.
