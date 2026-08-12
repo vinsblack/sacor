@@ -5,14 +5,29 @@ build-backend = "hatchling.build"
 [project]
 name = "sacor"
 dynamic = ["version"]
-description = "The Open Document Extraction Engine"
+description = "Evidence-first document extraction — every extracted value explains itself"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.12"
 authors = [{ name = "Vincenzo Gallo" }]
+keywords = [
+    "document-extraction",
+    "evidence",
+    "confidence-scoring",
+    "pdf-parsing",
+    "data-extraction",
+    "structured-extraction",
+    "invoice-extraction",
+    "llm",
+    "verifiable-ai",
+    "italian",
+]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Programming Language :: Python :: 3.12",
+    "Intended Audience :: Developers",
+    "Topic :: Text Processing",
+    "Topic :: Office/Business",
 ]
 dependencies = ["PyYAML~=6.0", "pdfplumber~=0.11", "Pillow~=12.3"]
 

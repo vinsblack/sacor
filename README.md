@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.svg" alt="sacor — Evidence-first Document Extraction" width="100%">
+  <img src="docs/assets/banner.png" alt="sacor — Evidence-first Document Extraction" width="100%">
 </p>
 
 <p align="center">
