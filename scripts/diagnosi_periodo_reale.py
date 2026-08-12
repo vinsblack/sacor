@@ -1,10 +1,9 @@
-"""Diagnosi puntuale periodo_da/periodo_a sul corpus reale (seguito di
-scripts/misura_reale_combinato.py): il fix di 'descrizione' nello schema
-non ha spostato l'accuratezza (13.3%/20.3% invariati) — prima di provare
-un altro fix alla cieca, questo script mostra PER DOCUMENTO tier0, la
-risposta di tier1 (opus) e l'atteso, per capire se il modello si astiene
-(null) o sbaglia il valore. Sono due problemi diversi da risolvere in modo
-diverso (vedi commento in fondo all'output).
+"""Diagnosi puntuale periodo_da/periodo_a sul corpus reale, PER DOCUMENTO
+(seguito di scripts/misura_reale_combinato.py): mostra tier0, tier1 e il
+risultato finale (dopo derivazione ADR-051) per capire dove il campo si
+rompe. Chiama sacor.pipeline.estrai_file() davvero — un giro precedente di
+questo script reimplementava tier0+tier1 a mano e non passava mai dalla
+derivazione, misurando una pipeline diversa da quella vera.
 
 Stessa disciplina di scripts/bakeoff.py: cache disattivata, tetto di
 spesa, costo reale riportato. Modello fisso claude-opus-5 (ADR-049)."""
@@ -18,12 +17,9 @@ REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from eval.run import SCHEMA_PATH, istanze_da_completare  # noqa: E402
-from sacor.extractor import TierZeroExtractor  # noqa: E402
-from sacor.pipeline import MODELLO_TIER1  # noqa: E402
+from sacor.pipeline import MODELLO_TIER1, estrai_file  # noqa: E402
 from sacor.providers.anthropic import AnthropicProvider  # noqa: E402
 from sacor.providers.errors import ErroreProvider  # noqa: E402
-from sacor.providers.prompt import costruisci_prompt  # noqa: E402
-from sacor.render import renderizza_pagine_istanza  # noqa: E402
 
 ORACLE_PATH = REPO_ROOT / "corpus" / "reale" / "attesi.json"
 CORPUS_RAW = REPO_ROOT / "corpus" / "reale" / "raw"
@@ -50,10 +46,9 @@ def main() -> int:
         print(f"errore provider: {exc}", file=sys.stderr)
         return 1
 
-    tier0 = TierZeroExtractor()
     speso = 0.0
-    astensioni = 0  # tier1 ha risposto null
-    sbagliati = 0  # tier1 (o tier0) ha risposto un valore diverso dall'atteso
+    astensioni = 0
+    sbagliati = 0
     corretti = 0
 
     print(
@@ -63,27 +58,20 @@ def main() -> int:
     )
 
     for chiamata in chiamate:
-        valori_tier0 = tier0.extract(chiamata.istanza, schema)
+        usa_tier1 = speso <= LIMITE_SPESA_USD
+        (risultato,) = estrai_file(
+            chiamata.istanza.file, schema, usa_tier1=usa_tier1, provider=provider
+        )
+        speso += risultato.costo_tier1_usd
+        if risultato.tier1_errore:
+            print(f"  [{chiamata.chiave_oracle}] chiamata fallita: {risultato.tier1_errore}")
+
         attesi = oracle.documenti[chiamata.chiave_oracle]
-
-        valori_tier1: dict[str, str | None] = {}
-        if speso <= LIMITE_SPESA_USD:
-            try:
-                pagine = [png for png, _l, _a in renderizza_pagine_istanza(chiamata.istanza)]
-                prompt = costruisci_prompt(chiamata.campi_mancanti)
-                risposta = provider.estrai(pagine, prompt, chiamata.campi_mancanti)
-                speso += risposta.costo_stimato
-                valori_tier1 = risposta.valori
-            except ErroreProvider as exc:
-                print(f"  [{chiamata.chiave_oracle}] chiamata fallita: {exc}", file=sys.stderr)
-        else:
-            print(f"  [{chiamata.chiave_oracle}] SALTATO: tetto di spesa raggiunto")
-
         print(f"\n=== {chiamata.chiave_oracle} ===")
         for nome_campo in CAMPI_SOTTO_ESAME:
-            valore_finale = valori_tier0.get(nome_campo) or valori_tier1.get(nome_campo)
+            valore_finale = risultato.valori.get(nome_campo)
             atteso = attesi.get(nome_campo)
-            fonte = "tier0" if valori_tier0.get(nome_campo) is not None else "tier1"
+            fonte = risultato.confidenza.get(nome_campo)
 
             if valore_finale == atteso:
                 esito_diagnosi = "CORRETTO"
@@ -97,14 +85,14 @@ def main() -> int:
 
             print(
                 f"  {nome_campo:<12} atteso={atteso!r:<14} "
-                f"letto={valore_finale!r:<14} ({fonte}) -> {esito_diagnosi}"
+                f"letto={valore_finale!r:<14} (confidenza={fonte}) -> {esito_diagnosi}"
             )
 
     totale = astensioni + sbagliati + corretti
     print(f"\n{'=' * 60}")
     print(f"Totale valutati: {totale} (su {len(chiamate)} documenti x 2 campi)")
     print(f"Corretti:  {corretti}")
-    print(f"Astenuti (null, il modello non ha indovinato invece di sbagliare): {astensioni}")
+    print(f"Astenuti (null): {astensioni}")
     print(f"Sbagliati (valore letto ma diverso dall'atteso): {sbagliati}")
     print(f"\nSpeso reale: ${speso:.4f}")
     return 0

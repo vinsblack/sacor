@@ -1,9 +1,11 @@
-"""Accuratezza combinata tier0+tier1 sul corpus reale (ADR-048/049): prima
+"""Accuratezza combinata tier0+tier1 sul corpus reale (ADR-048/049/051):
 misura end-to-end di cio' che 'sacor extract --tier1' produce davvero.
 scripts/bakeoff_reale.py misura solo i campi CHIESTI a tier1 (i confronti
 sono piu' facili, e' un sottoinsieme); scripts/diagnosi_tier0_reale.py
-solo tier0. Nessuno dei due dice quanto e' giusto il DOCUMENTO intero con
-la pipeline combinata (sacor.pipeline.estrai_file(usa_tier1=True)).
+solo tier0. Questo script chiama sacor.pipeline.estrai_file() DAVVERO —
+un giro precedente reimplementava tier0+tier1 a mano e non passava mai
+dalla derivazione aritmetica (ADR-051), misurando una pipeline diversa da
+quella che 'sacor extract --tier1' esegue per un utente vero.
 
 Stessa disciplina di scripts/bakeoff.py: cache sempre disattivata (ogni
 chiamata e' reale), tetto di spesa, costo reale riportato sempre. Modello
@@ -20,12 +22,9 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from eval.run import SCHEMA_PATH, istanze_da_completare  # noqa: E402
 from sacor.compare import uguali  # noqa: E402
-from sacor.extractor import TierZeroExtractor  # noqa: E402
-from sacor.pipeline import MODELLO_TIER1  # noqa: E402
+from sacor.pipeline import MODELLO_TIER1, estrai_file  # noqa: E402
 from sacor.providers.anthropic import AnthropicProvider  # noqa: E402
 from sacor.providers.errors import ErroreProvider  # noqa: E402
-from sacor.providers.prompt import costruisci_prompt  # noqa: E402
-from sacor.render import renderizza_pagine_istanza  # noqa: E402
 
 ORACLE_PATH = REPO_ROOT / "corpus" / "reale" / "attesi.json"
 CORPUS_RAW = REPO_ROOT / "corpus" / "reale" / "raw"
@@ -46,10 +45,12 @@ def main() -> int:
     schema, oracle, chiamate, file_disallineati = esito
 
     # T4.17/ADR-046: escalation reale = 100%, quindi 'chiamate' (istanze con
-    # >=1 campo mancante dopo tier0) dovrebbe coprire tutti i documenti
-    # valutabili. Se non fosse piu' vero (tier0 migliorato altrove), un doc
-    # risolto per intero da tier0 sparirebbe silenziosamente da questa
-    # misura — reso visibile qui, non assunto.
+    # >=1 campo mancante dopo il solo tier0) dovrebbe coprire tutti i
+    # documenti valutabili. Se non fosse piu' vero, un doc risolto per
+    # intero dal tier0 sparirebbe silenziosamente da questa misura — reso
+    # visibile qui, non assunto. (ADR-051 non cambia questo: la derivazione
+    # gira DENTRO estrai_file(), 'chiamate' qui serve solo a enumerare i
+    # documenti da valutare, non a decidere se tier1 serve davvero.)
     attesi_valutabili = len(oracle.documenti) - file_disallineati
     if len(chiamate) != attesi_valutabili:
         print(
@@ -65,7 +66,6 @@ def main() -> int:
         print(f"errore provider: {exc}", file=sys.stderr)
         return 1
 
-    tier0 = TierZeroExtractor()
     per_campo = {c.nome: {"corretti": 0, "totale": 0} for c in schema.campi}
     documenti_corretti = 0
     speso = 0.0
@@ -78,24 +78,21 @@ def main() -> int:
     )
 
     for chiamata in chiamate:
-        valori = tier0.extract(chiamata.istanza, schema)
+        usa_tier1 = speso <= LIMITE_SPESA_USD
+        if not usa_tier1:
+            print(f"  [{chiamata.chiave_oracle}] tetto raggiunto: solo tier0+derivazione")
 
-        if speso <= LIMITE_SPESA_USD:
-            try:
-                pagine = [png for png, _l, _a in renderizza_pagine_istanza(chiamata.istanza)]
-                prompt = costruisci_prompt(chiamata.campi_mancanti)
-                risposta = provider.estrai(pagine, prompt, chiamata.campi_mancanti)
-                speso += risposta.costo_stimato
-                for campo in chiamata.campi_mancanti:
-                    valore = risposta.valori.get(campo.nome)
-                    if valore is not None:
-                        valori[campo.nome] = valore
-            except ErroreProvider as exc:
-                chiamate_fallite += 1
-                print(f"  [{chiamata.chiave_oracle}] chiamata fallita: {exc}", file=sys.stderr)
-        else:
+        # Un file reale = una sola istanza (nessun multi-fattura nel
+        # corpus reale, vedi eval/run_reale.py) — chiamata.istanza.file e'
+        # lo stesso PDF che segmentazione+tier0+tier1 rivedono qui identici.
+        (risultato,) = estrai_file(
+            chiamata.istanza.file, schema, usa_tier1=usa_tier1, provider=provider
+        )
+        speso += risultato.costo_tier1_usd
+        if risultato.tier1_errore:
+            chiamate_fallite += 1
             print(
-                f"  [{chiamata.chiave_oracle}] SALTATO: tetto di spesa raggiunto",
+                f"  [{chiamata.chiave_oracle}] tier1: {risultato.tier1_errore}",
                 file=sys.stderr,
             )
 
@@ -103,7 +100,7 @@ def main() -> int:
         documento_corretto = True
         for campo in schema.campi:
             per_campo[campo.nome]["totale"] += 1
-            if uguali(attesi.get(campo.nome), valori.get(campo.nome), campo.tipo):
+            if uguali(attesi.get(campo.nome), risultato.valori.get(campo.nome), campo.tipo):
                 per_campo[campo.nome]["corretti"] += 1
             else:
                 documento_corretto = False
