@@ -1823,3 +1823,25 @@ sua storia completa (chi l'ha prodotto, quali riparazioni, quali
 derivazioni, quali invarianti valutate) deve essere ricostruibile
 leggendo SOLO la sua `Evidenza` — senza guardare `extractor`,
 `pipeline` o altro stato interno.
+
+## ADR-059 — Evidence precedes confidence
+
+**2026-08-12, Commit 3.** La confidenza non è più un dato calcolato
+direttamente dai layer della pipeline (origine, violazioni). È una
+vista deterministica derivata esclusivamente dall'Evidenza raccolta
+durante l'estrazione — `confidenza_da_evidenza(valore, evidenza)`
+(`sacor.evidence`, Commit 1) sostituisce `_calcola_confidenza`
+(rimossa, `pipeline.py`).
+
+Verificato bit-identico, non "quasi uguale", su un ventaglio di
+documenti sintetici (pulito, scansione, tier1 che completa, tier1
+che fallisce, invariante violata) prima dello switch — un solo campo
+divergente avrebbe bloccato il commit
+(`test_confidenza_e_funzione_di_evidenza_su_un_ventaglio_di_documenti`).
+Suite completa (252+ test) invariata dopo.
+
+Conseguenza verificabile in `pipeline.py`: `estrai_file()` ora
+costruisce `evidenze` PRIMA di `confidenza`, e `confidenza` si legge
+da lì — la pipeline non sa più cosa sia la confidenza, sa solo
+costruire Evidenza. Prepara il Commit 4 (il Gate legge solo Evidenza,
+non più tier0/tier1/repair/provider direttamente).

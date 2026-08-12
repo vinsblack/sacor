@@ -368,3 +368,62 @@ def test_evidenza_racconta_la_storia_del_campo_senza_altro_contesto(tmp_path: Pa
         ("differenza_giorni", "giorni_inclusivi", ("periodo_da", "giorni"))
     ]
     assert storia["invarianti_fallite"] == 0
+
+
+def test_confidenza_e_funzione_di_evidenza_su_un_ventaglio_di_documenti(
+    tmp_path: Path,
+) -> None:
+    """Commit 3 (ADR-056/058/059): confidenza_da_evidenza(evidenze[nome])
+    deve essere BIT-IDENTICA a _calcola_confidenza() (l'algoritmo ancora
+    in uso in pipeline.py) su ogni campo di ogni documento — non 'quasi
+    uguale'. Copre: documento pulito, scansione (tutto None), bioraria
+    (kwh_f3 strutturalmente assente), tier1 che completa un campo, tier1
+    che fallisce, e una violazione che degrada un gruppo di campi a
+    'bassa'. Se anche un solo campo diverge, il commit di sostituzione
+    (usare confidenza_da_evidenza al posto di _calcola_confidenza dentro
+    estrai_file) non e' behavior-preserving e non va fatto."""
+    schema = load(SCHEMA_PATH)
+    schema_senza_fornitore = _schema_senza_estrazione(schema, "fornitore")
+    schema_senza_kwh_f1_f2 = schema
+    for nome in ("kwh_f1", "kwh_f2"):
+        schema_senza_kwh_f1_f2 = _schema_senza_estrazione(schema_senza_kwh_f1_f2, nome)
+
+    casi: list[tuple[str, object, bool, object]] = [
+        ("pulito", schema, False, None),
+        ("scansione", schema, False, None),
+        (
+            "tier1_completa_fornitore",
+            schema_senza_fornitore,
+            True,
+            _ProviderStub(valori={"fornitore": "Epsilon Luce (da tier1)"}),
+        ),
+        ("tier1_fallisce", schema_senza_fornitore, True, _ProviderCheFallisce()),
+        (
+            "invariante_violata",
+            schema_senza_kwh_f1_f2,
+            True,
+            _ProviderStub(valori={"kwh_f1": "999999.99", "kwh_f2": "888888.88"}),
+        ),
+    ]
+
+    confronti = 0
+    for indice, (nome_caso, schema_caso, usa_tier1, provider) in enumerate(casi):
+        flags = Flags(scansione=(nome_caso == "scansione"), monoraria=(indice % 2 == 0))
+        pdf_bytes, _, _ = genera_documento(
+            random.Random(200 + indice), f"SEED{indice}", "Alfa Energia", flags
+        )
+        path = _scrivi(tmp_path, f"corpus_{indice}.pdf", pdf_bytes)
+
+        risultati = estrai_file(path, schema_caso, usa_tier1=usa_tier1, provider=provider)
+
+        for risultato in risultati:
+            for campo_nome, valore in risultato.valori.items():
+                vecchia = risultato.confidenza[campo_nome]
+                nuova = confidenza_da_evidenza(valore, risultato.evidenze[campo_nome])
+                assert nuova == vecchia, (
+                    f"caso={nome_caso} campo={campo_nome}: "
+                    f"vecchia={vecchia!r} nuova={nuova!r}"
+                )
+                confronti += 1
+
+    assert confronti > 20  # prova che il test ha davvero confrontato qualcosa

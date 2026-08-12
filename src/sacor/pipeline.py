@@ -29,6 +29,7 @@ from sacor.evidence import (
     PaginaEvidenza,
     RiepilogoInvarianti,
     Riparazione,
+    confidenza_da_evidenza,
 )
 from sacor.extractor import DiagnosticaCampo, TierZeroExtractor
 from sacor.invariants import (
@@ -93,37 +94,16 @@ def _calcola_esito(
     return "pass", None
 
 
-def _calcola_confidenza(
-    schema: Schema,
-    valori: Mapping[str, str | None],
-    violazioni: tuple[Violazione, ...],
-    origine: Mapping[str, str],  # nome campo -> "tier0" | "tier1" | "derivato"
+def _confidenza_da_evidenze(
+    evidenze: Mapping[str, Evidenza], valori: Mapping[str, str | None]
 ) -> dict[str, Confidenza | None]:
-    """Un campo senza violazioni e' 'alta' se deterministico (tier0, regex
-    dichiarata nello schema — T3.2 non indovina mai), 'media' se da tier1
-    (AI, 60.9%/campo misurato su reale, ADR-044). Coinvolto in un'invariante
-    VIOLATA -> 'bassa' a prescindere dall'origine: il disaccordo tra campi
-    e' il segnale (stesso principio di ADR-045), non solo l'origine del
-    singolo valore."""
-    by_id: dict[str, Invariante] = {inv.id: inv for inv in schema.invarianti}
-    campi_sospetti: set[str] = set()
-    for v in violazioni:
-        campi_sospetti.update(campi_coinvolti(by_id[v.invariante_id]))
-
-    confidenza: dict[str, Confidenza | None] = {}
-    for nome, valore in valori.items():
-        if valore is None:
-            confidenza[nome] = None
-        elif nome in campi_sospetti:
-            confidenza[nome] = "bassa"
-        elif origine.get(nome) in ("tier1", "derivato"):
-            # "derivato" (ADR-051): matematicamente esatto SE gli input
-            # usati per calcolarlo sono corretti — eredita la loro
-            # incertezza, non e' piu' affidabile di un valore letto.
-            confidenza[nome] = "media"
-        else:
-            confidenza[nome] = "alta"
-    return confidenza
+    """ADR-059: la pipeline non 'calcola' piu' la confidenza, la LEGGE da
+    Evidenza gia' assemblata — confidenza_da_evidenza (sacor.evidence,
+    Commit 1) e' l'unica regola, dichiarata una sola volta. Sostituisce
+    _calcola_confidenza (rimossa, Commit 3): stesso comportamento,
+    dimostrato bit-identico da test_confidenza_e_funzione_di_evidenza_su_
+    un_ventaglio_di_documenti prima di questo switch."""
+    return {nome: confidenza_da_evidenza(valori.get(nome), ev) for nome, ev in evidenze.items()}
 
 
 def _provider_tier1_default() -> ModelProvider:
@@ -289,7 +269,6 @@ def estrai_file(
         valutazioni = valuta_tutte_con_esito(schema, valori)
         violazioni = tuple(v.violazione for v in valutazioni if v.violazione is not None)
         esito, motivo = _calcola_esito(schema, valori, violazioni)
-        confidenza = _calcola_confidenza(schema, valori, violazioni, origine)
         evidenze = _costruisci_evidenze(
             schema,
             valori,
@@ -300,6 +279,11 @@ def estrai_file(
             usa_tier1,
             tier1_errore,
         )
+        # ADR-059: confidenza non e' piu' calcolata dai segnali grezzi
+        # (violazioni/origine) — e' LETTA dall'Evidenza gia' assemblata
+        # sopra. La pipeline non sa piu' cosa sia la confidenza, sa solo
+        # costruire Evidenza.
+        confidenza = _confidenza_da_evidenze(evidenze, valori)
         evidenza_documento = EvidenzaDocumento(
             schema=schema.documento,
             schema_versione=schema.schema_version,
