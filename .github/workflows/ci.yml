@@ -27,3 +27,12 @@ jobs:
 
       - name: pytest
         run: pytest
+
+      - name: report accuratezza (corpus sintetico)
+        # README dichiara "accuratezza rieseguita in CI a ogni commit" —
+        # prima non era vero (CI girava solo test). Corpus reale (PDF, mai
+        # nel repo, ADR-042) non puo' girare qui: questo e' il sintetico,
+        # gia' committato in corpus/synth/. Non fallisce la build (nessuna
+        # soglia dichiarata da far rispettare) — rende visibile il numero
+        # ad ogni commit, che e' esattamente il claim da onorare.
+        run: python eval/run.py
