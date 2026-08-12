@@ -18,3 +18,10 @@ htmlcov/
 # (POD, importi, date esatte) — mai nel repo, anche con consenso all'uso
 # per misurare. Pubblicarli e' un consenso separato, mai dato.
 corpus/reale/raw/
+
+# Prima escluso solo via .git/info/exclude (locale a una macchina, mai
+# condiviso) — hatchling legge .gitignore, non .git/info/exclude: lo
+# sdist per PyPI includeva settings.local.json (percorsi filesystem
+# locali, storico permessi) senza che 'git status' lo segnalasse mai.
+# Trovato in fase di verifica pre-pubblicazione, prima di pubblicare.
+.claude/
