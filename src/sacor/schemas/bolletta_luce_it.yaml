@@ -17,6 +17,23 @@ campi:
   - nome: periodo_da
     tipo: date
     obbligatorio: true
+    descrizione: >-
+      La data di INIZIO del periodo di CONSUMO/FATTURAZIONE fatturato in
+      QUESTO documento — es. "Periodo oggetto di fatturazione: dal
+      01/03/2025 al 30/04/2025" (periodo_da=2025-03-01), o "Dal 01/03/2025".
+      NON e' la data di emissione/stampa della fattura, NON la scadenza di
+      pagamento, NON la data di attivazione del contratto, e NON l'inizio
+      della finestra dei 12 mesi di consumo storico se il documento mostra
+      un grafico/tabella dei consumi storici (quella copre un intervallo
+      molto piu' ampio ed e' un campo diverso, non periodo_da).
+      IMPORTANTE — ECCEZIONE alla regola generale sui campi data sopra: se
+      il documento indica un MESE DI RIFERIMENTO intero senza un giorno
+      esplicito (es. "Bolletta di Ottobre 2025", "Competenza: Ottobre
+      2025"), su una bolletta italiana questo significa SEMPRE l'intero
+      mese solare — periodo_da e' il primo giorno di quel mese
+      (2025-10-01). Qui non e' un valore inventato, e' la convenzione
+      standard di fatturazione mensile: usa questa deduzione, non tornare
+      null solo perche' manca un giorno esplicito.
     estrazione:
       tipo: regex
       # T4.17 (diagnosi corpus reale, zero costo): 'Dal X' e' il formato
@@ -26,6 +43,19 @@ campi:
   - nome: periodo_a
     tipo: date
     obbligatorio: true
+    descrizione: >-
+      La data di FINE del periodo di CONSUMO/FATTURAZIONE fatturato in
+      QUESTO documento — es. "Periodo oggetto di fatturazione: dal
+      01/03/2025 al 30/04/2025" (periodo_a=2025-04-30), o "al 30/04/2025".
+      Stesse esclusioni di periodo_da: NON emissione fattura, NON scadenza
+      pagamento, NON attivazione contratto, NON la fine della finestra dei
+      12 mesi di consumo storico.
+      IMPORTANTE — stessa ECCEZIONE di periodo_da: se il documento indica
+      un MESE DI RIFERIMENTO intero senza un giorno esplicito (es.
+      "Bolletta di Ottobre 2025"), periodo_a e' l'ULTIMO giorno di quel
+      mese (2025-10-31) — convenzione standard di fatturazione mensile
+      italiana, non un valore inventato. Usa questa deduzione invece di
+      tornare null.
     estrazione:
       tipo: regex
       pattern: '(?:\bal\s+|Periodo oggetto di fatturazione:\s*da\s+\d{2}[/.]\d{2}[/.]\d{4}\s+a\s+)(\d{2}[/.]\d{2}[/.]\d{4})'

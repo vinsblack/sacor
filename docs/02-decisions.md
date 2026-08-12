@@ -1219,3 +1219,66 @@ rimosso, YAGNI si applica a "usarlo ora", non a "cancellarlo"), ma non
 tuning) — questa misura chiude un pending item lasciato aperto
 (arbitrato mai lanciato sul reale), non riapre la fase di
 ottimizzazione sui 15 documenti.
+
+## ADR-050 — Prima misura combinata tier0+tier1 sul reale: 62.7%/campo,
+0% documento, periodo_da/periodo_a non risolto dopo tre tentativi
+
+**2026-08-12.** Prima misura end-to-end di `sacor extract --tier1` sul
+corpus reale (15 doc) — nessuno script precedente misurava il
+combinato: `bakeoff_reale.py` solo i campi chiesti a tier1,
+`diagnosi_tier0_reale.py` solo tier0. Nuovo script permanente
+`scripts/misura_reale_combinato.py`.
+
+**Numero onesto, aggiornato** (sostituisce il vecchio "0% documento"
+tier0-only citato in ADR-046/048, che era superato dal lavoro di questa
+stessa sessione — tier1 ora e' wired nella CLI):
+
+| | tier0 solo (T4.17) | tier0+tier1 combinato (oggi) |
+|---|---|---|
+| Per campo | 16.4% | **62.7%** (94/150) |
+| Per documento | 0% | **0%** (0/15) — invariato |
+
+Campi forti: pod 100%, giorni 100%, importo_totale 100%. Campo debole
+isolato: periodo_da 13.3%, periodo_a 20.0% — unico blocco reale del
+62.7%→documento intero.
+
+**Diagnosi vera** (`scripts/diagnosi_periodo_reale.py`, nuovo, 15 doc x
+2 campi): 25/30 astensioni (null), **0 sbagliati**. tier1 non indovina
+mai male su questo campo — si rifiuta sempre quando non trova un match
+sicuro. I 5 corretti vengono tutti da tier0/regex, zero da tier1.
+
+**Causa isolata, verificata sul testo reale (R001, zero costo)**: le
+bollette dichiarano un mese di riferimento intero ("Periodo di
+fatturazione Settembre 2025"), mai un range giorno-preciso esplicito —
+e il periodo reale e' sempre primo→ultimo giorno di quel mese su tutti
+e 15 i documenti (convenzione bolletta mensile italiana).
+
+**Tre tentativi di fix, in ordine, TUTTI falliti a muovere il numero
+(13.3%/20.0% costante su tutti e tre)**:
+1. `descrizione` con esempi ed esclusioni (etichette da NON confondere)
+2. `descrizione` con autorizzazione esplicita a dedurre primo/ultimo
+   giorno da un mese di riferimento
+3. Fix di un conflitto VERO nel prompt (trovato leggendo il prompt
+   costruito davvero, non indovinato): la regola generale sui campi
+   data ("NON dedurre mai il giorno da un mese") contraddiceva quasi
+   parola per parola l'eccezione appena aggiunta al punto 2 — corretto
+   in `sacor/providers/prompt.py` (la descrizione del campo ora dichiarata
+   esplicitamente prevalente sulla regola generale). Bug reale, tenuto
+   nel codice — ma zero impatto sul numero misurato.
+
+**Costo di questa caccia**: ~$6 in chiamate reali su 4 giri di misura/
+diagnosi in un pomeriggio, per zero guadagno sul campo bersaglio.
+**Riconosciuto esplicitamente**: e' lo stesso pattern di rendimenti
+decrescenti che ADR-048 aveva gia' nominato come motivo per fermare
+l'ottimizzazione sui 15 documenti — ripetuto oggi nonostante fosse gia'
+scritto. La causa vera di periodo_da/periodo_a non e' isolata (serve
+vedere il *reasoning*/risposta grezza del modello, non solo il JSON
+finale — un salto di diagnosi non ancora fatto).
+
+**Decisione**: fermare la caccia a periodo_da/periodo_a per questa
+sessione. Il fix del conflitto prompt resta (era un bug vero,
+indipendente dal risultato). Tornare alla priorita' di ADR-048
+(distribuzione) — periodo_da/periodo_a resta un gap noto e dichiarato,
+non nascosto, candidato a essere il primo problema che un utilizzatore
+esterno segnala con un caso reale nuovo (esattamente il meccanismo che
+ADR-048 prevede per il miglioramento post-pubblicazione).

@@ -51,7 +51,13 @@ def costruisci_prompt(campi: Sequence[Campo]) -> str:
             "- Un campo data richiede giorno, mese e anno ESATTI. Se il documento "
             "indica solo il mese e l'anno (es. 'giugno 2025'), senza un giorno "
             "specifico, il valore e' `null` — NON dedurre il primo o l'ultimo "
-            "giorno del mese: sarebbe un valore inventato, non letto."
+            "giorno del mese: sarebbe un valore inventato, non letto. QUESTA "
+            "REGOLA VALE SOLO SE LA DESCRIZIONE DEL CAMPO SOPRA NON DICE IL "
+            "CONTRARIO: se la descrizione di un campo autorizza esplicitamente "
+            "una deduzione (es. mese di riferimento -> primo/ultimo giorno), "
+            "quella descrizione prevale su questa regola generale, non il "
+            "contrario — non sono in conflitto, la descrizione del campo e' "
+            "un'eccezione dichiarata apposta."
         )
 
     return (
