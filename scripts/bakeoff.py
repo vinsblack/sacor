@@ -209,7 +209,10 @@ def _valuta_arbitrato(
         provider_a = _provider_per_modello(modello_a)
         provider_b = _provider_per_modello(modello_b)
     except ErroreProvider as exc:
-        print(f"  [arbitrato {modello_a}/{modello_b}] provider non disponibile: {exc}", file=sys.stderr)
+        print(
+            f"  [arbitrato {modello_a}/{modello_b}] provider non disponibile: {exc}",
+            file=sys.stderr,
+        )
         return RigaArbitrato((modello_a, modello_b), 0, 0, 0.0, 0, 0, 0, 0.0, 0.0, len(chiamate))
 
     campi_confrontati = disaccordi = 0
@@ -225,7 +228,9 @@ def _valuta_arbitrato(
         prompt = costruisci_prompt(chiamata.campi_mancanti)
         pagine = _pagine_immagine(chiamata.istanza)
         try:
-            esito = estrai_con_arbitrato(pagine, prompt, chiamata.campi_mancanti, provider_a, provider_b)
+            esito = estrai_con_arbitrato(
+                pagine, prompt, chiamata.campi_mancanti, provider_a, provider_b
+            )
         except ErroreProvider as exc:
             chiamate_fallite += 1
             print(f"  [arbitrato] chiamata fallita: {exc}", file=sys.stderr)
@@ -245,8 +250,12 @@ def _valuta_arbitrato(
             campi_confrontati += 1
             if campo.nome in esito.disaccordi:
                 disaccordi += 1
-                a_giusto = uguali(attesi.get(campo.nome), esito.risposta_a.valori.get(campo.nome), campo.tipo)
-                b_giusto = uguali(attesi.get(campo.nome), esito.risposta_b.valori.get(campo.nome), campo.tipo)
+                a_giusto = uguali(
+                    attesi.get(campo.nome), esito.risposta_a.valori.get(campo.nome), campo.tipo
+                )
+                b_giusto = uguali(
+                    attesi.get(campo.nome), esito.risposta_b.valori.get(campo.nome), campo.tipo
+                )
                 if a_giusto and not b_giusto:
                     vince_a += 1
                 elif b_giusto and not a_giusto:
@@ -396,7 +405,9 @@ def main(argv: list[str] | None = None) -> int:
         assert esito is not None  # esegui_bakeoff() sopra e' gia' passato di qui
         schema, oracle, chiamate, _ = esito
         tracciatore = TracciatoreSpesa(LIMITE_SPESA_USD)
-        riga_arbitrato = _valuta_arbitrato(modello_a, modello_b, chiamate, oracle.documenti, tracciatore, schema)
+        riga_arbitrato = _valuta_arbitrato(
+            modello_a, modello_b, chiamate, oracle.documenti, tracciatore, schema
+        )
         print(formatta_tabella_arbitrato(riga_arbitrato))
         print(f"Speso reale arbitrato: ${tracciatore.speso:.4f}")
 

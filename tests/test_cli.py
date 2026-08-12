@@ -22,7 +22,9 @@ def _scrivi(tmp_path: Path, nome: str, pdf_bytes: bytes) -> Path:
     return p
 
 
-def test_extract_documento_pulito_esce_0_e_stampa_json(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_extract_documento_pulito_esce_0_e_stampa_json(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     pdf_bytes, _, _ = genera_documento(random.Random(60), "S040", "Alfa Energia", Flags())
     path = _scrivi(tmp_path, "S040.pdf", pdf_bytes)
 
@@ -35,8 +37,12 @@ def test_extract_documento_pulito_esce_0_e_stampa_json(tmp_path: Path, capsys: p
     assert output[0]["valori"]["pod"] is not None
 
 
-def test_extract_scansione_esce_1_reject(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    pdf_bytes, _, _ = genera_documento(random.Random(61), "S041", "Beta Luce", Flags(scansione=True))
+def test_extract_scansione_esce_1_reject(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    pdf_bytes, _, _ = genera_documento(
+        random.Random(61), "S041", "Beta Luce", Flags(scansione=True)
+    )
     path = _scrivi(tmp_path, "S041.pdf", pdf_bytes)
 
     codice = main(["extract", str(path)])
@@ -54,7 +60,9 @@ def test_extract_file_inesistente_esce_2(capsys: pytest.CaptureFixture[str]) -> 
     assert "non trovato" in capsys.readouterr().err
 
 
-def test_extract_schema_esplicito_sovrascrive_default(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_extract_schema_esplicito_sovrascrive_default(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     pdf_bytes, _, _ = genera_documento(random.Random(62), "S042", "Alfa Energia", Flags())
     path = _scrivi(tmp_path, "S042.pdf", pdf_bytes)
     schema_path = REPO_ROOT / "src" / "sacor" / "schemas" / "bolletta_luce_it.yaml"

@@ -53,7 +53,9 @@ def main() -> int:
         triage_result = analizza(pdf)
         with pdfplumber.open(pdf) as documento:
             testi_pagine = [normalizza_testo(p) for p in documento.pages]
-        esito_segmentazione = segmenta(pdf, triage_result.pagine, testi_pagine, schema.segmentazione)
+        esito_segmentazione = segmenta(
+            pdf, triage_result.pagine, testi_pagine, schema.segmentazione
+        )
 
         if len(esito_segmentazione.istanze) != len(chiavi_oracle):
             file_disallineati += 1
@@ -65,7 +67,9 @@ def main() -> int:
             for campo in schema.campi:
                 valore = estratti.get(campo.nome)
                 atteso = attesi.get(campo.nome)
-                stat = per_campo.setdefault(campo.nome, {"giusti": 0, "sbagliati": 0, "mancanti": 0})
+                stat = per_campo.setdefault(
+                    campo.nome, {"giusti": 0, "sbagliati": 0, "mancanti": 0}
+                )
                 if valore is None:
                     mancanti += 1
                     stat["mancanti"] += 1
@@ -75,13 +79,20 @@ def main() -> int:
                 else:
                     sbagliati += 1
                     stat["sbagliati"] += 1
-                    print(f"  [sbagliato] {chiave} {campo.nome}: tier0={valore!r} oracle={atteso!r}", file=sys.stderr)
+                    print(
+                        f"  [sbagliato] {chiave} {campo.nome}: "
+                        f"tier0={valore!r} oracle={atteso!r}",
+                        file=sys.stderr,
+                    )
 
     totale = giusti + sbagliati + mancanti
     print("diagnosi tier0 su corpus reale (T4.17) — zero chiamate API, zero costo.\n")
     print(f"file disallineati: {file_disallineati}")
     if totale:
-        print(f"totale: giusti={giusti} sbagliati={sbagliati} mancanti={mancanti} ({giusti / totale * 100:.1f}%)")
+        print(
+            f"totale: giusti={giusti} sbagliati={sbagliati} mancanti={mancanti} "
+            f"({giusti / totale * 100:.1f}%)"
+        )
     else:
         print("nessun campo valutato")
     print()

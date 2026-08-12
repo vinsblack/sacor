@@ -180,7 +180,9 @@ def test_istanza_con_pagina_scansione_estrae_comunque_dalle_pagine_digitali(
     pdf_digitale, oracle_entries, _ = genera_documento(
         random.Random(40), "S020", "Alfa Energia", Flags()
     )
-    pdf_scansione, _, _ = genera_documento(random.Random(41), "S021", "Beta Luce", Flags(scansione=True))
+    pdf_scansione, _, _ = genera_documento(
+        random.Random(41), "S021", "Beta Luce", Flags(scansione=True)
+    )
 
     writer = PdfWriter()
     for pagina in PdfReader(io.BytesIO(pdf_digitale)).pages:

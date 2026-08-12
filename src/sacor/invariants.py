@@ -150,7 +150,10 @@ def _valuta_ordine_date(
     return Violazione(
         invariante_id=invariante.id,
         severita=invariante.severita,
-        messaggio=f"{successiva_nome} = {successiva_data} precede {precedente_nome} = {precedente_data}",
+        messaggio=(
+            f"{successiva_nome} = {successiva_data} precede "
+            f"{precedente_nome} = {precedente_data}"
+        ),
     )
 
 
