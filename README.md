@@ -25,7 +25,8 @@ sacor extract bolletta.pdf
 ```
 
 Output — JSON con un oggetto per istanza (una bolletta può contenerne più
-di una), valori estratti, esito ed eventuali violazioni:
+di una), valori estratti, confidenza per campo, esito ed eventuali
+violazioni:
 
 ```json
 [
@@ -43,21 +44,37 @@ di una), valori estratti, esito ed eventuali violazioni:
       "kwh_f3": "0.00",
       "importo_totale": "82.25"
     },
+    "confidenza": {
+      "pod": "alta", "fornitore": "alta", "periodo_da": "alta",
+      "periodo_a": "alta", "giorni": "alta", "kwh_totale": "alta",
+      "kwh_f1": "alta", "kwh_f2": "alta", "kwh_f3": "alta",
+      "importo_totale": "alta"
+    },
     "esito": "pass",
     "motivo": null,
-    "violazioni": []
+    "violazioni": [],
+    "costo_tier1_usd": 0.0,
+    "tier1_errore": null
   }
 ]
 ```
 
-`esito` è `pass` / `warning` / `reject`. Exit code: `0` se tutte le istanze
-passano, `1` se almeno una è `reject`, `2` per errori (file o schema non
-trovato).
+`confidenza` per campo: `alta` (tier 0, regex deterministica), `media`
+(tier 1, AI), `bassa` (il campo è coinvolto in un'invariante violata —
+es. una somma che non torna), `null` se il campo non ha valore. `esito` è
+`pass` / `warning` / `reject`. Exit code: `0` se tutte le istanze passano,
+`1` se almeno una è `reject`, `2` per errori (file o schema non trovato).
 
-Solo tier 0 per ora (regex, zero costo, sempre disponibile) — nessuna
-chiave API richiesta. Accuratezza reale attuale: 50-61% per campo, 0% per
-documento completo, vedi `docs/02-decisions.md` (ADR-046/048) — pubblicata
-per intero, non filtrata.
+Tier 0 (regex, zero costo, sempre disponibile) gira sempre. Con
+`--tier1` completa i campi che il tier 0 lascia `None` chiamando
+claude-opus-5 (ADR-049) — opt-in esplicito, mai automatico: chiamata
+reale a pagamento, richiede `ANTHROPIC_API_KEY`. Un errore del provider
+(chiave mancante, rate limit) non fa fallire l'estrazione: si vede in
+`tier1_errore`, il resto del risultato resta utilizzabile.
+
+Accuratezza reale attuale: 50-61% per campo, 0% per documento completo,
+vedi `docs/02-decisions.md` (ADR-046/048) — pubblicata per intero, non
+filtrata.
 
 ## Perché
 
