@@ -1453,4 +1453,25 @@ verificato sui 2 documenti: 5/7 campi su uno, 1/7 sull'altro (label
 diverse per fornitore). Verifica reale end-to-end (`sacor extract
 --tier1`, $0.14) sul documento Alperia: **7/7 campi corretti, esito
 pass** — prima estrazione gas mai fatta dal motore, subito perfetta su
-un documento digitale pulito. Schema CTE resta non costruito.
+un documento digitale pulito.
+
+**Seguito, stessa sessione — schema CTE costruito**: `cte_it.yaml`,
+8 campi (codice_offerta, fornitore, valido_dal/al, durata_contratto,
+tipologia_prezzo, corrispettivo_annuo, onere_recesso), 2 invarianti.
+Costruito leggendo l'unico documento CTE reale della prova empirica
+(ENGIE eFIX Luce) — stesso avviso di gas, nessun corpus/oracle, nessuna
+accuratezza misurata. Layout CTE tabellare/multi-colonna: il testo
+estratto da pdfplumber esce interlacciato/corrotto su alcuni campi
+(es. "Venditore") anche se l'immagine (tier1) resta leggibile — quei
+campi (fornitore) non hanno regex tier0, solo descrizione per tier1.
+Tier0 verificato sul documento: 7/8 campi corretti. Verifica reale
+end-to-end ($0.045): **8/8 campi corretti, esito pass**.
+
+**Bilancio ADR-053 completo**: tutti e tre i tipi che la
+classificazione sa riconoscere (luce/gas/CTE) hanno ora uno schema.
+Luce ha una misura vera (corpus reale, 68.7%/campo). Gas e CTE hanno
+solo una verifica puntuale (1 documento ciascuno, 7/7 e 8/8) — non
+una misura, dichiarato esplicitamente ovunque nel codice e qui.
+Prossimo passo naturale per renderli misurabili: un piccolo corpus
+gas/CTE con oracle, come fu fatto per luce (ADR-042) — non fatto
+stasera, richiede consenso sui documenti come per il reale luce.
