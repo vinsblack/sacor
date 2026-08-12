@@ -47,7 +47,7 @@ casi vale più di uno che sbaglia in silenzio sul 3%. Il gate è una feature.
 - Non è un convertitore PDF. Mercato maturo e dominato: perso in partenza.
 - Non è una piattaforma di Document Intelligence a 15 fasi.
 - Non è un SaaS. Il SaaS si costruisce **quando qualcuno lo chiede**.
-- Non è VERO né un suo derivato.
+- Non è un derivato di un altro progetto privato dell'autore.
 
 ## Classe di documenti target
 
@@ -62,8 +62,8 @@ La proprietà 2 è il vincolo che distingue sacor. Senza invarianti interne lo
 strato di arbitrato non ha nulla su cui lavorare e il vantaggio evapora.
 
 **Fuori scope:** contratti, referti, atti (nessuna invariante aritmetica);
-fatture B2B italiane (già XML via SDI dal 2019); CTE (mercato ~50 aziende e
-zona IP di Massimo).
+fatture B2B italiane (già XML via SDI dal 2019); CTE (mercato ~50 aziende,
+zona già coperta da un impegno commerciale esistente dell'autore).
 
 ## Distribuzione
 

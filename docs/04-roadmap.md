@@ -72,8 +72,8 @@ Il Blocco 2 (primo extractor reale, tier 1) si progetta solo dopo.
 
 ## Blocco 1-bis — Corpus sintetico (sostituisce T1.6/T1.7)
 
-I documenti reali della commessa VERO sono esclusi (ADR-012). Il corpus si
-genera. Nessun dato reale entra nel repo.
+I documenti reali di altri progetti privati dell'autore sono esclusi
+(ADR-012). Il corpus si genera. Nessun dato reale entra nel repo.
 
 ### T1.6 — Generatore di bollette sintetiche
 `scripts/genera_corpus.py`. Produce PDF + oracle nella stessa esecuzione:

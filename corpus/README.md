@@ -13,7 +13,7 @@ Questo file è vincolante. Nessun documento entra nel corpus senza una riga qui.
 
 ## Fonti vietate
 
-- Qualsiasi documento proveniente da VERO o dai clienti di Massimo
+- Qualsiasi documento proveniente da altri progetti privati dell'autore o dai loro clienti
 - Qualsiasi bolletta trovata online che non sia un fac-simile ufficiale
 - Documenti ricevuti per lavoro da chiunque, in qualunque contesto
 
