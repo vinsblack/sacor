@@ -1908,7 +1908,7 @@ impacchetta. `PREZZI_PATH` ricalcolato relativo al pacchetto
 
 Verificato non solo a occhio: wheel ricostruito, installato in un
 venv isolato fuori dal repo (`/tmp`), `sacor.providers.pricing.
-carica()` e `sacor extract` (CLI reale, su un documento CTE vero) *
+carica()` e `sacor extract` (CLI reale, su un documento CTE vero)
 entrambi eseguiti con successo da quell'installazione — la stessa
 condizione in cui si sarebbe presentato il bug a un utente reale.
 
@@ -1917,3 +1917,22 @@ ispeziona il wheel prima di pubblicare" è stato eseguito per la prima
 volta in questa sessione — non c'era in nessun ADR precedente come
 passo esplicito. Lo diventa ora: nessuna pubblicazione futura salta
 questo passo.
+
+## ADR-062 — sacor pubblicato su PyPI: G1 (ADR-048) raggiunto
+
+**12-08.** `sacor 0.1.0` pubblicato su PyPI (`uv publish`, token
+dell'utente, mai transitato per questa sessione). Verificato non a
+occhio: `pip install sacor` in un venv isolato, appena creato, fuori
+dal repo — pacchetto installato, CLI (`sacor extract`) funzionante,
+`--tier1` non crasha più (ADR-061 chiuso prima di questo passo, non
+dopo).
+
+Chiude **G1** (ADR-047, rivisto da ADR-048): "nodo/pacchetto
+pubblicato" — il criterio era esplicitamente "pubblica onesto, non
+aspettare un numero alto" (ADR-048/055), rispettato: 68.7%/campo
+dichiarato per intero nel README, nessun numero nascosto o gonfiato
+per l'occasione.
+
+Prossimo, non di questo ADR: repository GitHub pubblico, tag
+`v0.1.0-alpha`, README aggiornato (`pip install .` → `pip install
+sacor`, già fatto in questo commit).

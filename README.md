@@ -9,8 +9,13 @@ Primo schema implementato: bollette luce e gas italiane.
 
 ## Quickstart
 
-Richiede Python 3.12+. Non ancora su PyPI (vedi `docs/02-decisions.md`,
-ADR-048) — si installa da sorgente:
+Richiede Python 3.12+.
+
+```bash
+pip install sacor
+```
+
+Oppure da sorgente:
 
 ```bash
 git clone https://github.com/vinsblack/sacor
