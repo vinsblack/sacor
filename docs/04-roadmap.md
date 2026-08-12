@@ -1,5 +1,12 @@
 # 04 — Roadmap
 
+**Stato attuale (12-08)**: i numeri e i blocchi/gate citati nei blocchi
+1-6 sotto sono superati — lasciati come registro storico, non come
+verità corrente. Per lo stato vero oggi: `README.md` (numeri reali
+dichiarati), `docs/02-decisions.md` (ADR-042→060, cronologia
+completa), `docs/verification-report-v1.md`. Riassunto in fondo,
+Blocco 7.
+
 ## Blocco 1 — Il metro (prima di ciò che misura)
 
 Nessun VLM in questo blocco. Prima si costruisce lo strumento di misura, poi
@@ -293,3 +300,46 @@ rendimenti decrescenti già visibili (T4.17).
 - **Schema gas**: bloccato da **G2** — nessun secondo tipo di documento
   prima di un numero pubblicato + 1 utente esterno (G1 non ancora
   raggiunto). Struttura già osservata (ADR-039), non un ostacolo tecnico.
+
+## Blocco 7 — Evidence Model, Gate, pubblicazione ✅ (12-08, una sessione)
+
+Tutti i gate/blocchi sopra (G1/G2, "Fase 3 collo di bottiglia",
+"schema gas bloccato") sono stati **revocati esplicitamente**, non
+dimenticati — ADR-048 (pubblica onesto, migliora in pubblico, il
+corpus è conseguenza non prerequisito) e ADR-055 (conferma: il gate
+di pubblicazione è il contratto, non l'accuratezza). Dettaglio
+completo in `docs/02-decisions.md`.
+
+Riassunto di cosa è stato fatto, in ordine:
+
+- **ADR-049**: arbitrato multi-provider misurato sul reale — tier1
+  resta solo claude-opus-5, il doppio costo non paga.
+- **ADR-050/051/052**: derivazione aritmetica (`deriva_mancanti`),
+  confronto case-insensitive, misura combinata tier0+tier1+
+  derivazione sul reale — **68.7%/campo, 13.3%/documento** (15 doc),
+  numero dichiarato per intero in `README.md`.
+- **ADR-053**: classificazione documento (luce/gas/CTE) prima
+  dell'estrazione — bug reale trovato e chiuso (bolletta gas letta
+  come luce, nessun avviso). Schema `bolletta_gas_it.yaml` e
+  `cte_it.yaml` costruiti (schema-driven, zero codice nuovo, ADR-017).
+- **ADR-054**: prompt caching (`cache_control`) sul provider
+  Anthropic — costo tier1 non più ricalcolato da zero ad ogni
+  chiamata.
+- **ADR-056→060**: Evidence Model. `Result` non è più "valori +
+  confidenza" piatti — ogni campo porta la sua `Evidenza` (origine,
+  riparazioni, derivazioni, invarianti valutate). Confidenza e Gate
+  sono ora funzioni pure sopra Evidenza, non calcoli sparsi nella
+  pipeline. Quattro commit, ognuno una proprietà verificata da test,
+  non solo dichiarata (`test_gate_dipende_solo_da_evidence` fa il
+  parse AST del Gate e fallisce se torna a dipendere da altro).
+- **Verification Campaign v1**: contratto Result/Evidence testato su
+  39 documenti CTE reali (dominio mai visto in fase di design) — 39/39,
+  zero modifiche necessarie (`docs/verification-report-v1.md`).
+- **CLI aggiornata** (`sacor extract`): il JSON pubblico ora espone lo
+  stesso contratto, non solo gli oggetti Python interni — rotto di
+  proposito ora, pre-tag pubblico, non dopo.
+- **Corpus CTE**: 39 documenti reali, 4 fornitori, inventariati
+  (hash SHA-256), 4 esempi pubblici committati, resto locale.
+
+Prossimo (non ancora fatto): pubblicazione PyPI, repo pubblico,
+`v0.1.0-alpha`.

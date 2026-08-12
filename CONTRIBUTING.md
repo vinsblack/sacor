@@ -45,9 +45,13 @@ rossi o lint/mypy che falliscono non viene guardata.
 ## Come è organizzato il codice
 
 Prima di proporre codice nuovo, leggi `docs/01-architecture.md` — la
-pipeline ha sette strati (triage → segmentazione → tier0 → repair →
+pipeline ha otto strati (triage → segmentazione → tier0 → repair →
 derivazione → tier1 → invarianti → gate) e un principio che li attraversa
 tutti: **mai indovinare, dichiarare l'incertezza invece di nasconderla**.
+Dal 12-08 (ADR-056→060) ogni campo porta con sé la propria Evidenza
+(origine, riparazioni, derivazioni, invarianti valutate) — confidenza e
+Gate sono funzioni pure che la leggono, non calcoli sparsi nella
+pipeline: vedi `docs/02-decisions.md`, ADR-056 in poi.
 Un contributo che fa scegliere un valore plausibile al posto di `None`
 quando il dato è davvero incerto va contro questo principio, anche se fa
 salire un numero.
