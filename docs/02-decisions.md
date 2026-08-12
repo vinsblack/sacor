@@ -1778,3 +1778,27 @@ stessa violazione di contratto che questo ADR esiste per evitare.
    quello su cui è stato disegnato.
 4. Release `0.1.0-alpha`: API dichiarata instabile, contratto
    Result dichiarato stabile, benchmark pubblico, roadmap.
+
+## ADR-057 — Evidence: origin e status separati (correzione ad ADR-056)
+
+**2026-08-12, stessa sessione, prima di scrivere codice.** ADR-056
+non distingue "il campo non ha origine" da "il campo non ha origine
+PERCHÉ": oggi indistinguibili sono "tier0 ha cercato e non trovato",
+"tier1 non è stato tentato (`--tier1` assente)", "tier1 tentato e
+fallito (`tier1_errore`)", "il valore è stato scartato dal gate".
+Tutte informazioni reali, oggi non ricostruibili dall'output.
+
+**Decisione.** `origin` risponde SOLO a "da dove proviene questo
+valore" (rimane `"tier0"` / `"tier1"` / `"derivato"` / `null`).
+Aggiunta chiave separata `status`, stringa aperta, che risponde a
+"perché l'origine è assente o inutilizzabile" quando `origin` è
+`null` o quando un tentativo è fallito pur avendo un'origine:
+`"tier0_non_trovato"`, `"tier1_non_tentato"`, `"tier1_fallito"`,
+altri in futuro senza rompere nulla (stesso principio stringa-aperta
+di `origin`, ADR-056). Mai un solo campo che porta due significati
+diversi — la lezione è la stessa di "confidenza calcolata e
+buttata via": non comprimere due domande in una risposta.
+
+Aggiornamento all'esempio JSON di ADR-056: ogni voce `evidence`
+guadagna `"status": null | "<motivo>"` accanto a `"origin"`. Nessun
+altro campo del contratto cambia.
