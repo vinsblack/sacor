@@ -14,7 +14,10 @@ def normalizza(valore: str | None, tipo: TipoCampo) -> str | Decimal | int | Non
     if valore is None:
         return None
     if tipo == "string":
-        return valore.strip()
+        # T4.17-bis: 'SMART ENERGY S.r.l.' vs 'Smart Energy S.r.l.' e' lo
+        # stesso fornitore — solo maiuscole/minuscole diverse non e' un
+        # errore di lettura da contare come mismatch.
+        return valore.strip().lower()
     if tipo == "decimal":
         return Decimal(valore)
     if tipo == "integer":

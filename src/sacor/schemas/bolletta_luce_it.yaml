@@ -11,6 +11,18 @@ campi:
   - nome: fornitore
     tipo: string
     obbligatorio: false
+    descrizione: >-
+      Il nome commerciale/comune del fornitore che emette la bolletta, come
+      appare nell'intestazione, nel logo o nel titolo del documento — es.
+      "Sorgenia", "Acea Energia", "Alperia". NON la forma legale estesa
+      presa da note boilerplate a piè di pagina tipo "societa' soggetta a
+      direzione e coordinamento di X" o "Societa' Benefit" — quelle sono
+      informazioni societarie aggiuntive, non il nome con cui il fornitore
+      si presenta al cliente. Se il documento usa gia' una forma con
+      suffisso legale (es. "Smart Energy S.r.l.") nell'intestazione
+      principale, mantienilo — la regola e' NON aggiungere dettagli legali
+      trovati altrove nel documento, non rimuovere quelli gia' nel nome
+      principale.
     estrazione:
       tipo: regex
       pattern: 'Fornitore:\s*(.+)'

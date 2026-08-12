@@ -148,7 +148,7 @@
     },
     "R014": {
       "pod": "IT001E15792496",
-      "fornitore": "Fintel Gas e Luce (Gruppo Alperia)",
+      "fornitore": "Fintel Gas e Luce Srl",
       "periodo_da": "2025-10-01",
       "periodo_a": "2025-10-31",
       "giorni": "31",
@@ -160,7 +160,7 @@
     },
     "R015": {
       "pod": "IT001E15792996",
-      "fornitore": "EstEnergy (Gruppo Hera)",
+      "fornitore": "EstEnergy S.p.A.",
       "periodo_da": "2025-10-01",
       "periodo_a": "2025-10-31",
       "giorni": "31",

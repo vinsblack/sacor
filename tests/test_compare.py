@@ -31,3 +31,14 @@ def test_effettivo_malformato_resta_un_semplice_mismatch() -> None:
     un mismatch (False), non un'eccezione: e' esattamente cio' che l'eval
     deve contare come 'valore errato'."""
     assert uguali("2026-01-01", "non-una-data", "date") is False
+
+
+def test_stringa_case_diversa_e_match() -> None:
+    """T4.17-bis (diagnosi corpus reale): 'SMART ENERGY S.r.l.' vs 'Smart
+    Energy S.r.l.' e' lo stesso fornitore, non un errore di lettura — solo
+    maiuscole/minuscole diverse non e' un mismatch reale da contare."""
+    assert uguali("Smart Energy S.r.l.", "SMART ENERGY S.R.L.", "string") is True
+
+
+def test_stringa_diversa_anche_case_insensitive_resta_mismatch() -> None:
+    assert uguali("Sorgenia", "Enel Energia", "string") is False
