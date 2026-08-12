@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING
 
@@ -194,6 +194,81 @@ def valuta(invariante: Invariante, valori: Mapping[str, str | None]) -> Violazio
 
 def valuta_tutte(schema: Schema, valori: Mapping[str, str | None]) -> tuple[Violazione, ...]:
     return tuple(v for inv in schema.invarianti if (v := valuta(inv, valori)) is not None)
+
+
+def _deriva_differenza_giorni(invariante: Invariante, valori: dict[str, str | None]) -> None:
+    da_nome = invariante.params["da"]
+    a_nome = invariante.params["a"]
+    risultato_nome = invariante.params["risultato"]
+    offset = invariante.params["offset"]
+
+    da_str = valori.get(da_nome)
+    a_str = valori.get(a_nome)
+    risultato_str = valori.get(risultato_nome)
+    mancanti = sum(v is None for v in (da_str, a_str, risultato_str))
+    if mancanti != 1:
+        return  # 0: niente da fare. 2+: sottodeterminato, non e' matematica.
+
+    try:
+        if da_str is None:
+            a_data = date.fromisoformat(a_str)  # type: ignore[arg-type]
+            risultato = int(risultato_str)  # type: ignore[arg-type]
+            valori[da_nome] = (a_data - timedelta(days=risultato - offset)).isoformat()
+        elif a_str is None:
+            da_data = date.fromisoformat(da_str)
+            risultato = int(risultato_str)  # type: ignore[arg-type]
+            valori[a_nome] = (da_data + timedelta(days=risultato - offset)).isoformat()
+        else:
+            da_data = date.fromisoformat(da_str)
+            a_data = date.fromisoformat(a_str)
+            valori[risultato_nome] = str((a_data - da_data).days + offset)
+    except ValueError:
+        return  # presente ma non parsabile: non derivabile, non un errore qui
+
+
+def _deriva_somma_approssimata(invariante: Invariante, valori: dict[str, str | None]) -> None:
+    addendi_nomi = invariante.params["addendi"]
+    totale_nome = invariante.params["totale"]
+
+    addendi_valori = [valori.get(nome) for nome in addendi_nomi]
+    totale_valore = valori.get(totale_nome)
+    mancanti_addendi = [v is None for v in addendi_valori]
+    n_mancanti_addendi = sum(mancanti_addendi)
+
+    try:
+        if totale_valore is None:
+            if n_mancanti_addendi > 0:
+                return  # serve conoscere TUTTI gli addendi per derivare il totale
+            somma = sum(
+                (Decimal(v) for v in addendi_valori if v is not None), start=Decimal(0)
+            )
+            valori[totale_nome] = str(somma)
+        elif n_mancanti_addendi == 1:
+            totale = Decimal(totale_valore)
+            noti = sum(
+                (Decimal(v) for v in addendi_valori if v is not None), start=Decimal(0)
+            )
+            indice = mancanti_addendi.index(True)
+            valori[addendi_nomi[indice]] = str(totale - noti)
+        # 0 mancanti: gia' tutto noto. 2+: sottodeterminato, non e' matematica.
+    except InvalidOperation:
+        return
+
+
+def deriva_mancanti(schema: Schema, valori: Mapping[str, str | None]) -> dict[str, str | None]:
+    """Riempie i campi mancanti derivabili aritmeticamente da un
+    'differenza_giorni' o 'somma_approssimata' dichiarato nello schema, se
+    esattamente un termine e' mancante e gli altri sono noti e validi
+    (ADR-051): non e' un'invenzione, e' la stessa formula gia' usata per
+    VALIDARE l'invariante — qui la si usa per risolvere l'incognita quando
+    ce n'e' una sola. Nuovo dict, l'input non viene mutato."""
+    derivati = dict(valori)
+    for invariante in schema.invarianti:
+        if invariante.tipo == "differenza_giorni":
+            _deriva_differenza_giorni(invariante, derivati)
+        elif invariante.tipo == "somma_approssimata":
+            _deriva_somma_approssimata(invariante, derivati)
+    return derivati
 
 
 def campi_coinvolti(invariante: Invariante) -> tuple[str, ...]:

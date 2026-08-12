@@ -22,7 +22,7 @@ from typing import Literal
 import pdfplumber
 
 from sacor.extractor import TierZeroExtractor
-from sacor.invariants import Violazione, campi_coinvolti, valuta_tutte
+from sacor.invariants import Violazione, campi_coinvolti, deriva_mancanti, valuta_tutte
 from sacor.providers.base import ModelProvider
 from sacor.providers.errors import ErroreProvider
 from sacor.providers.prompt import costruisci_prompt
@@ -74,7 +74,7 @@ def _calcola_confidenza(
     schema: Schema,
     valori: Mapping[str, str | None],
     violazioni: tuple[Violazione, ...],
-    origine: Mapping[str, str],  # nome campo -> "tier0" | "tier1"
+    origine: Mapping[str, str],  # nome campo -> "tier0" | "tier1" | "derivato"
 ) -> dict[str, Confidenza | None]:
     """Un campo senza violazioni e' 'alta' se deterministico (tier0, regex
     dichiarata nello schema — T3.2 non indovina mai), 'media' se da tier1
@@ -93,7 +93,10 @@ def _calcola_confidenza(
             confidenza[nome] = None
         elif nome in campi_sospetti:
             confidenza[nome] = "bassa"
-        elif origine.get(nome) == "tier1":
+        elif origine.get(nome) in ("tier1", "derivato"):
+            # "derivato" (ADR-051): matematicamente esatto SE gli input
+            # usati per calcolarlo sono corretti — eredita la loro
+            # incertezza, non e' piu' affidabile di un valore letto.
             confidenza[nome] = "media"
         else:
             confidenza[nome] = "alta"
@@ -107,6 +110,24 @@ def _provider_tier1_default() -> ModelProvider:
     from sacor.providers.anthropic import AnthropicProvider
 
     return AnthropicProvider(MODELLO_TIER1)
+
+
+def _deriva_e_traccia_origine(
+    schema: Schema, valori: dict[str, str | None], origine: dict[str, str]
+) -> dict[str, str | None]:
+    # ADR-051: un campo mancante puo' essere aritmeticamente derivabile
+    # dagli altri due di una stessa invariante (es. periodo_a da
+    # periodo_da+giorni) — non e' un indovinare, e' la stessa formula
+    # gia' usata per validare, applicata al contrario quando l'incognita
+    # e' una sola. Chiamata PRIMA di tier1 (risparmia la chiamata se
+    # basta l'aritmetica) e di nuovo dopo (tier1 puo' sbloccare una
+    # derivazione prima non possibile). `origine` mutato in place, non
+    # e' un closure sul loop in estrai_file (B023).
+    derivati = deriva_mancanti(schema, valori)
+    for nome, valore in derivati.items():
+        if valore is not None and valori.get(nome) is None:
+            origine[nome] = "derivato"
+    return derivati
 
 
 def estrai_file(
@@ -140,6 +161,8 @@ def estrai_file(
         costo_tier1 = 0.0
         tier1_errore: str | None = None
 
+        valori = _deriva_e_traccia_origine(schema, valori, origine)
+
         campi_mancanti = tuple(c for c in schema.campi if valori.get(c.nome) is None)
         if usa_tier1 and campi_mancanti:
             if provider_tier1 is None:
@@ -157,6 +180,8 @@ def estrai_file(
                             origine[campo.nome] = "tier1"
                 except ErroreProvider as exc:
                     tier1_errore = str(exc)
+
+            valori = _deriva_e_traccia_origine(schema, valori, origine)
 
         violazioni = valuta_tutte(schema, valori)
         esito, motivo = _calcola_esito(schema, valori, violazioni)

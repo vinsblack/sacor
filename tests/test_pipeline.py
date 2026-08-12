@@ -193,19 +193,42 @@ def test_tier1_errore_provider_non_esplode_e_si_vede_nel_risultato(tmp_path: Pat
 
 def test_confidenza_bassa_su_campo_coinvolto_in_invariante_violata(tmp_path: Path) -> None:
     schema = load(SCHEMA_PATH)
-    # solo kwh_f1 manca dal tier0: tier1 lo riempie con un valore che rompe
-    # la somma con kwh_f2/kwh_f3/kwh_totale (gia' risolti dal tier0, coerenti
-    # tra loro) — la violazione risultante coinvolge tutti e 4 (campi_
-    # coinvolti di 'somma_fasce'), non solo quello che tier1 ha scritto.
-    schema_senza_kwh_f1 = _schema_senza_estrazione(schema, "kwh_f1")
+    # kwh_f1 E kwh_f2 mancano dal tier0 (due incognite su 'somma_fasce' a 4
+    # termini: sottodeterminato, ADR-051 non deriva — deve andare a tier1).
+    # Il provider restituisce due valori che non tornano con kwh_totale/
+    # kwh_f3 gia' risolti dal tier0 — la violazione coinvolge tutti e 4
+    # (campi_coinvolti di 'somma_fasce'), non solo quelli scritti da tier1.
+    schema_ridotto = schema
+    for nome in ("kwh_f1", "kwh_f2"):
+        schema_ridotto = _schema_senza_estrazione(schema_ridotto, nome)
     pdf_bytes, _, _ = genera_documento(random.Random(56), "S036", "Alfa Energia", Flags())
     path = _scrivi(tmp_path, "S036.pdf", pdf_bytes)
-    provider = _ProviderStub(valori={"kwh_f1": "999999.99"})
+    provider = _ProviderStub(valori={"kwh_f1": "999999.99", "kwh_f2": "888888.88"})
 
-    (risultato,) = estrai_file(path, schema_senza_kwh_f1, usa_tier1=True, provider=provider)
+    (risultato,) = estrai_file(path, schema_ridotto, usa_tier1=True, provider=provider)
 
     assert any(v.invariante_id == "somma_fasce" for v in risultato.violazioni)
     assert risultato.confidenza["kwh_f1"] == "bassa"  # tier1, ma bassa vince su media
     assert risultato.confidenza["kwh_totale"] == "bassa"  # tier0, ma bassa vince su alta
     assert risultato.confidenza["kwh_f2"] == "bassa"
     assert risultato.confidenza["kwh_f3"] == "bassa"
+
+
+def test_deriva_mancanti_end_to_end_senza_chiamare_tier1(tmp_path: Path) -> None:
+    """ADR-051: periodo_a manca dal tier0, ma periodo_da e giorni ci sono
+    gia' — deve derivarlo aritmeticamente, senza nessuna chiamata tier1
+    (anche con usa_tier1=True e un provider che esploderebbe se chiamato)."""
+    schema = load(SCHEMA_PATH)
+    schema_senza_periodo_a = _schema_senza_estrazione(schema, "periodo_a")
+    pdf_bytes, _, _ = genera_documento(random.Random(57), "S037", "Alfa Energia", Flags())
+    path = _scrivi(tmp_path, "S037.pdf", pdf_bytes)
+    provider = _ProviderCheFallisce()
+
+    (risultato,) = estrai_file(
+        path, schema_senza_periodo_a, usa_tier1=True, provider=provider
+    )
+
+    assert risultato.tier1_errore is None  # provider mai chiamato, quindi mai fallito
+    assert risultato.valori["periodo_a"] is not None
+    assert risultato.confidenza["periodo_a"] == "media"  # derivato, non letto direttamente
+    assert risultato.costo_tier1_usd == 0.0

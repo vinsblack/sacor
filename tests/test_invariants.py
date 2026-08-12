@@ -4,9 +4,10 @@ il registro dei tipi noti (usato per validare le referenze al load)."""
 
 from __future__ import annotations
 
+from decimal import Decimal
 from pathlib import Path
 
-from sacor.invariants import campi_coinvolti, valuta, valuta_tutte
+from sacor.invariants import campi_coinvolti, deriva_mancanti, valuta, valuta_tutte
 from sacor.schema import Invariante, load
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -246,3 +247,92 @@ def test_campi_coinvolti_differenza_giorni() -> None:
 
 def test_campi_coinvolti_campo_singolo() -> None:
     assert campi_coinvolti(_formato_pod()) == ("pod",)
+
+
+# --- deriva_mancanti (ADR-051: mai indovinare quando e' matematica) -------
+
+
+def test_deriva_periodo_a_da_periodo_da_e_giorni() -> None:
+    schema = load(SCHEMA_REALE)
+    valori = {
+        "periodo_da": "2025-10-01",
+        "periodo_a": None,
+        "giorni": "31",
+    }
+    derivati = deriva_mancanti(schema, valori)
+    assert derivati["periodo_a"] == "2025-10-31"
+
+
+def test_deriva_periodo_da_da_periodo_a_e_giorni() -> None:
+    schema = load(SCHEMA_REALE)
+    valori = {
+        "periodo_da": None,
+        "periodo_a": "2025-10-31",
+        "giorni": "31",
+    }
+    derivati = deriva_mancanti(schema, valori)
+    assert derivati["periodo_da"] == "2025-10-01"
+
+
+def test_deriva_giorni_da_periodo_da_e_periodo_a() -> None:
+    schema = load(SCHEMA_REALE)
+    valori = {
+        "periodo_da": "2025-10-01",
+        "periodo_a": "2025-10-31",
+        "giorni": None,
+    }
+    derivati = deriva_mancanti(schema, valori)
+    assert derivati["giorni"] == "31"
+
+
+def test_deriva_addendo_mancante_somma_fasce() -> None:
+    schema = load(SCHEMA_REALE)
+    valori = {
+        "kwh_f1": None,
+        "kwh_f2": "20.00",
+        "kwh_f3": "10.00",
+        "kwh_totale": "50.00",
+    }
+    derivati = deriva_mancanti(schema, valori)
+    assert Decimal(derivati["kwh_f1"]) == Decimal("20.00")
+
+
+def test_deriva_totale_mancante_somma_fasce() -> None:
+    schema = load(SCHEMA_REALE)
+    valori = {
+        "kwh_f1": "20.00",
+        "kwh_f2": "20.00",
+        "kwh_f3": "10.00",
+        "kwh_totale": None,
+    }
+    derivati = deriva_mancanti(schema, valori)
+    assert Decimal(derivati["kwh_totale"]) == Decimal("50.00")
+
+
+def test_non_deriva_se_piu_di_un_campo_mancante() -> None:
+    schema = load(SCHEMA_REALE)
+    valori = {"periodo_da": "2025-10-01", "periodo_a": None, "giorni": None}
+    derivati = deriva_mancanti(schema, valori)
+    assert derivati["periodo_a"] is None
+    assert derivati["giorni"] is None
+
+
+def test_non_deriva_se_nessun_campo_mancante() -> None:
+    schema = load(SCHEMA_REALE)
+    valori = {"periodo_da": "2025-10-01", "periodo_a": "2025-10-31", "giorni": "31"}
+    derivati = deriva_mancanti(schema, valori)
+    assert derivati == valori
+
+
+def test_non_esplode_su_valore_presente_non_parsabile() -> None:
+    schema = load(SCHEMA_REALE)
+    valori = {"periodo_da": "non-una-data", "periodo_a": None, "giorni": "31"}
+    derivati = deriva_mancanti(schema, valori)
+    assert derivati["periodo_a"] is None
+
+
+def test_deriva_mancanti_non_muta_linput() -> None:
+    schema = load(SCHEMA_REALE)
+    valori = {"periodo_da": "2025-10-01", "periodo_a": None, "giorni": "31"}
+    deriva_mancanti(schema, valori)
+    assert valori["periodo_a"] is None  # l'originale non e' toccato
