@@ -1282,3 +1282,60 @@ indipendente dal risultato). Tornare alla priorita' di ADR-048
 non nascosto, candidato a essere il primo problema che un utilizzatore
 esterno segnala con un caso reale nuovo (esattamente il meccanismo che
 ADR-048 prevede per il miglioramento post-pubblicazione).
+
+## ADR-051 — Riparazione aritmetica dai campi noti: 62.0%→65.3%/campo,
+periodo_da/periodo_a 13-20%→33%
+
+**2026-08-12, stessa sessione di ADR-050.** Analisi con l'utente
+dell'approccio "passa la bolletta passo passo nella pipeline, osserva,
+ripara" — ispirato ai guardrail di VERO (CONGUAGLIO, VOCI_DRIFT:
+mai un solo segnale, sempre un secondo indipendente che veta il primo
+se implausibile). Le invarianti gia' dichiarate in sacor
+(`differenza_giorni`, `somma_approssimata`) diventano bidirezionali:
+se esattamente un termine manca e gli altri sono noti e validi, si
+calcola invece di lasciarlo a tier1/null — non e' un'indovinare, e' la
+stessa formula gia' usata per validare, applicata al contrario.
+Nuova funzione `sacor.invariants.deriva_mancanti()`, generica per
+schema (ADR-017): risolve sia periodo_da/periodo_a/giorni sia
+kwh_f1/f2/f3/totale con lo stesso codice. Girata PRIMA di tier1
+(risparmia la chiamata se basta l'aritmetica) e di nuovo dopo (tier1
+puo' sbloccare una derivazione prima impossibile). Confidenza
+"derivato" -> media (eredita l'incertezza degli input).
+
+**Due bug di misura trovati per strada, prima del numero vero**:
+1. Prima "rimisura" contaminata da credito Anthropic esaurito a meta'
+   giro (4/15 doc falliti) — scartata, non confrontabile.
+2. Rimisura pulita (post-ricarica) mostrava ZERO cambiamento
+   (62.0%→62.0%, periodo invariato) nonostante la derivazione fosse
+   gia' committata e testata in isolamento (11 test verdi). Causa:
+   `scripts/misura_reale_combinato.py` e `scripts/diagnosi_periodo_
+   reale.py` REIMPLEMENTAVANO tier0+tier1 a mano (scritti prima di
+   `deriva_mancanti()`, mai aggiornati) — non chiamavano mai
+   `sacor.pipeline.estrai_file()`, quindi misuravano una pipeline
+   diversa da quella che `sacor extract --tier1` esegue davvero.
+   Trovato con un test isolato gratuito (nessuna chiamata reale) prima
+   di sospettare la funzione — la funzione era giusta, lo script no.
+   Riscritti entrambi per chiamare `estrai_file()` (DRY: restano
+   sincronizzati con la pipeline vera, non la duplicano).
+
+**Numero vero, dopo il fix degli script** (corpus reale, 15 doc,
+$2.06):
+
+| | prima (ADR-050) | dopo |
+|---|---|---|
+| Per campo | 62.0% | **65.3%** (98/150) |
+| periodo_da | 13.3% | **33.3%** |
+| periodo_a | 20.0% | **33.3%** |
+| Per documento | 0% | **0%** — invariato |
+
+Miglioramento reale sui campi bersaglio (+20 punti ciascuno), ma
+insufficiente a chiudere un documento intero: fornitore (33%) e kwh_f1
+(53%) restano il prossimo collo di bottiglia.
+
+**Lezione sul processo, non solo sul numero**: il primo istinto ("il
+numero non si muove, la funzione dev'essere sbagliata") era sbagliato
+— la funzione era corretta (provata da 11 test unitari), lo strumento
+di misura si era disallineato dalla pipeline reale. Verificato con un
+test isolato gratuito PRIMA di sospettare altro — lo stesso principio
+di "diagnosi vera prima del fix" di ADR-050, applicato questa volta
+alla misura stessa, non solo al motore.
