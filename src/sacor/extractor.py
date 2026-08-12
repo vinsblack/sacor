@@ -43,6 +43,11 @@ class EsitoCampo(StrEnum):
 class DiagnosticaCampo:
     esito: EsitoCampo
     valore: str | None  # non None solo se esito e' NORMALIZZATO
+    # ADR-058: valore pre-Repair, per ricostruire evidence.repair (la
+    # pipeline deve poter dire "da X a Y", non solo "riparato si/no").
+    # Default None per non rompere le costruzioni posizionali esistenti
+    # (eval/run.py) che non hanno un grezzo da riportare.
+    grezzo: str | None = None
 
 
 def _valore_grezzo(pattern: str, testo: str) -> str | None:
@@ -107,9 +112,13 @@ class TierZeroExtractor:
                 continue
             normalizzato = ripara(grezzo, campo.tipo)
             if normalizzato is None:
-                diagnostica[campo.nome] = DiagnosticaCampo(EsitoCampo.NON_NORMALIZZABILE, None)
+                diagnostica[campo.nome] = DiagnosticaCampo(
+                    EsitoCampo.NON_NORMALIZZABILE, None, grezzo=grezzo
+                )
             else:
-                diagnostica[campo.nome] = DiagnosticaCampo(EsitoCampo.NORMALIZZATO, normalizzato)
+                diagnostica[campo.nome] = DiagnosticaCampo(
+                    EsitoCampo.NORMALIZZATO, normalizzato, grezzo=grezzo
+                )
 
         return diagnostica
 

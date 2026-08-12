@@ -8,6 +8,7 @@ import random
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from sacor.evidence import confidenza_da_evidenza
 from sacor.invariants import Violazione
 from sacor.pipeline import _calcola_esito, estrai_file
 from sacor.providers.base import RispostaModello
@@ -232,3 +233,138 @@ def test_deriva_mancanti_end_to_end_senza_chiamare_tier1(tmp_path: Path) -> None
     assert risultato.valori["periodo_a"] is not None
     assert risultato.confidenza["periodo_a"] == "media"  # derivato, non letto direttamente
     assert risultato.costo_tier1_usd == 0.0
+
+
+# --- Evidence Model (ADR-056/057/058, Commit 2) -----------------------------
+
+
+def test_evidenza_documento_popolata_con_schema_e_pagine(tmp_path: Path) -> None:
+    schema = load(SCHEMA_PATH)
+    pdf_bytes, _, _ = genera_documento(random.Random(58), "S038", "Alfa Energia", Flags())
+    path = _scrivi(tmp_path, "S038.pdf", pdf_bytes)
+
+    (risultato,) = estrai_file(path, schema)
+
+    doc = risultato.evidenza_documento
+    assert doc is not None
+    assert doc.schema == schema.documento
+    assert doc.schema_versione == schema.schema_version
+    assert len(doc.pagine) >= 1
+
+
+def test_evidenza_campo_tier0_origine_e_coerente_con_confidenza(tmp_path: Path) -> None:
+    schema = load(SCHEMA_PATH)
+    pdf_bytes, _, _ = genera_documento(random.Random(59), "S039", "Alfa Energia", Flags())
+    path = _scrivi(tmp_path, "S039.pdf", pdf_bytes)
+
+    (risultato,) = estrai_file(path, schema)
+
+    ev = risultato.evidenze["pod"]
+    assert ev.origine == "tier0"
+    assert ev.stato is None  # ha un valore, niente da giustificare
+    assert confidenza_da_evidenza(risultato.valori["pod"], ev) == risultato.confidenza["pod"]
+
+
+def test_evidenza_derivazione_registra_invariante_e_campi_di_input(tmp_path: Path) -> None:
+    schema = load(SCHEMA_PATH)
+    schema_senza_periodo_a = _schema_senza_estrazione(schema, "periodo_a")
+    pdf_bytes, _, _ = genera_documento(random.Random(60), "S040", "Alfa Energia", Flags())
+    path = _scrivi(tmp_path, "S040.pdf", pdf_bytes)
+
+    (risultato,) = estrai_file(
+        path, schema_senza_periodo_a, usa_tier1=True, provider=_ProviderCheFallisce()
+    )
+
+    ev = risultato.evidenze["periodo_a"]
+    assert ev.origine == "derivato"
+    assert len(ev.derivazione) == 1
+    assert ev.derivazione[0].tipo == "differenza_giorni"
+    assert ev.derivazione[0].invariante_id == "giorni_inclusivi"
+    assert set(ev.derivazione[0].da_campi) == {"periodo_da", "giorni"}
+    assert confidenza_da_evidenza(risultato.valori["periodo_a"], ev) == "media"
+
+
+def test_evidenza_tier1_origine(tmp_path: Path) -> None:
+    schema = load(SCHEMA_PATH)
+    schema_senza_fornitore = _schema_senza_estrazione(schema, "fornitore")
+    pdf_bytes, _, _ = genera_documento(random.Random(61), "S041", "Beta Luce", Flags())
+    path = _scrivi(tmp_path, "S041.pdf", pdf_bytes)
+    provider = _ProviderStub(valori={"fornitore": "Epsilon Luce (da tier1)"})
+
+    (risultato,) = estrai_file(path, schema_senza_fornitore, usa_tier1=True, provider=provider)
+
+    ev = risultato.evidenze["fornitore"]
+    assert ev.origine == "tier1"
+    assert confidenza_da_evidenza(risultato.valori["fornitore"], ev) == "media"
+
+
+def test_evidenza_invarianti_fallite_su_campo_coinvolto(tmp_path: Path) -> None:
+    schema = load(SCHEMA_PATH)
+    schema_ridotto = schema
+    for nome in ("kwh_f1", "kwh_f2"):
+        schema_ridotto = _schema_senza_estrazione(schema_ridotto, nome)
+    pdf_bytes, _, _ = genera_documento(random.Random(62), "S042", "Alfa Energia", Flags())
+    path = _scrivi(tmp_path, "S042.pdf", pdf_bytes)
+    provider = _ProviderStub(valori={"kwh_f1": "999999.99", "kwh_f2": "888888.88"})
+
+    (risultato,) = estrai_file(path, schema_ridotto, usa_tier1=True, provider=provider)
+
+    ev = risultato.evidenze["kwh_totale"]
+    assert ev.invarianti.fallite >= 1
+    assert any(d.id == "somma_fasce" and d.esito == "fail" for d in ev.invarianti.dettaglio)
+    assert confidenza_da_evidenza(risultato.valori["kwh_totale"], ev) == "bassa"
+
+
+def test_evidenza_stato_tier1_non_tentato_se_usa_tier1_falso(tmp_path: Path) -> None:
+    schema = load(SCHEMA_PATH)
+    schema_senza_fornitore = _schema_senza_estrazione(schema, "fornitore")
+    pdf_bytes, _, _ = genera_documento(random.Random(63), "S043", "Alfa Energia", Flags())
+    path = _scrivi(tmp_path, "S043.pdf", pdf_bytes)
+
+    (risultato,) = estrai_file(path, schema_senza_fornitore)  # usa_tier1 default False
+
+    ev = risultato.evidenze["fornitore"]
+    assert risultato.valori["fornitore"] is None
+    assert ev.origine is None
+    assert ev.stato == "tier1_non_tentato"
+
+
+def test_evidenza_stato_tier1_fallito_si_distingue_da_non_tentato(tmp_path: Path) -> None:
+    schema = load(SCHEMA_PATH)
+    schema_senza_fornitore = _schema_senza_estrazione(schema, "fornitore")
+    pdf_bytes, _, _ = genera_documento(random.Random(64), "S044", "Gamma Power", Flags())
+    path = _scrivi(tmp_path, "S044.pdf", pdf_bytes)
+
+    (risultato,) = estrai_file(
+        path, schema_senza_fornitore, usa_tier1=True, provider=_ProviderCheFallisce()
+    )
+
+    ev = risultato.evidenze["fornitore"]
+    assert ev.stato == "tier1_fallito"
+
+
+def test_evidenza_racconta_la_storia_del_campo_senza_altro_contesto(tmp_path: Path) -> None:
+    """La proprieta' richiesta per il Commit 2: dato un campo derivato,
+    tutta la sua storia (chi l'ha prodotto, da cosa, con quale
+    invariante) deve leggersi dalla sua Evidenza da sola — nessun altro
+    oggetto (extractor, pipeline) va consultato."""
+    schema = load(SCHEMA_PATH)
+    schema_senza_periodo_a = _schema_senza_estrazione(schema, "periodo_a")
+    pdf_bytes, _, _ = genera_documento(random.Random(65), "S045", "Alfa Energia", Flags())
+    path = _scrivi(tmp_path, "S045.pdf", pdf_bytes)
+
+    (risultato,) = estrai_file(path, schema_senza_periodo_a)
+
+    ev = risultato.evidenze["periodo_a"]
+    storia = {
+        "origine": ev.origine,
+        "riparazioni": [r.tipo for r in ev.repair],
+        "derivazioni": [(d.tipo, d.invariante_id, d.da_campi) for d in ev.derivazione],
+        "invarianti_passate": ev.invarianti.passate,
+        "invarianti_fallite": ev.invarianti.fallite,
+    }
+    assert storia["origine"] == "derivato"
+    assert storia["derivazioni"] == [
+        ("differenza_giorni", "giorni_inclusivi", ("periodo_da", "giorni"))
+    ]
+    assert storia["invarianti_fallite"] == 0

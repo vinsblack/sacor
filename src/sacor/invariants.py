@@ -192,8 +192,49 @@ def valuta(invariante: Invariante, valori: Mapping[str, str | None]) -> Violazio
     return valutatore(invariante, valori)
 
 
+@dataclass(frozen=True)
+class EsitoInvarianteValutazione:
+    """ADR-056/058: 'valuta_tutte' tiene solo le fallite (None copre sia
+    'passata' che 'non valutabile per campi mancanti' — la stessa
+    ambiguita' che _valuta_somma_approssimata commenta al suo interno).
+    Evidence.invarianti (per campo) ha bisogno anche delle passate, e di
+    sapere se l'invariante e' stata valutata affatto: un'invariante non
+    valutabile (campi mancanti) non conta ne' come passata ne' come
+    fallita."""
+
+    invariante_id: str
+    severita: Severita
+    valutata: bool
+    violazione: Violazione | None  # sempre None se valutata e' False
+
+
+def valuta_tutte_con_esito(
+    schema: Schema, valori: Mapping[str, str | None]
+) -> tuple[EsitoInvarianteValutazione, ...]:
+    """Come valuta_tutte, ma per OGNI invariante dello schema, non solo le
+    fallite. 'valutabile' == tutti i campi che l'invariante referenzia
+    (campi_coinvolti) sono presenti in valori — la stessa condizione che
+    ciascun _valuta_* verifica internamente per restituire None invece di
+    giudicare, resa esplicita qui invece che nascosta nel None."""
+    risultati = []
+    for inv in schema.invarianti:
+        valutabile = all(valori.get(nome) is not None for nome in campi_coinvolti(inv))
+        violazione = valuta(inv, valori) if valutabile else None
+        risultati.append(
+            EsitoInvarianteValutazione(
+                invariante_id=inv.id,
+                severita=inv.severita,
+                valutata=valutabile,
+                violazione=violazione,
+            )
+        )
+    return tuple(risultati)
+
+
 def valuta_tutte(schema: Schema, valori: Mapping[str, str | None]) -> tuple[Violazione, ...]:
-    return tuple(v for inv in schema.invarianti if (v := valuta(inv, valori)) is not None)
+    return tuple(
+        r.violazione for r in valuta_tutte_con_esito(schema, valori) if r.violazione is not None
+    )
 
 
 def _deriva_differenza_giorni(invariante: Invariante, valori: dict[str, str | None]) -> None:
@@ -253,6 +294,56 @@ def _deriva_somma_approssimata(invariante: Invariante, valori: dict[str, str | N
     valori[totale_nome] = str(somma)
 
 
+@dataclass(frozen=True)
+class ProvenienzaDerivazione:
+    """ADR-056: Evidence.derivazione ha bisogno di COME un valore
+    derivato e' stato ottenuto, non solo del risultato — quale
+    invariante, quale formula, da quali altri campi."""
+
+    campo: str
+    tipo: str  # "differenza_giorni" | "somma_approssimata"
+    invariante_id: str
+    da_campi: tuple[str, ...]
+
+
+def deriva_mancanti_con_provenienza(
+    schema: Schema, valori: Mapping[str, str | None]
+) -> tuple[dict[str, str | None], tuple[ProvenienzaDerivazione, ...]]:
+    """Come deriva_mancanti, ma registra anche la provenienza di ogni
+    campo effettivamente derivato (ADR-058: la pipeline deve poter
+    raccontare la storia di un campo leggendo solo la sua Evidenza, non
+    reindovinando quale invariante l'ha prodotto)."""
+    derivati = dict(valori)
+    provenienza: list[ProvenienzaDerivazione] = []
+    for invariante in schema.invarianti:
+        prima = dict(derivati)
+        if invariante.tipo == "differenza_giorni":
+            _deriva_differenza_giorni(invariante, derivati)
+            campi_derivazione = (
+                invariante.params["da"],
+                invariante.params["a"],
+                invariante.params["risultato"],
+            )
+        elif invariante.tipo == "somma_approssimata":
+            _deriva_somma_approssimata(invariante, derivati)
+            campi_derivazione = (*invariante.params["addendi"], invariante.params["totale"])
+        else:
+            continue
+
+        for nome in campi_derivazione:
+            if prima.get(nome) is None and derivati.get(nome) is not None:
+                altri = tuple(c for c in campi_derivazione if c != nome)
+                provenienza.append(
+                    ProvenienzaDerivazione(
+                        campo=nome,
+                        tipo=invariante.tipo,
+                        invariante_id=invariante.id,
+                        da_campi=altri,
+                    )
+                )
+    return derivati, tuple(provenienza)
+
+
 def deriva_mancanti(schema: Schema, valori: Mapping[str, str | None]) -> dict[str, str | None]:
     """Riempie i campi mancanti derivabili aritmeticamente da un
     'differenza_giorni' o 'somma_approssimata' dichiarato nello schema, se
@@ -260,12 +351,7 @@ def deriva_mancanti(schema: Schema, valori: Mapping[str, str | None]) -> dict[st
     (ADR-051): non e' un'invenzione, e' la stessa formula gia' usata per
     VALIDARE l'invariante — qui la si usa per risolvere l'incognita quando
     ce n'e' una sola. Nuovo dict, l'input non viene mutato."""
-    derivati = dict(valori)
-    for invariante in schema.invarianti:
-        if invariante.tipo == "differenza_giorni":
-            _deriva_differenza_giorni(invariante, derivati)
-        elif invariante.tipo == "somma_approssimata":
-            _deriva_somma_approssimata(invariante, derivati)
+    derivati, _ = deriva_mancanti_con_provenienza(schema, valori)
     return derivati
 
 

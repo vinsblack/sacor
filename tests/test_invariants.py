@@ -7,7 +7,14 @@ from __future__ import annotations
 from decimal import Decimal
 from pathlib import Path
 
-from sacor.invariants import campi_coinvolti, deriva_mancanti, valuta, valuta_tutte
+from sacor.invariants import (
+    campi_coinvolti,
+    deriva_mancanti,
+    deriva_mancanti_con_provenienza,
+    valuta,
+    valuta_tutte,
+    valuta_tutte_con_esito,
+)
 from sacor.schema import Invariante, load
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -357,3 +364,88 @@ def test_deriva_mancanti_non_muta_linput() -> None:
     valori = {"periodo_da": "2025-10-01", "periodo_a": None, "giorni": "31"}
     deriva_mancanti(schema, valori)
     assert valori["periodo_a"] is None  # l'originale non e' toccato
+
+
+# --- valuta_tutte_con_esito (ADR-056/058) -----------------------------------
+
+
+def test_valuta_tutte_con_esito_su_valori_perfetti_tutte_passate() -> None:
+    schema = load(SCHEMA_REALE)
+    valori = {
+        "pod": "IT001E12345678",
+        "fornitore": "Alfa Energia",
+        "periodo_da": "2025-09-01",
+        "periodo_a": "2025-09-30",
+        "giorni": "30",
+        "kwh_totale": "60.00",
+        "kwh_f1": "10.00",
+        "kwh_f2": "20.00",
+        "kwh_f3": "30.00",
+        "importo_totale": "50.00",
+    }
+    risultati = valuta_tutte_con_esito(schema, valori)
+    assert len(risultati) == len(schema.invarianti)
+    assert all(r.valutata for r in risultati)
+    assert all(r.violazione is None for r in risultati)
+
+
+def test_valuta_tutte_con_esito_coerente_con_valuta_tutte() -> None:
+    # Stessa fonte di verita': valuta_tutte e' ora un filtro sopra
+    # valuta_tutte_con_esito, deve produrre lo stesso output di prima.
+    schema = load(SCHEMA_REALE)
+    valori = {
+        "pod": "IT001E12345678",
+        "fornitore": "Alfa Energia",
+        "periodo_da": "2025-09-01",
+        "periodo_a": "2025-09-30",
+        "giorni": "31",  # sbagliato: la violazione attesa
+        "kwh_totale": "60.00",
+        "kwh_f1": "10.00",
+        "kwh_f2": "20.00",
+        "kwh_f3": "30.00",
+        "importo_totale": "50.00",
+    }
+    violazioni = valuta_tutte(schema, valori)
+    con_esito = valuta_tutte_con_esito(schema, valori)
+    fallite = tuple(r.violazione for r in con_esito if r.violazione is not None)
+    assert fallite == violazioni
+    assert len(violazioni) >= 1
+
+
+def test_valuta_tutte_con_esito_campo_mancante_non_e_ne_passata_ne_fallita() -> None:
+    schema = load(SCHEMA_REALE)
+    valori: dict[str, str | None] = {"periodo_da": "2025-09-01", "periodo_a": None, "giorni": None}
+    risultati = valuta_tutte_con_esito(schema, valori)
+    per_id = {r.invariante_id: r for r in risultati}
+    assert per_id["giorni_inclusivi"].valutata is False
+    assert per_id["giorni_inclusivi"].violazione is None
+
+
+# --- deriva_mancanti_con_provenienza (ADR-056/058) --------------------------
+
+
+def test_deriva_con_provenienza_registra_invariante_e_campi_di_input() -> None:
+    schema = load(SCHEMA_REALE)
+    valori = {"periodo_da": "2025-10-01", "periodo_a": None, "giorni": "31"}
+    derivati, provenienza = deriva_mancanti_con_provenienza(schema, valori)
+    assert derivati["periodo_a"] == "2025-10-31"
+    assert len(provenienza) == 1
+    assert provenienza[0].campo == "periodo_a"
+    assert provenienza[0].tipo == "differenza_giorni"
+    assert provenienza[0].invariante_id == "giorni_inclusivi"
+    assert set(provenienza[0].da_campi) == {"periodo_da", "giorni"}
+
+
+def test_deriva_con_provenienza_vuota_se_nulla_derivato() -> None:
+    schema = load(SCHEMA_REALE)
+    valori = {"periodo_da": "2025-10-01", "periodo_a": "2025-10-31", "giorni": "31"}
+    _, provenienza = deriva_mancanti_con_provenienza(schema, valori)
+    assert provenienza == ()
+
+
+def test_deriva_mancanti_coerente_con_deriva_con_provenienza() -> None:
+    schema = load(SCHEMA_REALE)
+    valori = {"periodo_da": "2025-10-01", "periodo_a": None, "giorni": "31"}
+    derivati_semplice = deriva_mancanti(schema, valori)
+    derivati_con_prov, _ = deriva_mancanti_con_provenienza(schema, valori)
+    assert derivati_semplice == derivati_con_prov
