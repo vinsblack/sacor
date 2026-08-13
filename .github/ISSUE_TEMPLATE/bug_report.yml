@@ -1,0 +1,75 @@
+name: Bug report
+description: Something behaved wrong or unexpectedly.
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Clear description of the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command run
+      render: shell
+      placeholder: sacor extract ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Output received
+      description: Paste the full output, including any traceback.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Output expected
+      description: What you expected to happen instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: document
+    attributes:
+      label: Document involved
+      description: >-
+        Do NOT attach the PDF if it contains personal or third-party data —
+        see CONTRIBUTING.md, "Sensitive data". If you can, describe the
+        document type (supplier, format) or attach a redacted excerpt
+        instead.
+
+  - type: input
+    id: version
+    attributes:
+      label: sacor version
+      placeholder: pip show sacor, or commit hash if running from source
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Any other context that might help.

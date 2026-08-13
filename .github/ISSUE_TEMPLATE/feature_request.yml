@@ -1,0 +1,40 @@
+name: Feature request
+description: Propose a new document type, a field, or an improvement.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you'd like sacor to do
+      description: Describe the need, not just the solution.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type of request
+      multiple: true
+      options:
+        - New document type (other country, other domain)
+        - New field on an existing schema
+        - Integration (n8n, API, other)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: reference-document
+    attributes:
+      label: Do you have a real reference document?
+      description: >-
+        If you're proposing a new document type or field, a real example
+        (even just the labels/layout, no personal data — see
+        CONTRIBUTING.md) speeds up evaluation a lot. A schema is written by
+        reading a real document, not by guessing the format.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: If you've already thought about it, what did you rule out and why.
