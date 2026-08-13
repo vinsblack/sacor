@@ -1,0 +1,321 @@
+[
+  {
+    "istanza_id": "sample",
+    "documento": {
+      "schema": "bolletta_luce_it",
+      "schema_versione": 1,
+      "classificazione": null,
+      "pagine": [
+        {
+          "indice": 1,
+          "tipo": "digitale"
+        },
+        {
+          "indice": 2,
+          "tipo": "digitale"
+        },
+        {
+          "indice": 3,
+          "tipo": "digitale"
+        }
+      ]
+    },
+    "campi": {
+      "pod": {
+        "value": "IT229E18728463",
+        "evidence": {
+          "origin": "tier0",
+          "status": null,
+          "repair": [],
+          "derivation": [],
+          "invariants": {
+            "passed": 1,
+            "failed": 0,
+            "dettaglio": [
+              {
+                "id": "formato_pod",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              }
+            ]
+          }
+        },
+        "confidence": "alta"
+      },
+      "fornitore": {
+        "value": "Alfa Energia",
+        "evidence": {
+          "origin": "tier0",
+          "status": null,
+          "repair": [],
+          "derivation": [],
+          "invariants": {
+            "passed": 0,
+            "failed": 0,
+            "dettaglio": []
+          }
+        },
+        "confidence": "alta"
+      },
+      "periodo_da": {
+        "value": "2025-02-01",
+        "evidence": {
+          "origin": "tier0",
+          "status": null,
+          "repair": [
+            {
+              "tipo": "ripara",
+              "da": "01.02.2025",
+              "a": "2025-02-01"
+            }
+          ],
+          "derivation": [],
+          "invariants": {
+            "passed": 2,
+            "failed": 0,
+            "dettaglio": [
+              {
+                "id": "giorni_inclusivi",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              },
+              {
+                "id": "periodo_ordinato",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              }
+            ]
+          }
+        },
+        "confidence": "alta"
+      },
+      "periodo_a": {
+        "value": "2025-03-31",
+        "evidence": {
+          "origin": "tier0",
+          "status": null,
+          "repair": [
+            {
+              "tipo": "ripara",
+              "da": "31.03.2025",
+              "a": "2025-03-31"
+            }
+          ],
+          "derivation": [],
+          "invariants": {
+            "passed": 2,
+            "failed": 0,
+            "dettaglio": [
+              {
+                "id": "giorni_inclusivi",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              },
+              {
+                "id": "periodo_ordinato",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              }
+            ]
+          }
+        },
+        "confidence": "alta"
+      },
+      "giorni": {
+        "value": "59",
+        "evidence": {
+          "origin": "tier0",
+          "status": null,
+          "repair": [],
+          "derivation": [],
+          "invariants": {
+            "passed": 1,
+            "failed": 0,
+            "dettaglio": [
+              {
+                "id": "giorni_inclusivi",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              }
+            ]
+          }
+        },
+        "confidence": "alta"
+      },
+      "kwh_totale": {
+        "value": "198.70",
+        "evidence": {
+          "origin": "tier0",
+          "status": null,
+          "repair": [
+            {
+              "tipo": "ripara",
+              "da": "198,70",
+              "a": "198.70"
+            }
+          ],
+          "derivation": [],
+          "invariants": {
+            "passed": 2,
+            "failed": 0,
+            "dettaglio": [
+              {
+                "id": "somma_fasce",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              },
+              {
+                "id": "kwh_totale_non_negativo",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              }
+            ]
+          }
+        },
+        "confidence": "alta"
+      },
+      "kwh_f1": {
+        "value": "198.70",
+        "evidence": {
+          "origin": "tier0",
+          "status": null,
+          "repair": [
+            {
+              "tipo": "ripara",
+              "da": "198,70",
+              "a": "198.70"
+            }
+          ],
+          "derivation": [],
+          "invariants": {
+            "passed": 2,
+            "failed": 0,
+            "dettaglio": [
+              {
+                "id": "somma_fasce",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              },
+              {
+                "id": "kwh_f1_non_negativo",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              }
+            ]
+          }
+        },
+        "confidence": "alta"
+      },
+      "kwh_f2": {
+        "value": "0.00",
+        "evidence": {
+          "origin": "tier0",
+          "status": null,
+          "repair": [
+            {
+              "tipo": "ripara",
+              "da": "0,00",
+              "a": "0.00"
+            }
+          ],
+          "derivation": [],
+          "invariants": {
+            "passed": 2,
+            "failed": 0,
+            "dettaglio": [
+              {
+                "id": "somma_fasce",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              },
+              {
+                "id": "kwh_f2_non_negativo",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              }
+            ]
+          }
+        },
+        "confidence": "alta"
+      },
+      "kwh_f3": {
+        "value": "0.00",
+        "evidence": {
+          "origin": "tier0",
+          "status": null,
+          "repair": [
+            {
+              "tipo": "ripara",
+              "da": "0,00",
+              "a": "0.00"
+            }
+          ],
+          "derivation": [],
+          "invariants": {
+            "passed": 2,
+            "failed": 0,
+            "dettaglio": [
+              {
+                "id": "somma_fasce",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              },
+              {
+                "id": "kwh_f3_non_negativo",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              }
+            ]
+          }
+        },
+        "confidence": "alta"
+      },
+      "importo_totale": {
+        "value": "77.89",
+        "evidence": {
+          "origin": "tier0",
+          "status": null,
+          "repair": [
+            {
+              "tipo": "ripara",
+              "da": "77,89",
+              "a": "77.89"
+            }
+          ],
+          "derivation": [],
+          "invariants": {
+            "passed": 1,
+            "failed": 0,
+            "dettaglio": [
+              {
+                "id": "importo_totale_non_negativo",
+                "esito": "pass",
+                "severita": "warning",
+                "messaggio": null
+              }
+            ]
+          }
+        },
+        "confidence": "alta"
+      }
+    },
+    "esito": "pass",
+    "motivo": null,
+    "costo_tier1_usd": 0.0,
+    "tier1_errore": null
+  }
+]

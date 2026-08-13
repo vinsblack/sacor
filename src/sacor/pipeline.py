@@ -96,7 +96,19 @@ def _provider_tier1_default() -> ModelProvider:
     # Import pigro (stesso pattern di scripts/bakeoff.py::_provider_per_
     # modello): l'SDK Anthropic e la chiave API non servono a chi usa solo
     # tier0 (default), che e' la maggioranza dei casi.
-    from sacor.providers.anthropic import AnthropicProvider
+    #
+    # Adoption report v1, P0#1: `pip install sacor` non include l'extra
+    # 'providers' (anthropic/openai) — senza questo except, --tier1 crashava
+    # con un ModuleNotFoundError grezzo invece di passare per ErroreProvider
+    # come ogni altro fallimento tier1 (chiave mancante, rete, ecc.).
+    try:
+        from sacor.providers.anthropic import AnthropicProvider
+    except ModuleNotFoundError as exc:
+        raise ErroreProvider(
+            "tier1 richiede la dipendenza opzionale anthropic, non "
+            f"installata ({exc.name}). Installala con: "
+            'pip install "sacor[providers]"'
+        ) from exc
 
     return AnthropicProvider(MODELLO_TIER1)
 

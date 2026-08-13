@@ -5,6 +5,7 @@ single-file, prima esistevano solo script batch guidati da oracle
 from __future__ import annotations
 
 import random
+import sys
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -159,6 +160,26 @@ def test_tier1_errore_provider_non_esplode_e_si_vede_nel_risultato(tmp_path: Pat
     assert risultato.valori["fornitore"] is None
     assert risultato.tier1_errore is not None
     assert risultato.costo_tier1_usd == 0.0
+
+
+def test_tier1_senza_anthropic_installato_non_esplode_con_traceback(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Adoption report v1, P0#1: `sacor extract file.pdf --tier1` senza il
+    package anthropic installato (extra 'providers' non richiesto da
+    `pip install sacor`) crashava con ModuleNotFoundError grezzo invece di
+    passare per ErroreProvider come ogni altro fallimento tier1."""
+    monkeypatch.delitem(sys.modules, "sacor.providers.anthropic", raising=False)
+    monkeypatch.setitem(sys.modules, "anthropic", None)
+    schema = load(SCHEMA_PATH)
+    schema_senza_fornitore = _schema_senza_estrazione(schema, "fornitore")
+    pdf_bytes, _, _ = genera_documento(random.Random(70), "S099", "Alfa Energia", Flags())
+    path = _scrivi(tmp_path, "S099.pdf", pdf_bytes)
+
+    (risultato,) = estrai_file(path, schema_senza_fornitore, usa_tier1=True)
+
+    assert risultato.tier1_errore is not None
+    assert "sacor[providers]" in risultato.tier1_errore
 
 
 def test_confidenza_bassa_su_campo_coinvolto_in_invariante_violata(tmp_path: Path) -> None:

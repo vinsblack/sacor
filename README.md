@@ -56,15 +56,23 @@ can't verify is worth more than one that's silently wrong.
 ## Quick start
 
 ```bash
-sacor extract bolletta.pdf
+pip install sacor
+curl -sO https://raw.githubusercontent.com/vinsblack/sacor/master/examples/sample.pdf
+sacor extract sample.pdf
 ```
+
+`sample.pdf` is a synthetic bill ([`examples/`](examples/)) — no real
+data, no setup, tier0 only. Expected output:
+[`examples/sample-output.json`](examples/sample-output.json).
 
 Tier0 (regex, deterministic) always runs, free. `--tier1` opts into
 an AI pass (claude-opus-5) for fields tier0 couldn't resolve — real
-API cost, `ANTHROPIC_API_KEY` required, never automatic:
+API cost, `ANTHROPIC_API_KEY` required, needs the optional provider
+dependency, never automatic:
 
 ```bash
-sacor extract bolletta.pdf --tier1
+pip install "sacor[providers]"
+sacor extract sample.pdf --tier1
 ```
 
 Full output shape and field-by-field evidence: see [Evidence
